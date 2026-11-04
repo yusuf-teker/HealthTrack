@@ -7,6 +7,7 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
@@ -141,7 +142,7 @@ data class PullResponsePayload(
 
 class HealthApiClient(
     private val tokenStorage: TokenStorage,
-    private val baseUrl: String = "http://10.0.2.2:8080" // Default for Android Emulator to localhost, or Render URL
+    private val baseUrl: String = "https://pulse-7b4z.onrender.com" // Planora Render backend
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -187,7 +188,8 @@ class HealthApiClient(
         if (response.status.isSuccess()) {
             response.body<FoodAiResultDto>()
         } else {
-            throw RuntimeException("Yemek AI analizi başarısız: HTTP ${response.status.value}")
+            val errBody = runCatching { response.bodyAsText() }.getOrNull()?.take(200)
+            throw RuntimeException("Yemek AI analizi başarısız (HTTP ${response.status.value}): ${errBody ?: ""}")
         }
     }
 
@@ -199,7 +201,8 @@ class HealthApiClient(
         if (response.status.isSuccess()) {
             response.body<WorkoutAiResultDto>()
         } else {
-            throw RuntimeException("Spor AI analizi başarısız: HTTP ${response.status.value}")
+            val errBody = runCatching { response.bodyAsText() }.getOrNull()?.take(200)
+            throw RuntimeException("Spor AI analizi başarısız (HTTP ${response.status.value}): ${errBody ?: ""}")
         }
     }
 

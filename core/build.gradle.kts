@@ -45,8 +45,25 @@ kotlin {
             api(libs.multiplatform.settings)
             api(libs.multiplatform.settings.no.arg)
         }
+        androidMain.dependencies {
+            api(libs.ktor.client.okhttp)
+        }
+        iosMain.dependencies {
+            api(libs.ktor.client.darwin)
+        }
+        jvmMain.dependencies {
+            api(libs.ktor.client.cio)
+        }
+        jsMain.dependencies {
+            api(libs.ktor.client.js)
+        }
+        wasmJsMain.dependencies {
+            api(libs.ktor.client.js)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.multiplatform.settings.test)
         }
     }
 }

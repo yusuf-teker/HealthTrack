@@ -19,3 +19,17 @@ captures
 node_modules/
 kotlin-js-store/
 
+# Keystores and signing certificates
+*.jks
+*.keystore
+*.p8
+*.p12
+
+# OS metadata
+**/.DS_Store
+Thumbs.db
+
+# Dumps and crash logs
+*.hprof
+*.log
+
