@@ -10,6 +10,7 @@ import com.yusufteker.healthtrack.core.model.AttachmentType
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -185,5 +186,5 @@ class AppointmentViewModel(
         }
     }
 
-    private fun currentTime(): Long = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds + 1720000000000L
+    private fun currentTime(): Long = currentTimeMillis()
 }

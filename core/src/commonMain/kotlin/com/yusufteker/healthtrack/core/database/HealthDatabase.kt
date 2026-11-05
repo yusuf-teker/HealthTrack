@@ -27,6 +27,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     private val _workoutsFlow = MutableStateFlow<List<WorkoutLog>>(loadList(KEY_WORKOUTS))
     private val _weightsFlow = MutableStateFlow<List<WeightEntry>>(loadList(KEY_WEIGHTS))
     private val _appointmentsFlow = MutableStateFlow<List<AppointmentEntry>>(loadList(KEY_APPOINTMENTS))
+    private val _customFoodsFlow = MutableStateFlow<List<CustomFoodItem>>(loadList(KEY_CUSTOM_FOODS))
+    private val _favoriteFoodsFlow = MutableStateFlow<Map<Int, List<String>>>(loadMap(KEY_FAVORITE_FOODS))
 
     // ─────────────────────────────────────────────────────────────
     // FOOD OPERATIONS
@@ -88,6 +90,57 @@ class HealthDatabase(private val settings: Settings = Settings()) {
             _foodsFlow.value = current
             saveList(KEY_FOODS, current)
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // CUSTOM FOODS & FAVORITES OPERATIONS
+    // ─────────────────────────────────────────────────────────────
+
+    fun observeCustomFoods(userId: Int): Flow<List<CustomFoodItem>> {
+        return _customFoodsFlow.map { list ->
+            list.filter { it.userId == userId || it.userId == 0 }
+                .sortedByDescending { it.updatedAt }
+        }
+    }
+
+    suspend fun upsertCustomFood(item: CustomFoodItem) {
+        val current = _customFoodsFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.id == item.id }
+        if (index >= 0) {
+            current[index] = item
+        } else {
+            current.add(0, item)
+        }
+        _customFoodsFlow.value = current
+        saveList(KEY_CUSTOM_FOODS, current)
+    }
+
+    suspend fun deleteCustomFood(id: String) {
+        val current = _customFoodsFlow.value.filter { it.id != id }
+        _customFoodsFlow.value = current
+        saveList(KEY_CUSTOM_FOODS, current)
+    }
+
+    fun observeFavoriteFoodIds(userId: Int): Flow<Set<String>> {
+        return _favoriteFoodsFlow.map { map ->
+            (map[userId] ?: emptyList()).toSet()
+        }
+    }
+
+    suspend fun toggleFavoriteFood(userId: Int, foodId: String): Boolean {
+        val current = _favoriteFoodsFlow.value.toMutableMap()
+        val userFavorites = (current[userId] ?: emptyList()).toMutableList()
+        val isNowFavorite = if (userFavorites.contains(foodId)) {
+            userFavorites.remove(foodId)
+            false
+        } else {
+            userFavorites.add(foodId)
+            true
+        }
+        current[userId] = userFavorites
+        _favoriteFoodsFlow.value = current
+        saveMap(KEY_FAVORITE_FOODS, current)
+        return isNowFavorite
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -189,18 +242,29 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     // WEIGHT OPERATIONS
     // ─────────────────────────────────────────────────────────────
 
+    fun getWeights(userId: Int): List<WeightEntry> = _weightsFlow.value.filter { it.userId == userId && !it.isDeleted }
+
     fun observeWeights(userId: Int): Flow<List<WeightEntry>> {
         return _weightsFlow.map { list ->
             list.filter { it.userId == userId && !it.isDeleted }
+                .groupBy { it.date }
+                .map { (_, entries) -> entries.maxByOrNull { it.updatedAt } ?: entries.first() }
                 .sortedBy { it.date }
         }
     }
 
     suspend fun upsertWeight(weight: WeightEntry) {
         val current = _weightsFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.id == weight.id }
+        val index = current.indexOfFirst {
+            it.id == weight.id || (it.userId == weight.userId && it.date == weight.date && !it.isDeleted)
+        }
         if (index >= 0) {
-            current[index] = weight
+            val existing = current[index]
+            current[index] = weight.copy(
+                id = existing.id,
+                createdAt = existing.createdAt,
+                updatedAt = if (weight.updatedAt > existing.updatedAt) weight.updatedAt else currentTimeMillis()
+            )
         } else {
             current.add(weight)
         }
@@ -421,7 +485,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         } catch (_: Exception) {}
     }
 
-    private fun currentTimeMillis(): Long = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds + 1720000000000L
+    private fun currentTimeMillis(): Long = com.yusufteker.healthtrack.core.utils.currentTimeMillis()
 
     companion object {
         private const val KEY_FOODS = "ht_db_foods"
@@ -429,5 +493,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         private const val KEY_WORKOUTS = "ht_db_workouts"
         private const val KEY_WEIGHTS = "ht_db_weights"
         private const val KEY_APPOINTMENTS = "ht_db_appointments"
+        private const val KEY_CUSTOM_FOODS = "ht_db_custom_foods"
+        private const val KEY_FAVORITE_FOODS = "ht_db_favorite_foods"
     }
 }

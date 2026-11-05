@@ -1,8 +1,10 @@
 package com.yusufteker.healthtrack
 
+import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.FoodLog
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.model.calculateProteinTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -47,5 +49,24 @@ class CalorieCalculationTest {
         val dailyTarget = 2000
         val remainingToTarget = dailyTarget - netCalories
         assertEquals(600, remainingToTarget)
+    }
+
+    @Test
+    fun testDynamicProteinTargetByFitnessGoalAndWeight() {
+        // User is 90 kg and wants to build muscle (kaslanma: 1.4x body weight)
+        val muscleProtein = calculateProteinTarget(90.0, FitnessGoal.BUILD_MUSCLE)
+        assertEquals(126.0, muscleProtein, 0.01)
+
+        // User is 80 kg and wants to maintain (sabit kalma: 1.0x body weight - at least equal to body weight)
+        val maintainProtein = calculateProteinTarget(80.0, FitnessGoal.MAINTAIN)
+        assertEquals(80.0, maintainProtein, 0.01)
+
+        // User is 80 kg and wants to lose weight (kilo verme: 1.2x body weight to preserve muscle in deficit)
+        val loseWeightProtein = calculateProteinTarget(80.0, FitnessGoal.LOSE_WEIGHT)
+        assertEquals(96.0, loseWeightProtein, 0.01)
+
+        // Dynamic change on another day when weight is 89.5 kg
+        val dynamicMuscleProtein = calculateProteinTarget(89.5, FitnessGoal.BUILD_MUSCLE)
+        assertEquals(125.3, dynamicMuscleProtein, 0.01)
     }
 }

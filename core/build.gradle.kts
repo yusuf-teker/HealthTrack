@@ -44,6 +44,7 @@ kotlin {
             api(libs.koin.core)
             api(libs.multiplatform.settings)
             api(libs.multiplatform.settings.no.arg)
+            api(libs.napier)
         }
         androidMain.dependencies {
             api(libs.ktor.client.okhttp)

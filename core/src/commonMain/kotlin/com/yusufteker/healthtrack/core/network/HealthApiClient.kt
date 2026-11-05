@@ -1,9 +1,12 @@
 package com.yusufteker.healthtrack.core.network
 
 import com.yusufteker.healthtrack.core.model.*
+import io.github.aakira.napier.Napier
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.auth.*
+import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
@@ -155,14 +158,75 @@ class HealthApiClient(
             json(this@HealthApiClient.json)
         }
         install(HttpTimeout) {
-            requestTimeoutMillis = 20_000
-            connectTimeoutMillis = 15_000
+            requestTimeoutMillis = 45_000
+            connectTimeoutMillis = 20_000
+            socketTimeoutMillis = 45_000
         }
         defaultRequest {
             url(baseUrl)
-            tokenStorage.getAccessToken()?.let { token ->
-                if (token.isNotBlank()) {
-                    header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        install(Logging) {
+            logger = object : Logger {
+                override fun log(message: String) {
+                    Napier.d(message = message, tag = "HTTP_LOG")
+                }
+            }
+            level = LogLevel.ALL
+            sanitizeHeader { header ->
+                header.equals(HttpHeaders.Authorization, ignoreCase = true) ||
+                header.equals(HttpHeaders.Cookie, ignoreCase = true)
+            }
+        }
+        install(Auth) {
+            bearer {
+                sendWithoutRequest { request ->
+                    val path = request.url.encodedPath
+                    !path.contains("auth/login") && !path.contains("auth/register") && !path.contains("auth/refresh")
+                }
+
+                loadTokens {
+                    val accessToken = tokenStorage.getAccessToken()
+                    val refreshToken = tokenStorage.getRefreshToken()
+                    if (!accessToken.isNullOrBlank()) {
+                        BearerTokens(accessToken, refreshToken ?: "")
+                    } else {
+                        null
+                    }
+                }
+
+                refreshTokens {
+                    val refreshToken = tokenStorage.getRefreshToken() ?: return@refreshTokens null
+                    try {
+                        val response = client.post("/auth/refresh") {
+                            markAsRefreshTokenRequest()
+                            contentType(ContentType.Application.Json)
+                            setBody(RefreshTokenRequest(refreshToken))
+                        }
+                        if (response.status.isSuccess()) {
+                            val authResponse = response.body<AuthResponse>()
+                            tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
+                            BearerTokens(authResponse.accessToken, authResponse.refreshToken)
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        null
+                    }
+                }
+            }
+        }
+    }
+
+    init {
+        httpClient.requestPipeline.intercept(HttpRequestPipeline.State) {
+            val path = context.url.buildString()
+            val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/refresh")
+            if (!isAuthEndpoint) {
+                val token = tokenStorage.getAccessToken()
+                if (!token.isNullOrBlank()) {
+                    context.headers.remove(HttpHeaders.Authorization)
+                    context.headers.append(HttpHeaders.Authorization, "Bearer $token")
                 }
             }
         }

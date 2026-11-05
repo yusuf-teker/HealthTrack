@@ -13,6 +13,7 @@ kotlin {
 dependencies {
     implementation(project(":app:shared"))
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.napier)
 
     implementation(libs.androidx.activity.compose)
 
@@ -51,5 +52,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }

@@ -3,6 +3,7 @@ package com.yusufteker.healthtrack.core.sync
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.*
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,7 @@ class SyncEngine(
         }
 
         _syncState.value = SyncState.Syncing
+        Napier.d("SYNC: Senkronizasyon başlatılıyor (userId=$userId)...", tag = "SYNC_LOG")
 
         try {
             // ── 1. GATHER PENDING LOCAL CHANGES ──
@@ -121,10 +123,13 @@ class SyncEngine(
             if (hasPending) {
                 val pushResult = apiClient.pushSync(pushPayload)
                 if (pushResult.isFailure) {
-                    _syncState.value = SyncState.Error("Push hatası: ${pushResult.exceptionOrNull()?.message}")
+                    val err = pushResult.exceptionOrNull()?.message
+                    Napier.e("SYNC: Push hatası: $err", pushResult.exceptionOrNull(), tag = "SYNC_LOG")
+                    _syncState.value = SyncState.Error("Push hatası: $err")
                     return false
                 }
                 val pushResponse = pushResult.getOrThrow()
+                Napier.d("SYNC: Push başarılı. Senkronlanan: foods=${pushResponse.syncedFoodIds.size}, workouts=${pushResponse.syncedWorkoutIds.size}, weights=${pushResponse.syncedWeightIds.size}", tag = "SYNC_LOG")
                 database.markFoodsSynced(pushResponse.syncedFoodIds)
                 if (pushResponse.syncedNutritionGoalId != null) {
                     database.markNutritionGoalSynced(userId)
@@ -138,11 +143,14 @@ class SyncEngine(
             val lastSyncTs = tokenStorage.getLastSyncTimestamp()
             val pullResult = apiClient.pullSync(lastSyncTs)
             if (pullResult.isFailure) {
-                _syncState.value = SyncState.Error("Pull hatası: ${pullResult.exceptionOrNull()?.message}")
+                val err = pullResult.exceptionOrNull()?.message
+                Napier.e("SYNC: Pull hatası: $err", pullResult.exceptionOrNull(), tag = "SYNC_LOG")
+                _syncState.value = SyncState.Error("Pull hatası: $err")
                 return false
             }
 
             val pullData = pullResult.getOrThrow()
+            Napier.d("SYNC: Pull başarılı. Gelen: foods=${pullData.foods.size}, workouts=${pullData.workouts.size}, weights=${pullData.weights.size}, appointments=${pullData.appointments.size}", tag = "SYNC_LOG")
 
             // Merge Foods
             database.mergePullFoods(pullData.foods.map {
@@ -241,8 +249,10 @@ class SyncEngine(
             }
 
             _syncState.value = SyncState.Success("Veriler başarıyla senkronize edildi.")
+            Napier.i("SYNC: Senkronizasyon başarıyla tamamlandı.", tag = "SYNC_LOG")
             return true
         } catch (e: Exception) {
+            Napier.e("SYNC: Senkronizasyon hatası: ${e.message}", e, tag = "SYNC_LOG")
             _syncState.value = SyncState.Error("Senkronizasyon hatası: ${e.message}")
             return false
         }

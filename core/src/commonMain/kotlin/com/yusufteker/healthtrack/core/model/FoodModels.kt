@@ -11,7 +11,7 @@ data class Micronutrient(
 
 @Serializable
 data class FoodItem(
-    val id: String,
+    val id: String = "",
     val name: String,
     val formattedPortion: String,
     val calories: Int,
@@ -35,4 +35,22 @@ data class FoodLog(
     val updatedAt: Long = 0L,
     val isDeleted: Boolean = false,
     val syncStatus: SyncStatus = SyncStatus.PENDING
+)
+
+@Serializable
+data class CustomFoodItem(
+    val id: String,
+    val userId: Int = 0,
+    val name: String,
+    val brand: String? = null,
+    val portionUnit: String, // e.g. "500ml (1 Kutu)", "100g", "1 Dilim", "1 Adet"
+    val unitStep: Int = 1,
+    val calories: Int,
+    val proteinG: Double = 0.0,
+    val carbsG: Double = 0.0,
+    val fatG: Double = 0.0,
+    val fiberG: Double = 0.0,
+    val categoryName: String = "ALL",
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )

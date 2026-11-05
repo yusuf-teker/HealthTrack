@@ -6,10 +6,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,9 +32,45 @@ fun FoodTableCard(
     totalCalories: Int,
     summary: String?,
     onRemoveItem: (String) -> Unit,
+    onClearAll: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
+    var showClearConfirmation by remember { mutableStateOf(false) }
+
+    if (showClearConfirmation && onClearAll != null) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = {
+                Text(
+                    text = "Tümünü Sil",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Bugünkü tüm yemek kayıtlarını silmek istediğinize emin misiniz?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showClearConfirmation = false
+                        onClearAll()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Sil", color = MaterialTheme.colorScheme.onError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmation = false }) {
+                    Text("İptal")
+                }
+            }
+        )
+    }
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -69,18 +106,37 @@ fun FoodTableCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "${items.size} Öğe Kayıtlı",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "${items.size} Öğe Kayıtlı",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (items.isNotEmpty() && onClearAll != null) {
+                        IconButton(
+                            onClick = { showClearConfirmation = true },
+                            modifier = Modifier.size(28.dp).bounceClick()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Tümünü Sil",
+                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -136,7 +192,7 @@ fun FoodTableCard(
                     items.forEach { item ->
                         FoodTableRowItem(
                             item = item,
-                            onRemove = { onRemoveItem(item.name) }
+                            onRemove = { onRemoveItem(item.id.ifBlank { item.name }) }
                         )
                     }
 
@@ -227,13 +283,13 @@ private fun FoodTableRowItem(
 
             IconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(26.dp).bounceClick()
+                modifier = Modifier.size(32.dp).bounceClick()
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Sil",
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp)
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

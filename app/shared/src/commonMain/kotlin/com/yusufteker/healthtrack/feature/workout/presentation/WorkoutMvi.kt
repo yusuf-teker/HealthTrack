@@ -1,9 +1,10 @@
 package com.yusufteker.healthtrack.feature.workout.presentation
 
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.utils.getTodayIso
 
 data class WorkoutState(
-    val selectedDate: String = "2026-11-04",
+    val selectedDate: String = getTodayIso(),
     val rawText: String = "",
     val manualCalories: String = "",
     val manualDuration: String = "",

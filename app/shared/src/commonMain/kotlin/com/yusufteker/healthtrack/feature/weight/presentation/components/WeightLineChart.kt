@@ -3,11 +3,12 @@ package com.yusufteker.healthtrack.feature.weight.presentation.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,15 +18,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
+import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
+import kotlin.math.abs
 
 /**
  * Stitch Luxury Interactive Weight Trajectory Line Chart with bioluminescent area glow and neon curve.
@@ -39,9 +43,16 @@ fun WeightLineChart(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
+    var selectedIndex by remember(entries, selectedPeriod) { mutableStateOf<Int?>(null) }
+
     val latestEntry = entries.lastOrNull()
-    val prevEntry = if (entries.size > 1) entries[entries.size - 2] else null
-    val deltaFromPrev = if (latestEntry != null && prevEntry != null) latestEntry.weightKg - prevEntry.weightKg else null
+    val activeEntry = if (selectedIndex != null && selectedIndex!! in entries.indices) entries[selectedIndex!!] else latestEntry
+    val activePrevEntry = if (selectedIndex != null && selectedIndex!! > 0) entries[selectedIndex!! - 1] else if (entries.size > 1) entries[entries.size - 2] else null
+
+    val periodDelta = if (entries.size >= 2) entries.last().weightKg - entries.first().weightKg else null
+    val deltaToDisplay = if (selectedIndex != null) {
+        if (activePrevEntry != null && activeEntry != null) activeEntry.weightKg - activePrevEntry.weightKg else null
+    } else periodDelta
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -68,9 +79,9 @@ fun WeightLineChart(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Trend & İnterpolasyon",
+                        text = if (selectedIndex != null) "Noktaya dokunuldu" else "Trend & İnterpolasyon",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selectedIndex != null) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -85,28 +96,40 @@ fun WeightLineChart(
                     PeriodPill(
                         label = "Hafta",
                         selected = selectedPeriod == WeightChartPeriod.WEEKLY,
-                        onClick = { onPeriodSelect(WeightChartPeriod.WEEKLY) }
+                        onClick = {
+                            selectedIndex = null
+                            onPeriodSelect(WeightChartPeriod.WEEKLY)
+                        }
                     )
                     PeriodPill(
                         label = "Ay",
                         selected = selectedPeriod == WeightChartPeriod.MONTHLY,
-                        onClick = { onPeriodSelect(WeightChartPeriod.MONTHLY) }
+                        onClick = {
+                            selectedIndex = null
+                            onPeriodSelect(WeightChartPeriod.MONTHLY)
+                        }
                     )
                     PeriodPill(
                         label = "Yıl",
                         selected = selectedPeriod == WeightChartPeriod.YEARLY,
-                        onClick = { onPeriodSelect(WeightChartPeriod.YEARLY) }
+                        onClick = {
+                            selectedIndex = null
+                            onPeriodSelect(WeightChartPeriod.YEARLY)
+                        }
                     )
                     PeriodPill(
                         label = "Tümü",
                         selected = selectedPeriod == WeightChartPeriod.ALL,
-                        onClick = { onPeriodSelect(WeightChartPeriod.ALL) }
+                        onClick = {
+                            selectedIndex = null
+                            onPeriodSelect(WeightChartPeriod.ALL)
+                        }
                     )
                 }
             }
 
             // Active Tooltip Callout Overlay matching Stitch
-            if (latestEntry != null) {
+            if (activeEntry != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -127,7 +150,7 @@ fun WeightLineChart(
                                 .background(HealthColors.Primary)
                         )
                         Text(
-                            text = "Son: ${latestEntry.date}",
+                            text = if (selectedIndex != null) "Seçilen: ${formatDisplayDateTr(activeEntry.date)}" else "Son: ${formatDisplayDateTr(activeEntry.date)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -138,18 +161,30 @@ fun WeightLineChart(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "${latestEntry.weightKg} kg",
+                            text = "${activeEntry.weightKg} kg",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = HealthColors.Primary
                         )
-                        if (deltaFromPrev != null) {
-                            val roundedDelta = ((deltaFromPrev * 10).toInt()) / 10.0
+                        if (deltaToDisplay != null) {
+                            val roundedDelta = ((deltaToDisplay * 10).toInt()) / 10.0
                             val sign = if (roundedDelta > 0) "+" else ""
+                            val suffix = if (selectedIndex != null) "önceki güne göre" else when (selectedPeriod) {
+                                WeightChartPeriod.WEEKLY -> "bu hafta"
+                                WeightChartPeriod.MONTHLY -> "bu ay"
+                                WeightChartPeriod.YEARLY -> "bu yıl"
+                                WeightChartPeriod.ALL -> "toplam"
+                            }
                             Text(
-                                text = "($sign$roundedDelta kg)",
+                                text = "($sign$roundedDelta kg $suffix)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (roundedDelta <= 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                            )
+                        } else if (selectedIndex == null && entries.size == 1) {
+                            Text(
+                                text = "(Kayıtlı)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -185,6 +220,21 @@ fun WeightLineChart(
                         .fillMaxWidth()
                         .height(190.dp)
                         .padding(horizontal = 4.dp, vertical = 8.dp)
+                        .pointerInput(entries) {
+                            detectTapGestures { offset ->
+                                if (entries.isNotEmpty()) {
+                                    val canvasW = size.width.toFloat()
+                                    val stepX = if (entries.size > 1) canvasW / (entries.size - 1) else canvasW / 2f
+                                    val closestIndex = entries.indices.minByOrNull { i ->
+                                        val nodeX = if (entries.size > 1) i.toFloat() * stepX else canvasW / 2f
+                                        abs(nodeX - offset.x)
+                                    }
+                                    if (closestIndex != null) {
+                                        selectedIndex = if (selectedIndex == closestIndex) null else closestIndex
+                                    }
+                                }
+                            }
+                        }
                 ) {
                     val width = size.width
                     val height = size.height
@@ -261,23 +311,28 @@ fun WeightLineChart(
                         )
 
                         // 6. Interactive Biometric Nodes
-                        points.forEach { pt ->
+                        points.forEachIndexed { index, pt ->
+                            val isSelected = index == selectedIndex
+                            val haloRadius = if (isSelected) 12.dp.toPx() else 7.dp.toPx()
+                            val ringRadius = if (isSelected) 6.5.dp.toPx() else 4.5.dp.toPx()
+                            val coreRadius = if (isSelected) 4.5.dp.toPx() else 3.dp.toPx()
+
                             // Outer Halo
                             drawCircle(
-                                color = primaryColor.copy(alpha = 0.3f),
-                                radius = 7.dp.toPx(),
+                                color = if (isSelected) primaryColor.copy(alpha = 0.5f) else primaryColor.copy(alpha = 0.3f),
+                                radius = haloRadius,
                                 center = pt
                             )
                             // Outer Ring
                             drawCircle(
                                 color = if (isDark) HealthColors.BackgroundDark else Color.White,
-                                radius = 4.5.dp.toPx(),
+                                radius = ringRadius,
                                 center = pt
                             )
                             // Core
                             drawCircle(
                                 color = primaryColor,
-                                radius = 3.dp.toPx(),
+                                radius = coreRadius,
                                 center = pt
                             )
                         }

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +55,7 @@ fun NutrientBarsView(
         ) {
             Column {
                 Text(
-                    text = "Günlük Besin Hedefleri",
+                    text = "Mikro Besinler & Hedefler",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -82,14 +83,18 @@ fun NutrientBarsView(
             }
         }
 
-        // Horizontally Scrollable Luxury Capsule Strip
+        val displayBars = remember(bars) {
+            bars.filter { it.key !in setOf("calories", "protein", "carbs", "fat") }
+        }
+
+        // Horizontally Scrollable Luxury Compact Capsule Strip
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            bars.forEach { nutrient ->
+            displayBars.forEach { nutrient ->
                 NutrientCapsulePill(nutrient = nutrient)
             }
         }
@@ -111,14 +116,14 @@ private fun NutrientCapsulePill(
     val (groupColor, icon) = getNutrientGroupVisuals(nutrient.label)
 
     GlassCard(
-        modifier = modifier.width(78.dp),
-        shape = RoundedCornerShape(20.dp),
-        elevation = 6.dp
+        modifier = modifier.width(66.dp),
+        shape = RoundedCornerShape(18.dp),
+        elevation = 4.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 6.dp),
+                .padding(vertical = 8.dp, horizontal = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -126,27 +131,27 @@ private fun NutrientCapsulePill(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "${nutrient.percentage.toInt()}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "%",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Capsule Outer Well (Height = 130.dp, Width = 38.dp)
+            // Capsule Outer Well (Height = 54.dp, Width = 26.dp)
             Box(
                 modifier = Modifier
-                    .width(36.dp)
-                    .height(130.dp)
+                    .width(26.dp)
+                    .height(54.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .background(if (isDark) HealthColors.SurfaceContainerLowest else HealthColors.SurfaceVariantLight)
-                    .padding(3.dp),
+                    .padding(2.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 // Filled Column
@@ -169,9 +174,9 @@ private fun NutrientCapsulePill(
                         // Glossy Specular Highlight Dot on top of liquid
                         Box(
                             modifier = Modifier
-                                .padding(top = 3.dp)
-                                .width(12.dp)
-                                .height(3.dp)
+                                .padding(top = 2.dp)
+                                .width(8.dp)
+                                .height(2.5.dp)
                                 .clip(RoundedCornerShape(999.dp))
                                 .background(Color.White.copy(alpha = 0.7f))
                         )
@@ -179,12 +184,12 @@ private fun NutrientCapsulePill(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Icon Pod
             Box(
                 modifier = Modifier
-                    .size(26.dp)
+                    .size(22.dp)
                     .clip(CircleShape)
                     .background(if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight),
                 contentAlignment = Alignment.Center
@@ -193,11 +198,11 @@ private fun NutrientCapsulePill(
                     imageVector = icon,
                     contentDescription = null,
                     tint = groupColor,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(13.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             // Label
             Text(
@@ -213,7 +218,7 @@ private fun NutrientCapsulePill(
             val formattedValue = ((nutrient.current * 10).toInt() / 10.0)
             Text(
                 text = "$formattedValue/${nutrient.target.toInt()}${nutrient.unit}",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 9.sp),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 textAlign = TextAlign.Center
@@ -222,7 +227,7 @@ private fun NutrientCapsulePill(
     }
 }
 
-private fun getNutrientGroupVisuals(name: String): Pair<Color, ImageVector> {
+internal fun getNutrientGroupVisuals(name: String): Pair<Color, ImageVector> {
     return when (name.lowercase()) {
         "kalori" -> HealthColors.Primary to Icons.Default.Bolt
         "protein" -> HealthColors.NutrientProtein to Icons.Default.FitnessCenter

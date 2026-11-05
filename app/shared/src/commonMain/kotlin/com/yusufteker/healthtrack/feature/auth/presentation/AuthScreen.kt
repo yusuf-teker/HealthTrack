@@ -27,6 +27,7 @@ import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
+import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
 @Composable
 fun AuthScreen(
@@ -40,6 +41,7 @@ fun AuthScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .clearFocusOnTap()
             .imePadding(),
         contentAlignment = Alignment.Center
     ) {

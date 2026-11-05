@@ -23,7 +23,9 @@ class WorkoutViewModel(
     private val syncEngine: SyncEngine
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(WorkoutState())
+    private val _state = MutableStateFlow(
+        WorkoutState(userWeightKg = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 75.0)
+    )
     val state: StateFlow<WorkoutState> = _state.asStateFlow()
 
     private val _effects = Channel<WorkoutEffect>(Channel.BUFFERED)
@@ -103,6 +105,11 @@ class WorkoutViewModel(
                 val latest = weightList.maxByOrNull { it.date }
                 if (latest != null) {
                     _state.update { it.copy(userWeightKg = latest.weightKg) }
+                } else {
+                    val fallback = tokenStorage.getUserWeight()
+                    if (fallback > 0.0) {
+                        _state.update { it.copy(userWeightKg = fallback) }
+                    }
                 }
             }
         }
@@ -151,17 +158,26 @@ class WorkoutViewModel(
                 launch { syncEngine.sync() }
             }.onFailure { err ->
                 val errorMsg = err.message ?: "Bilinmeyen hata"
+                println("[WorkoutViewModel] analyzeWorkout failure: $errorMsg")
                 val displayMsg = when {
                     errorMsg.contains("404") ->
                         "Sunucuda AI servisi bulunamadı (404). Render üzerinde henüz yeni sürüm deploy edilmemiş olabilir."
                     errorMsg.contains("401") ->
                         "Oturum süresi doldu (401). Lütfen tekrar giriş yapınız."
-                    errorMsg.contains("500") ->
-                        "Sunucu hatası (500). Render sunucusunda GEMINI_API_KEY tanımlı olduğundan emin olunuz."
+                    errorMsg.contains("GEMINI_API_KEY is not configured", ignoreCase = true) ->
+                        "Render sunucusunda GEMINI_API_KEY tanımlı değil."
+                    errorMsg.contains("başarısız (HTTP", ignoreCase = true) -> {
+                        val serverErr = if (errorMsg.contains("\"error\":")) {
+                            errorMsg.substringAfter("\"error\":").substringBefore("}").trim('"', ' ', '\\')
+                        } else {
+                            errorMsg
+                        }
+                        "AI spor analizi başarısız: $serverErr"
+                    }
                     errorMsg.contains("Connect", ignoreCase = true) || errorMsg.contains("timeout", ignoreCase = true) ->
-                        "Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol ediniz veya kalorinizi elle giriniz."
+                        "Sunucuya bağlanılamadı veya zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol ediniz."
                     else ->
-                        "AI hesaplama başarısız: $errorMsg"
+                        "AI spor analizi başarısız: $errorMsg"
                 }
 
                 _state.update {
@@ -216,5 +232,5 @@ class WorkoutViewModel(
         }
     }
 
-    private fun currentTime(): Long = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds + 1720000000000L
+    private fun currentTime(): Long = com.yusufteker.healthtrack.core.utils.currentTimeMillis()
 }

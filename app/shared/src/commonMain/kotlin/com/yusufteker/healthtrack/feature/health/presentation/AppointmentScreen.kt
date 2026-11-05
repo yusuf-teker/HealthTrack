@@ -10,7 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import io.github.aakira.napier.Napier
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -24,7 +26,10 @@ import com.yusufteker.healthtrack.feature.health.presentation.components.AddAtta
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.GlassCard
+import com.yusufteker.healthtrack.ui.components.HealthToastHost
+import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
+import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -35,6 +40,13 @@ fun AppointmentScreen(
     onIntent: (AppointmentIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    LaunchedEffect(state.isAddDialogOpen) {
+        if (state.isAddDialogOpen) Napier.d("SCREEN: AddAppointmentDialog açıldı")
+    }
+    LaunchedEffect(state.isAttachmentDialogOpen) {
+        if (state.isAttachmentDialogOpen) Napier.d("SCREEN: AddAttachmentDialog açıldı")
+    }
+
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
@@ -56,64 +68,20 @@ fun AppointmentScreen(
         },
         modifier = modifier.fillMaxSize()
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── Banners ──
-            state.errorMessage?.let { msg ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = msg,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = { onIntent(AppointmentIntent.OnDismissErrorMessage) }) {
-                            Text("Tamam")
-                        }
-                    }
-                }
-            }
-
-            state.infoMessage?.let { msg ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = msg,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = { onIntent(AppointmentIntent.OnDismissInfoMessage) }) {
-                            Text("Tamam")
-                        }
-                    }
-                }
-            }
-
-            // ── System Status Banner ("Clinical EMR Active & Planora Synced") ──
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .clearFocusOnTap()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ── System Status Banner ("Clinical EMR Active & Planora Synced") ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
@@ -282,7 +250,20 @@ fun AppointmentScreen(
                 }
             }
         }
+
+        // ── Floating Toast Notifications (Auto-dismissing) ──
+        HealthToastHost(
+            message = state.errorMessage,
+            type = ToastType.ERROR,
+            onDismiss = { onIntent(AppointmentIntent.OnDismissErrorMessage) }
+        )
+        HealthToastHost(
+            message = state.infoMessage,
+            type = ToastType.SUCCESS,
+            onDismiss = { onIntent(AppointmentIntent.OnDismissInfoMessage) }
+        )
     }
+}
 
     // Add Dialog
     if (state.isAddDialogOpen) {
@@ -416,16 +397,16 @@ private fun LuxuryAppointmentCard(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = monthName,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = HealthColors.Primary
-                            )
-                            Text(
                                 text = dayNumber,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = monthName,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = HealthColors.Primary
                             )
                             Text(
                                 text = timeStr,

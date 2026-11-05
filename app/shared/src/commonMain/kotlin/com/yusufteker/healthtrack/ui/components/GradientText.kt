@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import com.yusufteker.healthtrack.theme.HealthColors
 
 /**
@@ -22,7 +23,8 @@ fun GradientText(
     text: String,
     modifier: Modifier = Modifier,
     colors: List<Color> = HealthColors.GradientPrimary,
-    style: TextStyle = TextStyle.Default
+    style: TextStyle = TextStyle.Default,
+    textAlign: TextAlign? = null
 ) {
     Text(
         text = text,
@@ -39,7 +41,8 @@ fun GradientText(
                     drawRect(brush = brush, blendMode = BlendMode.SrcIn)
                 }
             },
-        style = style
+        style = style,
+        textAlign = textAlign
     )
 }
 

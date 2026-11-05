@@ -34,7 +34,10 @@ import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.GlassCard
+import com.yusufteker.healthtrack.ui.components.HealthToastHost
+import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
+import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
 @Composable
 fun WorkoutScreen(
@@ -44,73 +47,29 @@ fun WorkoutScreen(
 ) {
     var showManualFields by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Stitch Horizontal Days Strip with Week Badges ──
-        DaysStripSelector(
-            selectedDate = state.selectedDate,
-            onDateSelected = { newDate ->
-                onIntent(WorkoutIntent.OnDateChanged(newDate))
-            }
-        )
-
-        // ── Info & Error Banners ──
-        state.errorMessage?.let { msg ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = msg,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { onIntent(WorkoutIntent.OnDismissErrorMessage) }) {
-                        Text("Tamam")
-                    }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clearFocusOnTap()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // ── Stitch Horizontal Days Strip with Week Badges ──
+            DaysStripSelector(
+                selectedDate = state.selectedDate,
+                onDateSelected = { newDate ->
+                    onIntent(WorkoutIntent.OnDateChanged(newDate))
                 }
-            }
-        }
+            )
 
-        state.infoMessage?.let { msg ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = msg,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { onIntent(WorkoutIntent.OnDismissInfoMessage) }) {
-                        Text("Tamam")
-                    }
-                }
-            }
-        }
-
-        // ── Radial Strain & Calorie Burn Gauge (Hero Card) ──
-        WorkoutStrainHeroCard(state = state)
+            // ── Radial Strain & Calorie Burn Gauge (Hero Card) ──
+            WorkoutStrainHeroCard(state = state)
 
         // ── AI Workout Telemetry Input Section ("AI Natural Log") ──
         GlassCard(
@@ -229,14 +188,16 @@ fun WorkoutScreen(
                         .bounceClick(),
                     shape = RoundedCornerShape(999.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = HealthColors.Primary,
-                        contentColor = HealthColors.OnPrimary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.70f),
+                        disabledContentColor = Color.White
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
                 ) {
                     if (state.isCalculatingAi) {
                         CircularProgressIndicator(
-                            color = HealthColors.OnPrimary,
+                            color = Color.White,
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
@@ -244,15 +205,21 @@ fun WorkoutScreen(
                         Text(
                             "Yakılan Kalori Hesaplanıyor...",
                             fontWeight = FontWeight.Bold,
-                            color = HealthColors.OnPrimary
+                            color = Color.White
                         )
                     } else {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            fontSize = 15.sp,
+                            color = Color.White
                         )
                     }
                 }
@@ -408,6 +375,19 @@ fun WorkoutScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
     }
+
+    // ── Floating Toast Notifications (Auto-dismissing) ──
+    HealthToastHost(
+        message = state.errorMessage,
+        type = ToastType.ERROR,
+        onDismiss = { onIntent(WorkoutIntent.OnDismissErrorMessage) }
+    )
+    HealthToastHost(
+        message = state.infoMessage,
+        type = ToastType.SUCCESS,
+        onDismiss = { onIntent(WorkoutIntent.OnDismissInfoMessage) }
+    )
+}
 }
 
 /**

@@ -9,69 +9,76 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 
 val LocalIsDarkTheme = compositionLocalOf { false }
-
-private val LightColorScheme = lightColorScheme(
-    primary = HealthColors.Primary,
-    onPrimary = HealthColors.OnPrimary,
-    primaryContainer = HealthColors.PrimaryContainer,
-    onPrimaryContainer = HealthColors.OnPrimaryContainer,
-    secondary = HealthColors.Secondary,
-    onSecondary = HealthColors.OnSecondary,
-    secondaryContainer = HealthColors.SecondaryContainer,
-    onSecondaryContainer = HealthColors.OnSecondaryContainer,
-    tertiary = HealthColors.Tertiary,
-    onTertiary = HealthColors.OnTertiary,
-    tertiaryContainer = HealthColors.TertiaryContainer,
-    onTertiaryContainer = HealthColors.OnTertiaryContainer,
-    background = HealthColors.BackgroundLight,
-    onBackground = HealthColors.OnBackgroundLight,
-    surface = HealthColors.SurfaceLight,
-    onSurface = HealthColors.OnSurfaceLight,
-    surfaceVariant = HealthColors.SurfaceVariantLight,
-    onSurfaceVariant = HealthColors.OnSurfaceVariantLight,
-    outline = HealthColors.OutlineLight,
-    outlineVariant = HealthColors.OutlineVariantLight,
-    error = HealthColors.Error,
-    onError = HealthColors.OnError,
-    errorContainer = HealthColors.ErrorContainer,
-    onErrorContainer = HealthColors.OnErrorContainer
-)
-
-private val DarkColorScheme = darkColorScheme(
-    primary = HealthColors.Primary,
-    onPrimary = HealthColors.OnPrimary,
-    primaryContainer = HealthColors.PrimaryVariant,
-    onPrimaryContainer = HealthColors.PrimaryContainer,
-    secondary = HealthColors.Secondary,
-    onSecondary = HealthColors.OnSecondary,
-    secondaryContainer = HealthColors.SecondaryVariant,
-    onSecondaryContainer = HealthColors.SecondaryContainer,
-    tertiary = HealthColors.Tertiary,
-    onTertiary = HealthColors.OnTertiary,
-    tertiaryContainer = HealthColors.TertiaryContainer,
-    onTertiaryContainer = HealthColors.OnTertiaryContainer,
-    background = HealthColors.BackgroundDark,
-    onBackground = HealthColors.OnBackgroundDark,
-    surface = HealthColors.SurfaceDark,
-    onSurface = HealthColors.OnSurfaceDark,
-    surfaceVariant = HealthColors.SurfaceContainerHighest,
-    onSurfaceVariant = HealthColors.OnSurfaceVariantDark,
-    outline = HealthColors.OutlineDark,
-    outlineVariant = HealthColors.OutlineVariantDark,
-    error = HealthColors.Error,
-    onError = HealthColors.OnError,
-    errorContainer = HealthColors.ErrorContainer,
-    onErrorContainer = HealthColors.OnErrorContainer
-)
+val LocalThemeAccent = compositionLocalOf { AppThemeColor.TEAL }
 
 @Composable
 fun HealthTrackTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    themeAccent: AppThemeColor = AppThemeColor.TEAL,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    HealthColors.currentAccent = themeAccent
 
-    CompositionLocalProvider(LocalIsDarkTheme provides darkTheme) {
+    val lightScheme = lightColorScheme(
+        primary = themeAccent.primary,
+        onPrimary = themeAccent.onPrimary,
+        primaryContainer = themeAccent.primaryContainer,
+        onPrimaryContainer = themeAccent.onPrimaryContainer,
+        secondary = HealthColors.Secondary,
+        onSecondary = HealthColors.OnSecondary,
+        secondaryContainer = HealthColors.SecondaryContainer,
+        onSecondaryContainer = HealthColors.OnSecondaryContainer,
+        tertiary = HealthColors.Tertiary,
+        onTertiary = HealthColors.OnTertiary,
+        tertiaryContainer = HealthColors.TertiaryContainer,
+        onTertiaryContainer = HealthColors.OnTertiaryContainer,
+        background = HealthColors.BackgroundLight,
+        onBackground = HealthColors.OnBackgroundLight,
+        surface = HealthColors.SurfaceLight,
+        onSurface = HealthColors.OnSurfaceLight,
+        surfaceVariant = HealthColors.SurfaceVariantLight,
+        onSurfaceVariant = HealthColors.OnSurfaceVariantLight,
+        outline = HealthColors.OutlineLight,
+        outlineVariant = HealthColors.OutlineVariantLight,
+        error = HealthColors.Error,
+        onError = HealthColors.OnError,
+        errorContainer = HealthColors.ErrorContainer,
+        onErrorContainer = HealthColors.OnErrorContainer
+    )
+
+    val darkScheme = darkColorScheme(
+        primary = themeAccent.primary,
+        onPrimary = themeAccent.onPrimary,
+        primaryContainer = themeAccent.primaryVariant,
+        onPrimaryContainer = themeAccent.primaryContainer,
+        secondary = HealthColors.Secondary,
+        onSecondary = HealthColors.OnSecondary,
+        secondaryContainer = HealthColors.SecondaryVariant,
+        onSecondaryContainer = HealthColors.SecondaryContainer,
+        tertiary = HealthColors.Tertiary,
+        onTertiary = HealthColors.OnTertiary,
+        tertiaryContainer = HealthColors.TertiaryContainer,
+        onTertiaryContainer = HealthColors.OnTertiaryContainer,
+        background = HealthColors.BackgroundDark,
+        onBackground = HealthColors.OnBackgroundDark,
+        surface = HealthColors.SurfaceDark,
+        onSurface = HealthColors.OnSurfaceDark,
+        surfaceVariant = HealthColors.SurfaceContainerHighest,
+        onSurfaceVariant = HealthColors.OnSurfaceVariantDark,
+        outline = HealthColors.OutlineDark,
+        outlineVariant = HealthColors.OutlineVariantDark,
+        error = HealthColors.Error,
+        onError = HealthColors.OnError,
+        errorContainer = HealthColors.ErrorContainer,
+        onErrorContainer = HealthColors.OnErrorContainer
+    )
+
+    val colorScheme = if (darkTheme) darkScheme else lightScheme
+
+    CompositionLocalProvider(
+        LocalIsDarkTheme provides darkTheme,
+        LocalThemeAccent provides themeAccent
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             content = content

@@ -3,6 +3,50 @@ package com.yusufteker.healthtrack.core.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class FitnessGoal(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val proteinMultiplier: Double
+) {
+    LOSE_WEIGHT(
+        id = "LOSE_WEIGHT",
+        title = "Kilo Verme",
+        subtitle = "Yağ yakımı & kas koruma (1.2x)",
+        proteinMultiplier = 1.2
+    ),
+    MAINTAIN(
+        id = "MAINTAIN",
+        title = "Sabit Kalma",
+        subtitle = "Kilo & form koruma (1.0x)",
+        proteinMultiplier = 1.0
+    ),
+    BUILD_MUSCLE(
+        id = "BUILD_MUSCLE",
+        title = "Kaslanma",
+        subtitle = "Hipertrofi & kas kazanımı (1.4x)",
+        proteinMultiplier = 1.4
+    );
+
+    companion object {
+        fun fromId(id: String?): FitnessGoal =
+            entries.firstOrNull { it.id.equals(id, ignoreCase = true) } ?: MAINTAIN
+    }
+}
+
+/**
+ * Calculates recommended daily protein in grams based on body weight and fitness goal.
+ * Rule:
+ * - Kilo Verme (Fat Loss / Deficit): 1.2 x body weight (prevents muscle breakdown in deficit)
+ * - Sabit Kalma (Maintenance): 1.0 x body weight (at least body weight in grams)
+ * - Kaslanma (Muscle Hypertrophy): 1.4 x body weight (optimal synthesis & growth)
+ */
+fun calculateProteinTarget(weightKg: Double, goal: FitnessGoal): Double {
+    val safeWeight = if (weightKg > 0.0) weightKg else 70.0
+    return kotlin.math.round(safeWeight * goal.proteinMultiplier * 10) / 10.0
+}
+
+@Serializable
 data class NutritionGoal(
     val id: String,
     val userId: Int,

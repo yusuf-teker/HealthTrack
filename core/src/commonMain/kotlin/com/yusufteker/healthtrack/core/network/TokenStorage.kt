@@ -1,6 +1,7 @@
 package com.yusufteker.healthtrack.core.network
 
 import com.russhwolf.settings.Settings
+import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.UserSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,54 @@ class TokenStorage(private val settings: Settings = Settings()) {
 
     fun setLastSyncTimestamp(ts: Long) {
         settings.putLong(KEY_LAST_SYNC_TS, ts)
+    }
+
+    fun getUserWeight(): Double = settings.getDouble(KEY_USER_WEIGHT, 0.0)
+    fun setUserWeight(weight: Double) {
+        settings.putDouble(KEY_USER_WEIGHT, weight)
+    }
+
+    fun getUserTargetWeight(): Double = settings.getDouble(KEY_USER_TARGET_WEIGHT, 70.0)
+    fun setUserTargetWeight(targetWeight: Double) {
+        settings.putDouble(KEY_USER_TARGET_WEIGHT, targetWeight)
+    }
+
+    fun getUserHeight(): Double = settings.getDouble(KEY_USER_HEIGHT, 0.0)
+    fun setUserHeight(height: Double) {
+        settings.putDouble(KEY_USER_HEIGHT, height)
+    }
+
+    fun getUserAge(): Int = settings.getInt(KEY_USER_AGE, 0)
+    fun setUserAge(age: Int) {
+        settings.putInt(KEY_USER_AGE, age)
+    }
+
+    fun getUserGender(): String = settings.getString(KEY_USER_GENDER, "MALE")
+    fun setUserGender(gender: String) {
+        settings.putString(KEY_USER_GENDER, gender)
+    }
+
+    fun getUserFitnessGoal(): FitnessGoal {
+        val raw = settings.getString(KEY_USER_FITNESS_GOAL, FitnessGoal.MAINTAIN.id)
+        return FitnessGoal.fromId(raw)
+    }
+
+    fun setUserFitnessGoal(goal: FitnessGoal) {
+        settings.putString(KEY_USER_FITNESS_GOAL, goal.id)
+    }
+
+    fun isProfileConfigured(): Boolean {
+        return getUserWeight() > 0.0 && getUserHeight() > 0.0
+    }
+
+    fun saveTokens(accessToken: String, refreshToken: String) {
+        settings.putString(KEY_ACCESS_TOKEN, accessToken)
+        settings.putString(KEY_REFRESH_TOKEN, refreshToken)
+        _sessionFlow.value = _sessionFlow.value.copy(
+            accessToken = accessToken,
+            refreshToken = refreshToken,
+            isLoggedIn = true
+        )
     }
 
     fun saveSession(
@@ -55,6 +104,11 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_ACCESS_TOKEN)
         settings.remove(KEY_REFRESH_TOKEN)
         settings.remove(KEY_AVATAR_ID)
+        settings.remove(KEY_USER_WEIGHT)
+        settings.remove(KEY_USER_HEIGHT)
+        settings.remove(KEY_USER_AGE)
+        settings.remove(KEY_USER_GENDER)
+        settings.remove(KEY_USER_FITNESS_GOAL)
 
         _sessionFlow.value = UserSession(
             userId = 0,
@@ -99,5 +153,11 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_USERNAME = "ht_username"
         private const val KEY_AVATAR_ID = "ht_avatar_id"
         private const val KEY_LAST_SYNC_TS = "ht_last_sync_timestamp"
+        private const val KEY_USER_WEIGHT = "ht_user_weight"
+        private const val KEY_USER_TARGET_WEIGHT = "ht_user_target_weight"
+        private const val KEY_USER_HEIGHT = "ht_user_height"
+        private const val KEY_USER_AGE = "ht_user_age"
+        private const val KEY_USER_GENDER = "ht_user_gender"
+        private const val KEY_USER_FITNESS_GOAL = "ht_user_fitness_goal"
     }
 }

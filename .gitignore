@@ -33,3 +33,7 @@ Thumbs.db
 *.hprof
 *.log
 
+# Design files & mockups
+design/
+
+

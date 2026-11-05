@@ -8,6 +8,8 @@ import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import com.yusufteker.healthtrack.core.utils.currentTimeMillis
+import com.yusufteker.healthtrack.core.utils.normalizeDateToIso
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -51,7 +53,8 @@ class WeightViewModel(
             is WeightIntent.OnInputDateChanged -> _state.update { it.copy(inputDate = intent.date) }
             is WeightIntent.OnInputWeightChanged -> _state.update { it.copy(inputWeight = intent.weight) }
             is WeightIntent.OnInputNoteChanged -> _state.update { it.copy(inputNote = intent.note) }
-            is WeightIntent.OnInputTargetWeightChanged -> _state.update { it.copy(inputTargetWeight = intent.target) }
+            is WeightIntent.OnSetEditingTarget -> _state.update { it.copy(isEditingTarget = intent.isEditing) }
+            is WeightIntent.OnSaveTargetWeight -> saveTargetWeight(intent.newTargetWeight)
             is WeightIntent.OnSaveWeightClicked -> saveWeight()
             is WeightIntent.OnDeleteWeight -> deleteWeight(intent.id)
             is WeightIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
@@ -64,10 +67,17 @@ class WeightViewModel(
         weightObservationJob = viewModelScope.launch {
             database.observeWeights(userId).collect { entries ->
                 val sorted = entries.sortedBy { it.date }
-                val initial = sorted.firstOrNull()?.weightKg
-                val current = sorted.lastOrNull()?.weightKg
-                val change = if (initial != null && current != null) current - initial else null
-                val target = sorted.lastOrNull()?.targetWeightKg ?: _state.value.targetWeightKg
+                val userWeight = tokenStorage.getUserWeight().takeIf { it > 0.0 }
+                val initial = sorted.firstOrNull()?.weightKg ?: userWeight
+                val current = sorted.lastOrNull()?.weightKg ?: userWeight
+                val change = if (initial != null && current != null && sorted.isNotEmpty()) current - initial else null
+                val savedTarget = tokenStorage.getUserTargetWeight().takeIf { it > 0.0 } ?: 70.0
+                val target = sorted.lastOrNull { it.targetWeightKg != null }?.targetWeightKg ?: savedTarget
+
+                // Keep tokenStorage user weight in sync with latest recorded entry
+                if (current != null && current > 0.0) {
+                    tokenStorage.setUserWeight(current)
+                }
 
                 _state.update { s ->
                     val filtered = filterByPeriod(sorted, s.selectedPeriod)
@@ -77,8 +87,7 @@ class WeightViewModel(
                         initialWeightKg = initial,
                         currentWeightKg = current,
                         weightChangeKg = change,
-                        targetWeightKg = target,
-                        inputTargetWeight = target.toString()
+                        targetWeightKg = target
                     )
                 }
             }
@@ -97,8 +106,8 @@ class WeightViewModel(
 
     private fun saveWeight() {
         val weight = _state.value.inputWeight.toDoubleOrNull()
-        val target = _state.value.inputTargetWeight.toDoubleOrNull()
-        val date = _state.value.inputDate.trim()
+        val target = _state.value.targetWeightKg
+        val date = normalizeDateToIso(_state.value.inputDate)
         val note = _state.value.inputNote.trim().ifBlank { null }
         val userId = tokenStorage.getUserId()
 
@@ -126,18 +135,54 @@ class WeightViewModel(
             )
 
             database.upsertWeight(entry)
+            tokenStorage.setUserWeight(weight)
             _state.update { it.copy(inputWeight = "", inputNote = "", infoMessage = "Kilo kaydedildi.") }
             _effects.send(WeightEffect.ShowToast("Kilo kaydedildi."))
             launch { syncEngine.sync() }
         }
     }
 
+    private fun saveTargetWeight(newTarget: Double) {
+        if (newTarget <= 0 || newTarget > 350) {
+            _state.update { it.copy(errorMessage = "Lütfen geçerli bir hedef kilo giriniz.") }
+            return
+        }
+        tokenStorage.setUserTargetWeight(newTarget)
+        _state.update {
+            it.copy(
+                targetWeightKg = newTarget,
+                isEditingTarget = false,
+                infoMessage = "Hedef kilo güncellendi: $newTarget kg"
+            )
+        }
+
+        viewModelScope.launch {
+            val latest = _state.value.entries.lastOrNull()
+            if (latest != null) {
+                val updated = latest.copy(
+                    targetWeightKg = newTarget,
+                    updatedAt = currentTime(),
+                    syncStatus = SyncStatus.PENDING
+                )
+                database.upsertWeight(updated)
+                launch { syncEngine.sync() }
+            }
+            _effects.send(WeightEffect.ShowToast("Hedef kilo güncellendi: $newTarget kg"))
+        }
+    }
+
     private fun deleteWeight(id: String) {
+        val userId = tokenStorage.getUserId()
         viewModelScope.launch {
             database.deleteWeight(id)
+            val remaining = database.getWeights(userId).sortedBy { it.date }
+            val latest = remaining.lastOrNull()?.weightKg
+            if (latest != null && latest > 0.0) {
+                tokenStorage.setUserWeight(latest)
+            }
             launch { syncEngine.sync() }
         }
     }
 
-    private fun currentTime(): Long = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds + 1720000000000L
+    private fun currentTime(): Long = currentTimeMillis()
 }
