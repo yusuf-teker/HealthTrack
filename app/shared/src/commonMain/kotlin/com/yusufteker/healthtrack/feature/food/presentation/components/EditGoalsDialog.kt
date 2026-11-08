@@ -48,24 +48,37 @@ fun EditGoalsDialog(
     onDismiss: () -> Unit,
     onSave: (goal: NutritionGoal, fitnessGoal: FitnessGoal) -> Unit
 ) {
-    var selectedFitnessGoal by remember { mutableStateOf(fitnessGoal) }
+    val effectiveFitnessGoal = remember(fitnessGoal, currentGoal.fitnessGoal, currentGoal.calories) {
+        if (fitnessGoal != FitnessGoal.MAINTAIN) {
+            fitnessGoal
+        } else if (currentGoal.fitnessGoal.isNotBlank() && currentGoal.fitnessGoal != FitnessGoal.MAINTAIN.id) {
+            currentGoal.parsedFitnessGoal
+        } else if (currentGoal.calories in 1700..1850) {
+            FitnessGoal.LOSE_WEIGHT
+        } else if (currentGoal.calories in 2350..2600) {
+            FitnessGoal.BUILD_MUSCLE
+        } else {
+            FitnessGoal.MAINTAIN
+        }
+    }
+    var selectedFitnessGoal by remember(effectiveFitnessGoal) { mutableStateOf(effectiveFitnessGoal) }
     val initialProtein = if (currentGoal.proteinG == 80.0) {
-        (currentWeight * fitnessGoal.proteinMultiplier).toInt().toString()
+        (currentWeight * effectiveFitnessGoal.proteinMultiplier).toInt().toString()
     } else {
         currentGoal.proteinG.toInt().toString()
     }
-    var caloriesText by remember { mutableStateOf(currentGoal.calories.toString()) }
-    var proteinText by remember { mutableStateOf(initialProtein) }
-    var carbsText by remember { mutableStateOf(currentGoal.carbsG.toInt().toString()) }
-    var fatText by remember { mutableStateOf(currentGoal.fatG.toInt().toString()) }
-    var fiberText by remember { mutableStateOf(currentGoal.fiberG.toInt().toString()) }
+    var caloriesText by remember(currentGoal.calories) { mutableStateOf(currentGoal.calories.toString()) }
+    var proteinText by remember(initialProtein) { mutableStateOf(initialProtein) }
+    var carbsText by remember(currentGoal.carbsG) { mutableStateOf(currentGoal.carbsG.toInt().toString()) }
+    var fatText by remember(currentGoal.fatG) { mutableStateOf(currentGoal.fatG.toInt().toString()) }
+    var fiberText by remember(currentGoal.fiberG) { mutableStateOf(currentGoal.fiberG.toInt().toString()) }
 
-    var vitCText by remember { mutableStateOf(currentGoal.vitaminCMg.toInt().toString()) }
-    var vitDText by remember { mutableStateOf(currentGoal.vitaminDUg.toInt().toString()) }
-    var vitB12Text by remember { mutableStateOf(currentGoal.vitaminB12Ug.toString()) }
-    var ironText by remember { mutableStateOf(currentGoal.ironMg.toInt().toString()) }
-    var calciumText by remember { mutableStateOf(currentGoal.calciumMg.toInt().toString()) }
-    var magnesiumText by remember { mutableStateOf(currentGoal.magnesiumMg.toInt().toString()) }
+    var vitCText by remember(currentGoal.vitaminCMg) { mutableStateOf(currentGoal.vitaminCMg.toInt().toString()) }
+    var vitDText by remember(currentGoal.vitaminDUg) { mutableStateOf(currentGoal.vitaminDUg.toInt().toString()) }
+    var vitB12Text by remember(currentGoal.vitaminB12Ug) { mutableStateOf(currentGoal.vitaminB12Ug.toString()) }
+    var ironText by remember(currentGoal.ironMg) { mutableStateOf(currentGoal.ironMg.toInt().toString()) }
+    var calciumText by remember(currentGoal.calciumMg) { mutableStateOf(currentGoal.calciumMg.toInt().toString()) }
+    var magnesiumText by remember(currentGoal.magnesiumMg) { mutableStateOf(currentGoal.magnesiumMg.toInt().toString()) }
 
     var showMicros by remember { mutableStateOf(false) }
 
@@ -519,7 +532,8 @@ fun EditGoalsDialog(
                                 vitaminB12Ug = vitB12Text.toDoubleOrNull() ?: currentGoal.vitaminB12Ug,
                                 ironMg = ironText.toDoubleOrNull() ?: currentGoal.ironMg,
                                 calciumMg = calciumText.toDoubleOrNull() ?: currentGoal.calciumMg,
-                                magnesiumMg = magnesiumText.toDoubleOrNull() ?: currentGoal.magnesiumMg
+                                magnesiumMg = magnesiumText.toDoubleOrNull() ?: currentGoal.magnesiumMg,
+                                fitnessGoal = selectedFitnessGoal.id
                             )
                             onSave(updated, selectedFitnessGoal)
                         },

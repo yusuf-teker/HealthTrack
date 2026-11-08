@@ -29,8 +29,13 @@ data class WeekDayItem(
 fun getTodayIso(): String {
     return try {
         Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-    } catch (_: Exception) {
-        "2026-11-04"
+    } catch (_: Throwable) {
+        try {
+            Clock.System.todayIn(TimeZone.UTC).toString()
+        } catch (_: Throwable) {
+            val epochDays = (currentTimeMillis() / 86_400_000L).toInt()
+            LocalDate.fromEpochDays(epochDays).toString()
+        }
     }
 }
 

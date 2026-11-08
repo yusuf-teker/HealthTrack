@@ -30,14 +30,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.ui.components.CrossedBarbellPlusIcon
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import kotlinx.coroutines.launch
 
 @Composable
 fun WorkoutScreen(
@@ -45,6 +48,9 @@ fun WorkoutScreen(
     onIntent: (WorkoutIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val speechLauncher = rememberSpeechToTextLauncher()
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
     var showManualFields by remember { mutableStateOf(false) }
 
     Box(
@@ -56,7 +62,7 @@ fun WorkoutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clearFocusOnTap()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -135,20 +141,64 @@ fun WorkoutScreen(
                     onValueChange = { onIntent(WorkoutIntent.OnRawTextChanged(it)) },
                     placeholder = {
                         Text(
-                            "Bugün hangi sporu yaptınız? Örn: 45 dk açık havada interval koşu, 5km hafif tempo...",
+                            "Hangi sporu yaptınız? Örn: 45 dk koşu, ağırlık...",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.33f)
                         )
+                    },
+                    trailingIcon = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(end = 6.dp)
+                        ) {
+                            if (state.rawText.isNotBlank()) {
+                                IconButton(
+                                    onClick = { onIntent(WorkoutIntent.OnRawTextChanged("")) },
+                                    modifier = Modifier.size(28.dp).bounceClick()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Temizle",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            if (speechLauncher.isAvailable) {
+                                IconButton(
+                                    onClick = {
+                                        speechLauncher.launch("Hangi antrenmanı yaptınız? Sesinizle söyleyin...") { spokenText ->
+                                            val current = state.rawText.trim()
+                                            val updated = if (current.isBlank()) spokenText else "$current, $spokenText"
+                                            onIntent(WorkoutIntent.OnRawTextChanged(updated))
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(HealthColors.Primary.copy(alpha = 0.15f))
+                                        .bounceClick()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Mic,
+                                        contentDescription = "Sesle Söyle",
+                                        tint = HealthColors.Primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(105.dp),
+                        .height(96.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = HealthColors.TertiaryContainer,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
                     ),
                     maxLines = 3
                 )
@@ -160,6 +210,15 @@ fun WorkoutScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (speechLauncher.isAvailable) {
+                        WorkoutQuickChip(label = "🎙️ Sesle Söyle") {
+                            speechLauncher.launch("Hangi antrenmanı yaptınız? Sesinizle söyleyin...") { spokenText ->
+                                val current = state.rawText.trim()
+                                val updated = if (current.isBlank()) spokenText else "$current, $spokenText"
+                                onIntent(WorkoutIntent.OnRawTextChanged(updated))
+                            }
+                        }
+                    }
                     WorkoutQuickChip(label = "+ 30 dk Koşu") {
                         val current = if (state.rawText.isNotBlank()) "${state.rawText}, 30 dk koşu" else "30 dk koşu"
                         onIntent(WorkoutIntent.OnRawTextChanged(current))
@@ -373,7 +432,33 @@ fun WorkoutScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(76.dp))
+    }
+
+    // ── Floating Action Button: Clean '+' FAB ──
+    FloatingActionButton(
+        onClick = {
+            showManualFields = true
+            coroutineScope.launch {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        },
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(bottom = 16.dp, end = 16.dp)
+            .size(56.dp)
+            .bounceClick(),
+        containerColor = HealthColors.TertiaryVariant,
+        contentColor = Color.White,
+        shape = CircleShape,
+        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Ekle",
+            tint = Color.White,
+            modifier = Modifier.size(28.dp)
+        )
     }
 
     // ── Floating Toast Notifications (Auto-dismissing) ──

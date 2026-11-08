@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
+import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
@@ -66,29 +67,8 @@ fun AuthScreen(
                         .padding(horizontal = 24.dp, vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Planora-style Brand Mark "H"
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
-                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        GradientText(
-                            text = "H",
-                            colors = HealthColors.GradientPrimary,
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Black
-                            )
-                        )
-                    }
+                    // HealthTrack Luxury Brand Mark
+                    HealthBrandLogo(size = 64.dp)
 
                     Spacer(modifier = Modifier.height(12.dp))
 

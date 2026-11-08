@@ -28,6 +28,7 @@ fun ProfileScreenRoot(
     }
 
     LaunchedEffect(Unit) {
+        viewModel.onIntent(ProfileIntent.OnScreenAppeared)
         viewModel.effects.collect { effect ->
             when (effect) {
                 is ProfileEffect.NavigateBack -> onBack()

@@ -101,26 +101,11 @@ data class WeightSyncPayload(
 )
 
 @Serializable
-data class AppointmentSyncPayload(
-    val id: String,
-    val dateTime: Long,
-    val doctorName: String,
-    val hospitalName: String,
-    val department: String? = null,
-    val notes: String? = null,
-    val reminderMinutes: Int = 60,
-    val planoraTaskId: String? = null,
-    val updatedAt: Long,
-    val isDeleted: Boolean = false
-)
-
-@Serializable
 data class PushRequestPayload(
     val foods: List<FoodSyncPayload> = emptyList(),
     val nutritionGoals: NutritionGoalSyncPayload? = null,
     val workouts: List<WorkoutSyncPayload> = emptyList(),
-    val weights: List<WeightSyncPayload> = emptyList(),
-    val appointments: List<AppointmentSyncPayload> = emptyList()
+    val weights: List<WeightSyncPayload> = emptyList()
 )
 
 @Serializable
@@ -129,7 +114,6 @@ data class PushResponsePayload(
     val syncedNutritionGoalId: String? = null,
     val syncedWorkoutIds: List<String> = emptyList(),
     val syncedWeightIds: List<String> = emptyList(),
-    val syncedAppointmentIds: List<String> = emptyList(),
     val serverTimestamp: Long = 0L
 )
 
@@ -139,7 +123,6 @@ data class PullResponsePayload(
     val nutritionGoals: NutritionGoalSyncPayload? = null,
     val workouts: List<WorkoutSyncPayload> = emptyList(),
     val weights: List<WeightSyncPayload> = emptyList(),
-    val appointments: List<AppointmentSyncPayload> = emptyList(),
     val serverTimestamp: Long = 0L
 )
 

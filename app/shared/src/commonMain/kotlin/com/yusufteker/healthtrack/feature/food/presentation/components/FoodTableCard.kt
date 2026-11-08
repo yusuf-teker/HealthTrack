@@ -1,10 +1,12 @@
 package com.yusufteker.healthtrack.feature.food.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
@@ -15,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FoodItem
@@ -33,6 +36,7 @@ fun FoodTableCard(
     summary: String?,
     onRemoveItem: (String) -> Unit,
     onClearAll: (() -> Unit)? = null,
+    onAddClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
@@ -114,13 +118,15 @@ fun FoodTableCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
                             .background(if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight)
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .padding(horizontal = 9.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "${items.size} Öğe Kayıtlı",
+                            text = "${items.size} Öğe",
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            softWrap = false,
+                            maxLines = 1
                         )
                     }
 
@@ -172,17 +178,29 @@ fun FoodTableCard(
 
             // Food Items Table
             if (items.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
                         text = "Henüz bu güne ait öğün eklenmedi.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (onAddClick != null) {
+                        OutlinedButton(
+                            onClick = onAddClick,
+                            shape = RoundedCornerShape(999.dp),
+                            modifier = Modifier.bounceClick()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = HealthColors.Primary)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Öğün Ekle", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             } else {
                 Column(
@@ -246,39 +264,71 @@ private fun FoodTableRowItem(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.weight(1f)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(HealthColors.Primary)
-            )
+            if (item.iconKey != null) {
+                FoodIconBadge(
+                    iconKey = item.iconKey,
+                    size = 28.dp,
+                    tint = HealthColors.Primary
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(HealthColors.Primary)
+                )
+            }
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (item.formattedPortion.isNotBlank()) {
-                    Text(
-                        text = item.formattedPortion,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (item.formattedPortion.isNotBlank()) {
+                        Text(
+                            text = item.formattedPortion,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                    if (item.micronutrients.isNotEmpty()) {
+                        Text(
+                            text = "• 🧬 ${item.micronutrients.size} mikro",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                            color = HealthColors.Secondary,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
         }
 
+        Spacer(modifier = Modifier.width(8.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 text = "${item.calories} kcal",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false
             )
 
             IconButton(

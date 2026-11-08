@@ -128,6 +128,14 @@ fun WeightScreen(
                     )
                 }
 
+                val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.33f)
+                val calmFieldColors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = HealthColors.Primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -137,16 +145,20 @@ fun WeightScreen(
                         onValueChange = { onIntent(WeightIntent.OnInputDateChanged(it)) },
                         label = { Text("Tarih (GG.AA.YYYY)") },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = calmFieldColors,
+                        singleLine = true
                     )
                     OutlinedTextField(
                         value = state.inputWeight,
                         onValueChange = { onIntent(WeightIntent.OnInputWeightChanged(it)) },
                         label = { Text("Kilo (kg)") },
-                        placeholder = { Text("Örn: 74.5") },
+                        placeholder = { Text("Örn: 74.5", color = placeholderColor) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = calmFieldColors,
+                        singleLine = true
                     )
                 }
 
@@ -154,9 +166,11 @@ fun WeightScreen(
                     value = state.inputNote,
                     onValueChange = { onIntent(WeightIntent.OnInputNoteChanged(it)) },
                     label = { Text("Not (Opsiyonel)") },
-                    placeholder = { Text("Aç karna, antrenman sonrası...") },
+                    placeholder = { Text("Aç karna, antrenman sonrası...", color = placeholderColor) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = calmFieldColors,
+                    singleLine = true
                 )
 
                 Button(
@@ -216,7 +230,7 @@ fun WeightScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
     }
 
     // ── Floating Toast Notifications (Auto-dismissing) ──

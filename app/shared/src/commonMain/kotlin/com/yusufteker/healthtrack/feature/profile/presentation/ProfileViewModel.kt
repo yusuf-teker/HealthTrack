@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightEntry
@@ -47,7 +48,17 @@ class ProfileViewModel(
         if (userId <= 0) return
         viewModelScope.launch {
             database.observeNutritionGoal(userId).collect { goal ->
-                _state.update { it.copy(nutritionGoal = goal) }
+                val resolvedFitnessGoal = if (goal.fitnessGoal.isNotBlank() && goal.fitnessGoal != FitnessGoal.MAINTAIN.id) {
+                    goal.parsedFitnessGoal
+                } else {
+                    tokenStorage.getUserFitnessGoal()
+                }
+                _state.update {
+                    it.copy(
+                        nutritionGoal = goal,
+                        fitnessGoal = resolvedFitnessGoal
+                    )
+                }
             }
         }
     }
@@ -128,13 +139,30 @@ class ProfileViewModel(
                 _state.update { it.copy(gender = intent.gender) }
             }
             is ProfileIntent.OnFitnessGoalChanged -> {
+                tokenStorage.setUserFitnessGoal(intent.goal)
                 _state.update { it.copy(fitnessGoal = intent.goal) }
+                viewModelScope.launch {
+                    val userId = tokenStorage.getUserId()
+                    if (userId > 0) {
+                        val currentGoal = database.observeNutritionGoal(userId).firstOrNull() ?: NutritionGoal(id = "goal_$userId", userId = userId)
+                        val calculatedProtein = calculateProteinTarget(_state.value.weightKg, intent.goal)
+                        val updated = currentGoal.copy(
+                            proteinG = calculatedProtein,
+                            fitnessGoal = intent.goal.id,
+                            updatedAt = currentTimeMillis(),
+                            syncStatus = SyncStatus.PENDING
+                        )
+                        database.upsertNutritionGoal(updated)
+                        launch { syncEngine.sync() }
+                    }
+                }
             }
             is ProfileIntent.OnSaveNutritionGoal -> {
                 viewModelScope.launch {
                     val userId = tokenStorage.getUserId()
                     val updated = intent.goal.copy(
                         userId = userId,
+                        fitnessGoal = intent.fitnessGoal.id,
                         updatedAt = currentTimeMillis(),
                         syncStatus = SyncStatus.PENDING
                     )
@@ -155,7 +183,7 @@ class ProfileViewModel(
             }
             ProfileIntent.OnSyncClicked -> {
                 viewModelScope.launch {
-                    val success = syncEngine.sync()
+                    val success = syncEngine.sync(forceFullPull = true)
                     if (success) {
                         _effects.send(ProfileEffect.ShowToast("Senkronizasyon tamamlandı."))
                     } else {
@@ -164,12 +192,19 @@ class ProfileViewModel(
                 }
             }
             ProfileIntent.OnLogoutClicked -> {
-                tokenStorage.clearSession()
                 viewModelScope.launch {
+                    database.clearAll()
+                    tokenStorage.clearSession()
                     _effects.send(ProfileEffect.LoggedOut)
                 }
             }
             ProfileIntent.OnSaveProfileClicked -> saveProfile()
+            ProfileIntent.OnScreenAppeared -> {
+                val currentFitnessGoal = tokenStorage.getUserFitnessGoal()
+                _state.update { current ->
+                    current.copy(fitnessGoal = currentFitnessGoal)
+                }
+            }
             ProfileIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
             ProfileIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
         }
@@ -197,30 +232,43 @@ class ProfileViewModel(
                 database.upsertNutritionGoal(
                     currentGoal.copy(
                         proteinG = calculatedProtein,
+                        fitnessGoal = s.fitnessGoal.id,
                         updatedAt = currentTimeMillis(),
                         syncStatus = SyncStatus.PENDING
                     )
                 )
 
-                // Kilo kaydı kontrolü:
-                // Bugün zaten bir kilo kaydı varsa profilden tekrar kaydedilmez.
-                // Bugün henüz bir kilo kaydı yoksa bugünün tarihiyle yeni kayıt oluşturulur.
+                // Kilo ve hedef kilo kaydı kontrolü:
                 val today = getTodayIso()
-                val hasTodayWeight = database.getWeights(userId).any { it.date == today }
-                if (!hasTodayWeight) {
-                    val now = currentTimeMillis()
+                val existingWeights = database.getWeights(userId).sortedBy { it.date }
+                val todayEntry = existingWeights.find { it.date == today }
+                val now = currentTimeMillis()
+
+                if (todayEntry == null || hasUserModifiedWeight) {
                     val entry = WeightEntry(
-                        id = Uuid.random().toString(),
+                        id = todayEntry?.id ?: "weight_${userId}_${today}",
                         userId = userId,
                         date = today,
                         weightKg = s.weightKg,
                         targetWeightKg = s.targetWeightKg,
-                        note = "Profil Kilo Kaydı",
-                        createdAt = now,
+                        note = todayEntry?.note ?: "Profil Kilo Kaydı",
+                        createdAt = todayEntry?.createdAt ?: now,
                         updatedAt = now,
                         syncStatus = SyncStatus.PENDING
                     )
                     database.upsertWeight(entry)
+                    hasUserModifiedWeight = false
+                } else {
+                    val latest = existingWeights.lastOrNull()
+                    if (latest != null && latest.targetWeightKg != s.targetWeightKg) {
+                        database.upsertWeight(
+                            latest.copy(
+                                targetWeightKg = s.targetWeightKg,
+                                updatedAt = now,
+                                syncStatus = SyncStatus.PENDING
+                            )
+                        )
+                    }
                 }
                 launch { syncEngine.sync() }
 

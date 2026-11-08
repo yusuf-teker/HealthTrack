@@ -19,7 +19,8 @@ data class FoodItem(
     val carbsG: Double = 0.0,
     val fatG: Double = 0.0,
     val fiberG: Double = 0.0,
-    val micronutrients: List<Micronutrient> = emptyList()
+    val micronutrients: List<Micronutrient> = emptyList(),
+    val iconKey: String? = null
 )
 
 @Serializable
@@ -38,6 +39,23 @@ data class FoodLog(
 )
 
 @Serializable
+data class CustomFoodIngredient(
+    val id: String = "",
+    val name: String,
+    val unitLabel: String, // e.g. "Shot", "Ölçek", "ml", "g", "Adet", "Tatlı Kaşığı"
+    val defaultAmount: Double = 1.0,
+    val stepAmount: Double = 1.0,
+    val presetLevels: List<Double> = emptyList(),
+    val baseCalories: Int,
+    val baseProteinG: Double = 0.0,
+    val baseCarbsG: Double = 0.0,
+    val baseFatG: Double = 0.0,
+    val baseFiberG: Double = 0.0,
+    val micronutrients: List<Micronutrient> = emptyList(),
+    val iconKey: String? = null
+)
+
+@Serializable
 data class CustomFoodItem(
     val id: String,
     val userId: Int = 0,
@@ -51,6 +69,14 @@ data class CustomFoodItem(
     val fatG: Double = 0.0,
     val fiberG: Double = 0.0,
     val categoryName: String = "ALL",
+    val iconKey: String? = null,
+    val micronutrients: List<Micronutrient> = emptyList(),
+    val ingredients: List<CustomFoodIngredient> = emptyList(),
+    val baseAmount: Double = 1.0,
+    val baseUnitLabel: String = "",
+    val presetLevels: List<Double> = emptyList(),
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
-)
+) {
+    val isMix: Boolean get() = ingredients.isNotEmpty()
+}

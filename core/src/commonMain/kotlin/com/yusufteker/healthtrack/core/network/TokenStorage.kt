@@ -58,7 +58,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
     }
 
     fun isProfileConfigured(): Boolean {
-        return getUserWeight() > 0.0 && getUserHeight() > 0.0
+        return getUserWeight() > 0.0
     }
 
     fun saveTokens(accessToken: String, refreshToken: String) {
@@ -79,6 +79,11 @@ class TokenStorage(private val settings: Settings = Settings()) {
         refreshToken: String,
         avatarId: String? = null
     ) {
+        val prevUserId = getUserId()
+        if (prevUserId != userId) {
+            settings.remove(KEY_LAST_SYNC_TS)
+        }
+
         settings.putInt(KEY_USER_ID, userId)
         settings.putString(KEY_NAME, name)
         settings.putString(KEY_USERNAME, username)
@@ -105,10 +110,12 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_REFRESH_TOKEN)
         settings.remove(KEY_AVATAR_ID)
         settings.remove(KEY_USER_WEIGHT)
+        settings.remove(KEY_USER_TARGET_WEIGHT)
         settings.remove(KEY_USER_HEIGHT)
         settings.remove(KEY_USER_AGE)
         settings.remove(KEY_USER_GENDER)
         settings.remove(KEY_USER_FITNESS_GOAL)
+        settings.remove(KEY_LAST_SYNC_TS)
 
         _sessionFlow.value = UserSession(
             userId = 0,

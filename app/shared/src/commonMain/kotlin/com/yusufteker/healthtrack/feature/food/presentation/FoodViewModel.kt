@@ -22,7 +22,7 @@ class FoodViewModel(
     private val syncEngine: SyncEngine
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(FoodState())
+    private val _state = MutableStateFlow(FoodState(fitnessGoal = tokenStorage.getUserFitnessGoal()))
     val state: StateFlow<FoodState> = _state.asStateFlow()
 
     private val _effects = Channel<FoodEffect>(Channel.BUFFERED)
@@ -33,6 +33,7 @@ class FoodViewModel(
     private var weightObservationJob: Job? = null
     private var customFoodsObservationJob: Job? = null
     private var favoriteFoodsObservationJob: Job? = null
+    private var allFoodsObservationJob: Job? = null
 
     private var cachedWeights: List<WeightEntry> = emptyList()
 
@@ -99,6 +100,7 @@ class FoodViewModel(
                     observeWeights(session.userId)
                     observeCustomFoods(session.userId)
                     observeFavoriteFoods(session.userId)
+                    observeAllFoods(session.userId)
                 }
             }
         }
@@ -117,7 +119,12 @@ class FoodViewModel(
                         selectedDateWeightKg = dayWeightInfo.weightKg,
                         isWeightExactForDate = dayWeightInfo.isExactForDate,
                         weightRecordDate = dayWeightInfo.recordDate,
-                        effectiveProteinTarget = dayWeightInfo.targetProtein
+                        effectiveProteinTarget = dayWeightInfo.targetProtein,
+                        currentFoodLog = null,
+                        items = emptyList(),
+                        totalCalories = 0,
+                        summary = null,
+                        nutrientBars = calculateBars(emptyList(), current.nutritionGoal, dayWeightInfo.targetProtein)
                     )
                 }
                 val userId = tokenStorage.getUserId()
@@ -137,9 +144,24 @@ class FoodViewModel(
                 intent.proteinG,
                 intent.carbsG,
                 intent.fatG,
-                intent.fiberG
+                intent.fiberG,
+                intent.micronutrients,
+                intent.iconKey
             )
-            is FoodIntent.OnOpenEditGoalsDialog -> _state.update { it.copy(isEditGoalsDialogOpen = true) }
+            is FoodIntent.OnAddMultipleItems -> addMultipleItems(intent.items, intent.summaryNote)
+            is FoodIntent.OnOpenEditGoalsDialog -> {
+                val currentFitnessGoal = if (_state.value.nutritionGoal.fitnessGoal.isNotBlank() && _state.value.nutritionGoal.fitnessGoal != FitnessGoal.MAINTAIN.id) {
+                    _state.value.nutritionGoal.parsedFitnessGoal
+                } else {
+                    tokenStorage.getUserFitnessGoal()
+                }
+                _state.update {
+                    it.copy(
+                        isEditGoalsDialogOpen = true,
+                        fitnessGoal = currentFitnessGoal
+                    )
+                }
+            }
             is FoodIntent.OnCloseEditGoalsDialog -> _state.update { it.copy(isEditGoalsDialogOpen = false) }
             is FoodIntent.OnSaveGoals -> saveGoals(intent.goal, intent.fitnessGoal)
             is FoodIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
@@ -147,10 +169,27 @@ class FoodViewModel(
             is FoodIntent.OnDismissAiReview -> _state.update { it.copy(isAiReviewSheetOpen = false, pendingAiResult = null) }
             is FoodIntent.OnConfirmAiReview -> confirmAiReview()
             is FoodIntent.OnToggleFavoriteFood -> toggleFavorite(intent.foodId)
-            is FoodIntent.OnOpenAddCustomFoodDialog -> _state.update { it.copy(isAddCustomFoodDialogOpen = true) }
-            is FoodIntent.OnCloseAddCustomFoodDialog -> _state.update { it.copy(isAddCustomFoodDialogOpen = false) }
+            is FoodIntent.OnOpenAddCustomFoodDialog -> _state.update {
+                it.copy(
+                    isAddCustomFoodDialogOpen = true,
+                    customFoodAiResult = null,
+                    customFoodAiError = null,
+                    isAnalyzingCustomFoodAi = false
+                )
+            }
+            is FoodIntent.OnCloseAddCustomFoodDialog -> _state.update {
+                it.copy(
+                    isAddCustomFoodDialogOpen = false,
+                    customFoodAiResult = null,
+                    customFoodAiError = null,
+                    isAnalyzingCustomFoodAi = false
+                )
+            }
             is FoodIntent.OnSaveCustomFood -> saveCustomFood(intent)
             is FoodIntent.OnDeleteCustomFood -> deleteCustomFood(intent.id)
+            is FoodIntent.OnAnalyzeCustomFoodAi -> analyzeCustomFoodWithAi(intent.prompt, intent.isMixMode)
+            is FoodIntent.OnConsumeCustomFoodAiResult -> _state.update { it.copy(customFoodAiResult = null) }
+            is FoodIntent.OnDismissCustomFoodAiError -> _state.update { it.copy(customFoodAiError = null) }
         }
     }
 
@@ -168,6 +207,22 @@ class FoodViewModel(
         favoriteFoodsObservationJob = viewModelScope.launch {
             database.observeFavoriteFoodIds(userId).collect { set ->
                 _state.update { it.copy(favoriteFoodIds = set) }
+            }
+        }
+    }
+
+    private fun observeAllFoods(userId: Int) {
+        allFoodsObservationJob?.cancel()
+        allFoodsObservationJob = viewModelScope.launch {
+            database.observeAllFoods(userId).collect { allLogs ->
+                val frequent = allLogs
+                    .flatMap { it.items }
+                    .groupBy { it.name.trim().lowercase() }
+                    .values
+                    .sortedByDescending { it.size }
+                    .map { it.first() }
+                    .take(25)
+                _state.update { it.copy(frequentFoods = frequent) }
             }
         }
     }
@@ -198,6 +253,12 @@ class FoodViewModel(
             fatG = intent.fatG,
             fiberG = intent.fiberG,
             categoryName = intent.categoryName,
+            iconKey = intent.iconKey,
+            micronutrients = intent.micronutrients,
+            ingredients = intent.ingredients,
+            baseAmount = intent.baseAmount,
+            baseUnitLabel = intent.baseUnitLabel,
+            presetLevels = intent.presetLevels,
             createdAt = now,
             updatedAt = now
         )
@@ -208,7 +269,8 @@ class FoodViewModel(
                 database.toggleFavoriteFood(userId, customId)
             }
             _state.update { it.copy(isAddCustomFoodDialogOpen = false) }
-            _effects.send(FoodEffect.ShowToast("${newItem.name} hazır ürünlerime eklendi."))
+            val label = if (newItem.isMix) "${newItem.name} karışımı envanterinize eklendi." else "${newItem.name} envanterinize eklendi."
+            _effects.send(FoodEffect.ShowToast(label))
         }
     }
 
@@ -219,13 +281,69 @@ class FoodViewModel(
         }
     }
 
+    private fun analyzeCustomFoodWithAi(prompt: String, isMixMode: Boolean) {
+        val cleanPrompt = prompt.trim()
+        if (cleanPrompt.isBlank()) {
+            _state.update { it.copy(customFoodAiError = "Lütfen analiz edilecek ürün veya karışım içeriğini yazınız.") }
+            return
+        }
+
+        val date = _state.value.selectedDate
+        val structuredText = if (isMixMode) {
+            "$cleanPrompt (Bu bir karışım/öğün tarifidir. Lütfen içindeki her bileşeni ayrı bir kalem olarak ayır. Her kalemin formattedPortion alanına kullanıcının belirttiği miktarı ve birimini net yaz: örn '150 ml', '2 shot', '1 ölçek', '35 g', '1 adet'. Kalori, protein, karbonhidrat, yağ, lif ve varsa vitamin/mineral/kafein/l-karnitin gibi mikro besinlerini doldur.)"
+        } else {
+            "$cleanPrompt (Bu tek bir üründür. Lütfen tek bir kalem olarak analiz et, formattedPortion alanına kullanıcının belirttiği birimi ve gramaj/ml bilgisini net yaz: örn '1 Ölçek (35g)' veya '1 Ölçek (30ml)'. Kalori, protein, karbonhidrat, yağ, lif ve içindeki tüm vitamin, mineral, aminoasit, kafein, l-karnitin, kreatin gibi mikro besin/içerik değerlerini micronutrients listesine eksiksiz ekle.)"
+        }
+
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    isAnalyzingCustomFoodAi = true,
+                    customFoodAiError = null,
+                    customFoodAiResult = null
+                )
+            }
+
+            val result = apiClient.analyzeFood(structuredText, date)
+            result.onSuccess { aiResult ->
+                _state.update {
+                    it.copy(
+                        isAnalyzingCustomFoodAi = false,
+                        customFoodAiResult = aiResult,
+                        customFoodAiPromptUsed = cleanPrompt,
+                        customFoodAiError = null
+                    )
+                }
+            }.onFailure { err ->
+                val errorMsg = err.message ?: "Bilinmeyen hata"
+                val displayMsg = when {
+                    errorMsg.contains("404") ->
+                        "Sunucuda AI servisi bulunamadı (404). Render uyanıyor olabilir."
+                    errorMsg.contains("401") ->
+                        "Oturum süresi doldu (401). Lütfen tekrar giriş yapınız."
+                    errorMsg.contains("Connect", ignoreCase = true) || errorMsg.contains("timeout", ignoreCase = true) ->
+                        "Sunucuya bağlanılamadı veya zaman aşımına uğradı."
+                    else ->
+                        "AI analizi başarısız: $errorMsg"
+                }
+                _state.update {
+                    it.copy(
+                        isAnalyzingCustomFoodAi = false,
+                        customFoodAiError = displayMsg
+                    )
+                }
+            }
+        }
+    }
+
     private fun observeDataForCurrentDate(userId: Int, date: String) {
         foodObservationJob?.cancel()
         foodObservationJob = viewModelScope.launch {
             database.observeFoods(userId, date).collect { logs ->
                 val primaryLog = logs.firstOrNull()
                 _state.update { current ->
-                    val items = primaryLog?.items ?: emptyList()
+                    val rawItems = primaryLog?.items ?: emptyList()
+                    val items = mergeDuplicateFoodItems(rawItems)
                     val totalCals = items.sumOf { it.calories }
                     val dayWeightInfo = resolveDayWeightAndProtein(date)
                     val fitnessGoal = tokenStorage.getUserFitnessGoal()
@@ -252,7 +370,11 @@ class FoodViewModel(
             database.observeNutritionGoal(userId).collect { goal ->
                 _state.update { current ->
                     val dayWeightInfo = resolveDayWeightAndProtein(current.selectedDate)
-                    val fitnessGoal = tokenStorage.getUserFitnessGoal()
+                    val fitnessGoal = if (goal.fitnessGoal.isNotBlank() && goal.fitnessGoal != FitnessGoal.MAINTAIN.id) {
+                        goal.parsedFitnessGoal
+                    } else {
+                        tokenStorage.getUserFitnessGoal()
+                    }
                     current.copy(
                         nutritionGoal = goal,
                         fitnessGoal = fitnessGoal,
@@ -367,14 +489,16 @@ class FoodViewModel(
         val aiResult = _state.value.pendingAiResult ?: return
         val date = _state.value.selectedDate
         val userId = tokenStorage.getUserId()
-        val existingLog = _state.value.currentFoodLog
+        val existingLog = _state.value.currentFoodLog?.takeIf { it.date == date }
         val now = currentTime()
-        val logId = existingLog?.id ?: Uuid.random().toString()
+        val logId = existingLog?.id ?: "food_${userId}_${date}"
 
         viewModelScope.launch {
-            val combinedItems = ((existingLog?.items ?: emptyList()) + aiResult.items).map { item ->
-                if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
-            }
+            val combinedItems = mergeDuplicateFoodItems(
+                ((existingLog?.items ?: emptyList()) + aiResult.items).map { item ->
+                    if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
+                }
+            )
             val totalCals = combinedItems.sumOf { it.calories }
             val newLog = FoodLog(
                 id = logId,
@@ -406,10 +530,10 @@ class FoodViewModel(
         val rawText = _state.value.rawText.trim()
         val date = _state.value.selectedDate
         val userId = tokenStorage.getUserId()
-        val existingLog = _state.value.currentFoodLog
+        val existingLog = _state.value.currentFoodLog?.takeIf { it.date == date }
         val now = currentTime()
 
-        val logId = existingLog?.id ?: Uuid.random().toString()
+        val logId = existingLog?.id ?: "food_${userId}_${date}"
         val items = _state.value.items
         val totalCals = items.sumOf { it.calories }
 
@@ -440,7 +564,9 @@ class FoodViewModel(
         proteinG: Double = 0.0,
         carbsG: Double = 0.0,
         fatG: Double = 0.0,
-        fiberG: Double = 0.0
+        fiberG: Double = 0.0,
+        micronutrients: List<Micronutrient> = emptyList(),
+        iconKey: String? = null
     ) {
         val newItem = FoodItem(
             id = Uuid.random().toString(),
@@ -450,16 +576,111 @@ class FoodViewModel(
             proteinG = proteinG,
             carbsG = carbsG,
             fatG = fatG,
-            fiberG = fiberG
+            fiberG = fiberG,
+            micronutrients = micronutrients,
+            iconKey = iconKey
         )
-        val currentItems = _state.value.items + newItem
+        val currentItems = mergeDuplicateFoodItems(_state.value.items + newItem)
         updateItemsInDb(currentItems)
+    }
+
+    private fun addMultipleItems(itemsToAdd: List<FoodItem>, summaryNote: String? = null) {
+        if (itemsToAdd.isEmpty()) return
+        val normalized = itemsToAdd.map { item ->
+            if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
+        }
+        val currentItems = mergeDuplicateFoodItems(_state.value.items + normalized)
+        updateItemsInDb(currentItems)
+        if (!summaryNote.isNullOrBlank()) {
+            _state.update { it.copy(infoMessage = summaryNote) }
+        }
+    }
+
+    /**
+     * Merges duplicate FoodItems with the same name in a daily log into a single row with `xN` multiplier
+     * (e.g., 4x Süt (50ml) -> 1 row "200ml (4x)"; 2x Espresso (30ml) -> 1 row "60ml (Shot x2)").
+     */
+    private fun mergeDuplicateFoodItems(items: List<FoodItem>): List<FoodItem> {
+        if (items.size <= 1) return items
+        return items
+            .groupBy { it.name.trim().lowercase() }
+            .map { (_, group) ->
+                if (group.size == 1) {
+                    group.first()
+                } else {
+                    val first = group.first()
+                    val totalCount = group.sumOf { extractPortionMultiplier(it.formattedPortion) }
+                    val mergedPortion = buildMergedPortionLabel(first.name, group.map { it.formattedPortion }, totalCount)
+                    val mergedMicros = group
+                        .flatMap { it.micronutrients }
+                        .groupBy { "${it.name}|${it.unit}" }
+                        .map { (_, mList) ->
+                            val mFirst = mList.first()
+                            mFirst.copy(amount = kotlin.math.round(mList.sumOf { it.amount } * 10.0) / 10.0)
+                        }
+                    first.copy(
+                        formattedPortion = mergedPortion,
+                        calories = group.sumOf { it.calories },
+                        proteinG = kotlin.math.round(group.sumOf { it.proteinG } * 10.0) / 10.0,
+                        carbsG = kotlin.math.round(group.sumOf { it.carbsG } * 10.0) / 10.0,
+                        fatG = kotlin.math.round(group.sumOf { it.fatG } * 10.0) / 10.0,
+                        fiberG = kotlin.math.round(group.sumOf { it.fiberG } * 10.0) / 10.0,
+                        micronutrients = mergedMicros,
+                        iconKey = group.firstNotNullOfOrNull { it.iconKey }
+                    )
+                }
+            }
+    }
+
+    private fun extractPortionMultiplier(portion: String): Int {
+        val p = portion.trim()
+        // Match "(4x)", "(x4)", "x4", "4x"
+        Regex("""\(\s*(?:x\s*(\d+)|(\d+)\s*x)\s*\)""", RegexOption.IGNORE_CASE).find(p)?.let { m ->
+            val n = (m.groupValues[1].ifBlank { m.groupValues[2] }).toIntOrNull()
+            if (n != null && n > 0) return n
+        }
+        Regex("""\b(?:shot\s*x\s*(\d+)|x\s*(\d+)|(\d+)\s*x)\b""", RegexOption.IGNORE_CASE).find(p)?.let { m ->
+            val n = (m.groupValues[1].ifBlank { m.groupValues[2] }.ifBlank { m.groupValues[3] }).toIntOrNull()
+            if (n != null && n > 0) return n
+        }
+        return 1
+    }
+
+    private fun buildMergedPortionLabel(itemName: String, portions: List<String>, totalCount: Int): String {
+        val firstRaw = portions.firstOrNull()?.trim().orEmpty()
+        if (firstRaw.lowercase().contains("shot") && !firstRaw.lowercase().contains("ml")) {
+            return "Shot x$totalCount"
+        }
+        // Check if all portions have a leading ml or g amount (e.g. "50ml", "50 ml", "200ml (4x)")
+        val mlOrG = portions.mapNotNull { p ->
+            Regex("""^(\d+(?:[.,]\d+)?)\s*(ml|g|gr|gram)\b""", RegexOption.IGNORE_CASE).find(p.trim())?.let { m ->
+                val amt = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 0.0
+                val unit = if (m.groupValues[2].lowercase().startsWith("m")) "ml" else "g"
+                amt to unit
+            }
+        }
+        if (mlOrG.size == portions.size && mlOrG.map { it.second }.distinct().size == 1) {
+            val totalAmt = kotlin.math.round(mlOrG.sumOf { it.first }).toInt()
+            val unit = mlOrG.first().second
+            return if (itemName.contains("espresso", ignoreCase = true)) {
+                "$totalAmt$unit (Shot x$totalCount)"
+            } else {
+                "$totalAmt$unit (${totalCount}x)"
+            }
+        }
+        val cleanBase = firstRaw
+            .replace(Regex("""\(\s*(?:shot\s*)?(?:x\s*\d+|\d+\s*x)\s*\)""", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("""\b(?:x\s*\d+|\d+\s*x)\b""", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("""^1\s+"""), "")
+            .trim()
+        return if (cleanBase.isNotBlank()) "$cleanBase (${totalCount}x)" else "${totalCount}x"
     }
 
     private fun removeItem(itemId: String) {
         val currentItems = _state.value.items.filter { it.id != itemId && it.name != itemId }
+        val date = _state.value.selectedDate
         if (currentItems.isEmpty()) {
-            val existingLog = _state.value.currentFoodLog
+            val existingLog = _state.value.currentFoodLog?.takeIf { it.date == date }
             if (existingLog != null) {
                 viewModelScope.launch {
                     database.deleteFood(existingLog.id)
@@ -496,7 +717,8 @@ class FoodViewModel(
     }
 
     private fun clearCurrentLog() {
-        val existingLog = _state.value.currentFoodLog
+        val date = _state.value.selectedDate
+        val existingLog = _state.value.currentFoodLog?.takeIf { it.date == date }
         if (existingLog != null) {
             viewModelScope.launch {
                 database.deleteFood(existingLog.id)
@@ -533,9 +755,10 @@ class FoodViewModel(
         val userId = tokenStorage.getUserId()
         val date = _state.value.selectedDate
 
-        val existingLog = _state.value.currentFoodLog
+        val existingLog = _state.value.currentFoodLog?.takeIf { it.date == date }
         val updated = if (existingLog != null) {
             existingLog.copy(
+                date = date,
                 items = items,
                 totalCalories = totalCals,
                 updatedAt = now,
@@ -543,7 +766,7 @@ class FoodViewModel(
             )
         } else {
             FoodLog(
-                id = Uuid.random().toString(),
+                id = "food_${userId}_${date}",
                 userId = userId,
                 date = date,
                 rawText = items.joinToString(", ") { "${it.name} (${it.formattedPortion})" },
@@ -568,6 +791,7 @@ class FoodViewModel(
             val now = currentTime()
             val updated = goal.copy(
                 userId = userId,
+                fitnessGoal = fitnessGoal.id,
                 updatedAt = now,
                 syncStatus = SyncStatus.PENDING
             )

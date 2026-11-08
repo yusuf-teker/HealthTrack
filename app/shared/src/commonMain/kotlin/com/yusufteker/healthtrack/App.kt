@@ -27,13 +27,14 @@ import androidx.compose.ui.unit.sp
 import com.russhwolf.settings.Settings
 import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
+import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalApp
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
 import com.yusufteker.healthtrack.di.appModules
 import com.yusufteker.healthtrack.feature.auth.presentation.AuthScreenRoot
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScreenRoot
-import com.yusufteker.healthtrack.feature.health.presentation.AppointmentScreenRoot
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileScreenRoot
 import com.yusufteker.healthtrack.feature.weight.presentation.WeightScreenRoot
 import com.yusufteker.healthtrack.feature.workout.presentation.WorkoutScreenRoot
@@ -41,6 +42,7 @@ import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 import com.yusufteker.healthtrack.ui.components.GradientText
+import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import kotlinx.coroutines.launch
@@ -52,8 +54,7 @@ import kotlin.uuid.Uuid
 enum class HealthTab(val title: String) {
     FOOD("Yemek"),
     WORKOUT("Spor"),
-    WEIGHT("Kilo"),
-    HEALTH("Randevu")
+    WEIGHT("Kilo")
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalUuidApi::class)
@@ -73,10 +74,12 @@ fun App() {
 
         HealthTrackTheme(darkTheme = isDark, themeAccent = currentThemeColor) {
             val tokenStorage: TokenStorage = koinInject()
+            val database: HealthDatabase = koinInject()
+            val syncEngine: SyncEngine = koinInject()
             val session by tokenStorage.sessionFlow.collectAsState()
 
             var isProfileScreenOpen by remember(session.isLoggedIn) {
-                mutableStateOf(session.isLoggedIn && !tokenStorage.isProfileConfigured())
+                mutableStateOf(session.isLoggedIn && !tokenStorage.isProfileConfigured() && database.getWeights(session.userId).isEmpty())
             }
 
             var selectedTab by remember { mutableStateOf(HealthTab.FOOD) }
@@ -92,8 +95,14 @@ fun App() {
                 } catch (_: Exception) {}
             }
 
-            LaunchedEffect(session.isLoggedIn) {
-                if (!session.isLoggedIn) {
+            LaunchedEffect(session.isLoggedIn, session.userId) {
+                if (session.isLoggedIn && session.userId > 0) {
+                    Napier.d("SYNC: Oturum açık, uygulama açılışında otomatik sync tetikleniyor (userId=${session.userId})...")
+                    syncEngine.sync()
+                    if (database.getWeights(session.userId).isNotEmpty()) {
+                        isProfileScreenOpen = false
+                    }
+                } else if (!session.isLoggedIn) {
                     Napier.d("SCREEN: AuthScreen açıldı")
                 }
             }
@@ -123,7 +132,10 @@ fun App() {
                     onDarkModeChanged = { isDark = it },
                     onLogout = {
                         isProfileScreenOpen = false
-                        tokenStorage.clearSession()
+                        coroutineScope.launch {
+                            database.clearAll()
+                            tokenStorage.clearSession()
+                        }
                     }
                 )
             } else {
@@ -144,8 +156,8 @@ fun App() {
                                             .background(
                                                 Brush.linearGradient(
                                                     listOf(
-                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
-                                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
+                                                        HealthColors.GradientPrimary.first().copy(alpha = 0.22f),
+                                                        HealthColors.GradientPrimary.last().copy(alpha = 0.18f)
                                                     )
                                                 )
                                             )
@@ -249,54 +261,49 @@ fun App() {
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
-                            NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 8.dp
-                            ) {
-                                NavigationBarItem(
-                                    selected = selectedTab == HealthTab.FOOD,
-                                    onClick = { selectedTab = HealthTab.FOOD },
-                                    icon = { Icon(Icons.Default.Restaurant, contentDescription = "Yemek") },
-                                    label = { Text(HealthTab.FOOD.title) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary
-                                    )
+                            Column {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                    thickness = 0.5.dp
                                 )
-                                NavigationBarItem(
-                                    selected = selectedTab == HealthTab.WORKOUT,
-                                    onClick = { selectedTab = HealthTab.WORKOUT },
-                                    icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Spor") },
-                                    label = { Text(HealthTab.WORKOUT.title) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary
+                                NavigationBar(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 4.dp
+                                ) {
+                                    NavigationBarItem(
+                                        selected = selectedTab == HealthTab.FOOD,
+                                        onClick = { selectedTab = HealthTab.FOOD },
+                                        icon = { Icon(Icons.Default.Restaurant, contentDescription = "Yemek") },
+                                        label = { Text(HealthTab.FOOD.title) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary
+                                        )
                                     )
-                                )
-                                NavigationBarItem(
-                                    selected = selectedTab == HealthTab.WEIGHT,
-                                    onClick = { selectedTab = HealthTab.WEIGHT },
-                                    icon = { Icon(Icons.Default.MonitorWeight, contentDescription = "Kilo") },
-                                    label = { Text(HealthTab.WEIGHT.title) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary
+                                    NavigationBarItem(
+                                        selected = selectedTab == HealthTab.WORKOUT,
+                                        onClick = { selectedTab = HealthTab.WORKOUT },
+                                        icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Spor") },
+                                        label = { Text(HealthTab.WORKOUT.title) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary
+                                        )
                                     )
-                                )
-                                NavigationBarItem(
-                                    selected = selectedTab == HealthTab.HEALTH,
-                                    onClick = { selectedTab = HealthTab.HEALTH },
-                                    icon = { Icon(Icons.Default.MedicalServices, contentDescription = "Randevu") },
-                                    label = { Text(HealthTab.HEALTH.title) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary
+                                    NavigationBarItem(
+                                        selected = selectedTab == HealthTab.WEIGHT,
+                                        onClick = { selectedTab = HealthTab.WEIGHT },
+                                        icon = { Icon(Icons.Default.MonitorWeight, contentDescription = "Kilo") },
+                                        label = { Text(HealthTab.WEIGHT.title) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                     }
@@ -315,7 +322,6 @@ fun App() {
                             )
                             HealthTab.WORKOUT -> WorkoutScreenRoot()
                             HealthTab.WEIGHT -> WeightScreenRoot()
-                            HealthTab.HEALTH -> AppointmentScreenRoot()
                         }
                     }
                 }

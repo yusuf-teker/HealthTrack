@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
+import com.yusufteker.healthtrack.core.model.FoodItem
+import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.GlassCard
@@ -35,7 +39,7 @@ import com.yusufteker.healthtrack.ui.components.bounceClick
 enum class FoodCategory(val labelTr: String) {
     ALL("Tümü"),
     FAVORITES("★ Favorilerim"),
-    CUSTOM("🏷️ Özel Ürünlerim"),
+    CUSTOM("🏷️ Envanterim"),
     PROTEIN("Protein"),
     BREAKFAST("Kahvaltılık"),
     CARBS("Karbonhidrat"),
@@ -58,7 +62,11 @@ data class FoodPreset(
     val category: FoodCategory = FoodCategory.ALL,
     val tags: List<String> = emptyList(),
     val isCustom: Boolean = false,
-    val brand: String? = null
+    val brand: String? = null,
+    val iconKey: String? = null,
+    val micronutrients: List<Micronutrient> = emptyList(),
+    val isMix: Boolean = false,
+    val ingredientCount: Int = 0
 )
 
 /**
@@ -1097,8 +1105,41 @@ private fun CustomFoodItem.toPreset(): FoodPreset {
         category = mappedCategory,
         tags = listOfNotNull(name, brand, "özel", "marka", portionUnit),
         isCustom = true,
-        brand = brand
+        brand = brand,
+        iconKey = iconKey,
+        micronutrients = micronutrients,
+        isMix = isMix,
+        ingredientCount = ingredients.distinctBy { it.name.trim().lowercase() }.size
     )
+}
+
+private fun formatScaledPresetPortion(preset: FoodPreset, count: Int): String {
+    val label = preset.unitLabelTr.trim()
+    if (preset.unitStep > 1) {
+        val totalAmount = preset.unitStep * count
+        return if (count > 1) {
+            "$totalAmount ${label.substringBefore(" (")} (${count}x)"
+        } else {
+            "$totalAmount $label"
+        }
+    }
+    // unitStep == 1 (e.g., CustomFoodItem where unitLabelTr is "50ml", "30ml", "1 Shot", or built-in "Adet")
+    if (count <= 1) {
+        return if (label.firstOrNull()?.isDigit() == true) label else "1 $label"
+    }
+    val lower = label.lowercase()
+    if (lower.contains("shot")) {
+        return "Shot x$count"
+    }
+    val numUnitMatch = Regex("""^(\d+(?:[.,]\d+)?)\s*(ml|g|gr|gram)\b""", RegexOption.IGNORE_CASE).find(label)
+    if (numUnitMatch != null) {
+        val baseNum = numUnitMatch.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0
+        val unitStr = if (numUnitMatch.groupValues[2].lowercase().startsWith("m")) "ml" else "g"
+        val totalNum = kotlin.math.round(baseNum * count).toInt()
+        return "$totalNum$unitStr (${count}x)"
+    }
+    val leadingOneStripped = label.replace(Regex("""^1\s+"""), "")
+    return "$leadingOneStripped (${count}x)"
 }
 
 /**
@@ -1111,10 +1152,13 @@ fun QuickFoodPresetsView(
     modifier: Modifier = Modifier,
     customFoods: List<CustomFoodItem> = emptyList(),
     favoriteFoodIds: Set<String> = emptySet(),
+    frequentFoods: List<FoodItem> = emptyList(),
     onToggleFavorite: ((String) -> Unit)? = null,
     onOpenAddCustomFood: (() -> Unit)? = null,
     onDeleteCustomFood: ((String) -> Unit)? = null,
-    onSelectFood: ((preset: FoodPreset, quantity: Int) -> Unit)? = null
+    onSelectFood: ((preset: FoodPreset, quantity: Int) -> Unit)? = null,
+    onAddFoodWithDetails: ((name: String, portion: String, calories: Int, protein: Double, carbs: Double, fat: Double, fiber: Double, micronutrients: List<Micronutrient>, iconKey: String?) -> Unit)? = null,
+    onOpenInventoryStudio: ((CustomFoodItem?) -> Unit)? = null
 ) {
     val isDark = LocalIsDarkTheme.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -1156,156 +1200,13 @@ fun QuickFoodPresetsView(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Section Header with Actions
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .background(HealthColors.Primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Bolt,
-                        contentDescription = null,
-                        tint = HealthColors.Primary,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
-                Text(
-                    text = "Sık Tüketilen Besinler",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // "+ Ürün Ekle" Action Button
-                if (onOpenAddCustomFood != null) {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = HealthColors.Primary.copy(alpha = 0.18f),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .clickable { onOpenAddCustomFood() }
-                            .bounceClick()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = HealthColors.Primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "Kendi Ürününü Ekle",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = HealthColors.Primary
-                            )
-                        }
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight
-                ) {
-                    Text(
-                        text = if (searchQuery.isNotBlank() || selectedCategory != FoodCategory.ALL) {
-                            "${filteredPresets.size} sonuç"
-                        } else {
-                            "${allCombinedPresets.size} Besin"
-                        },
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        fontWeight = FontWeight.SemiBold,
-                        color = HealthColors.Primary,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
-                }
-            }
-        }
-
-        // ── Real-Time Search Bar ──
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = {
-                Text(
-                    text = "Besin veya marka ara... (tavuk, yumurta, ekmek, protein süt)",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Ara",
-                    tint = HealthColors.Primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            trailingIcon = {
-                AnimatedVisibility(
-                    visible = searchQuery.isNotEmpty(),
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    IconButton(
-                        onClick = {
-                            searchQuery = ""
-                            keyboardController?.hide()
-                        },
-                        modifier = Modifier.size(28.dp).bounceClick()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Temizle",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = HealthColors.Primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.25f)
-            )
-        )
-
-        // ── Category Filter Strip ──
+        // ── 1. Category Filter Strip (Top, Clean & Direct) ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             FoodCategory.entries.forEach { category ->
                 // Show badge counts for Favorites and Custom
@@ -1339,7 +1240,7 @@ fun QuickFoodPresetsView(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = category.labelTr,
@@ -1366,85 +1267,77 @@ fun QuickFoodPresetsView(
             }
         }
 
-        // ── Results View: Empty State OR Horizontal Cards Strip ──
+        // ── 2. Results View: Compact Empty State OR Horizontal Cards Strip ──
         if (filteredPresets.isEmpty()) {
             GlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                shape = RoundedCornerShape(18.dp)
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = if (selectedCategory == FoodCategory.FAVORITES) Icons.Default.StarOutline else Icons.Default.RestaurantMenu,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(32.dp)
-                    )
                     Text(
                         text = when (selectedCategory) {
                             FoodCategory.FAVORITES -> "Henüz favori yiyecek eklemediniz"
-                            FoodCategory.CUSTOM -> "Henüz kendinize ait bir marka ürün eklemediniz"
+                            FoodCategory.CUSTOM -> "Envanterinizde henüz ürün bulunmuyor"
                             else -> "\"$searchQuery\" ile eşleşen besin bulunamadı"
                         },
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
-                    Text(
-                        text = when (selectedCategory) {
-                            FoodCategory.FAVORITES -> "Besin kartlarındaki yıldız ikonuna dokunarak sık tükettiğiniz yiyecekleri favorilerinize ekleyebilirsiniz."
-                            FoodCategory.CUSTOM -> "Yukarıdaki 'Kendi Ürününü Ekle' butonuna basarak pınar protein süt veya market ürünlerini kaydedebilirsiniz."
-                            else -> "İstediğiniz ürünü yukarıdaki 'Kendi Ürününü Ekle' butonuyla hazır listenize ekleyebilirsiniz."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    if (selectedCategory == FoodCategory.CUSTOM && onOpenAddCustomFood != null) {
-                        Button(
-                            onClick = onOpenAddCustomFood,
-                            shape = RoundedCornerShape(999.dp),
-                            modifier = Modifier.bounceClick(),
-                            colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Yeni Marka Ürünü Ekle", fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        TextButton(
-                            onClick = {
-                                searchQuery = ""
-                                selectedCategory = FoodCategory.ALL
-                            },
-                            modifier = Modifier.bounceClick()
-                        ) {
-                            Text(
-                                text = "Aramayı Temizle & Tümünü Göster",
-                                fontWeight = FontWeight.Bold,
-                                color = HealthColors.Primary
-                            )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (selectedCategory == FoodCategory.CUSTOM && onOpenAddCustomFood != null) {
+                            Button(
+                                onClick = onOpenAddCustomFood,
+                                shape = RoundedCornerShape(999.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp).bounceClick(),
+                                colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Envanterime Ekle", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    searchQuery = ""
+                                    selectedCategory = FoodCategory.ALL
+                                },
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                modifier = Modifier.height(30.dp).bounceClick()
+                            ) {
+                                Text(
+                                    text = "Tüm Besinleri Göster",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.Primary
+                                )
+                            }
                         }
                     }
                 }
             }
         } else {
-            // Horizontal Scrollable Cards Strip
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            // Horizontal Lazy Scrollable Cards Strip (Only composes visible cards)
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp)
             ) {
-                filteredPresets.forEach { preset ->
+                items(
+                    items = filteredPresets,
+                    key = { it.id }
+                ) { preset ->
                     val isFavorite = favoriteFoodIds.contains(preset.id)
                     val count = multipliers.getOrPut(preset.id) { 1 }
                     val totalAmount = preset.unitStep * count
@@ -1454,11 +1347,11 @@ fun QuickFoodPresetsView(
                     val totalFat = ((preset.baseFatG * count * 10).toInt()) / 10.0
                     val totalFiber = ((preset.baseFiberG * count * 10).toInt()) / 10.0
 
-                    val portionLabel = if (preset.unitStep == 1) {
-                        "$count ${preset.unitLabelTr}"
-                    } else {
-                        "$totalAmount ${preset.unitLabelTr}"
-                    }
+                    val portionLabel = formatScaledPresetPortion(preset, count)
+
+                    val matchingCustomItem = if (preset.isCustom) {
+                        customFoods.firstOrNull { it.id == preset.id }
+                    } else null
 
                     PresetFoodCard(
                         preset = preset,
@@ -1469,8 +1362,15 @@ fun QuickFoodPresetsView(
                         totalCarbs = totalCarbs,
                         totalFat = totalFat,
                         onCardClick = {
-                            onSelectFood?.invoke(preset, count)
+                            if (matchingCustomItem != null && onOpenInventoryStudio != null) {
+                                onOpenInventoryStudio(matchingCustomItem)
+                            } else {
+                                onSelectFood?.invoke(preset, count)
+                            }
                         },
+                        onOpenStudio = if (matchingCustomItem != null && onOpenInventoryStudio != null) {
+                            { onOpenInventoryStudio(matchingCustomItem) }
+                        } else null,
                         onToggleFavorite = {
                             onToggleFavorite?.invoke(preset.id)
                         },
@@ -1488,15 +1388,32 @@ fun QuickFoodPresetsView(
                             }
                         },
                         onAdd = {
-                            onAddFood(
-                                preset.nameTr,
-                                portionLabel,
-                                totalCalories,
-                                totalProtein,
-                                totalCarbs,
-                                totalFat,
-                                totalFiber
-                            )
+                            val scaledMicros = preset.micronutrients.map { micro ->
+                                micro.copy(amount = kotlin.math.round(micro.amount * count * 10.0) / 10.0)
+                            }
+                            if (onAddFoodWithDetails != null) {
+                                onAddFoodWithDetails(
+                                    preset.nameTr,
+                                    portionLabel,
+                                    totalCalories,
+                                    totalProtein,
+                                    totalCarbs,
+                                    totalFat,
+                                    totalFiber,
+                                    scaledMicros,
+                                    preset.iconKey
+                                )
+                            } else {
+                                onAddFood(
+                                    preset.nameTr,
+                                    portionLabel,
+                                    totalCalories,
+                                    totalProtein,
+                                    totalCarbs,
+                                    totalFat,
+                                    totalFiber
+                                )
+                            }
                             // Reset count back to 1
                             multipliers[preset.id] = 1
                         }
@@ -1504,6 +1421,62 @@ fun QuickFoodPresetsView(
                 }
             }
         }
+
+        // ── 3. Bottom Search Bar (Moved to Bottom to Reduce Top Clutter) ──
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = {
+                Text(
+                    text = "Besin veya marka ara...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Ara",
+                    tint = HealthColors.Primary.copy(alpha = 0.8f),
+                    modifier = Modifier.size(19.dp)
+                )
+            },
+            trailingIcon = {
+                AnimatedVisibility(
+                    visible = searchQuery.isNotEmpty(),
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    IconButton(
+                        onClick = {
+                            searchQuery = ""
+                            keyboardController?.hide()
+                        },
+                        modifier = Modifier.size(28.dp).bounceClick()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Temizle",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = HealthColors.Primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.38f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)
+            )
+        )
     }
 }
 
@@ -1517,6 +1490,7 @@ private fun PresetFoodCard(
     totalCarbs: Double,
     totalFat: Double,
     onCardClick: () -> Unit,
+    onOpenStudio: (() -> Unit)? = null,
     onToggleFavorite: () -> Unit,
     onDeleteCustom: (() -> Unit)?,
     onDecrement: () -> Unit,
@@ -1544,30 +1518,44 @@ private fun PresetFoodCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    if (preset.isCustom) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = HealthColors.Secondary.copy(alpha = 0.15f),
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        ) {
-                            Text(
-                                text = preset.brand ?: "Özel Ürünüm",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = HealthColors.Secondary,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
-                        }
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (preset.iconKey != null) {
+                        FoodIconBadge(
+                            iconKey = preset.iconKey,
+                            size = 32.dp,
+                            tint = if (preset.isCustom) HealthColors.Secondary else HealthColors.Primary
+                        )
                     }
-                    Text(
-                        text = preset.nameTr,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (preset.isCustom) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = HealthColors.Secondary.copy(alpha = 0.15f),
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (preset.isMix) "🏷️ ${preset.ingredientCount} İçerik" else (preset.brand ?: "Envanterim"),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.Secondary,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = preset.nameTr,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1649,6 +1637,53 @@ private fun PresetFoodCard(
                     color = HealthColors.NutrientLipids,
                     fontWeight = FontWeight.Medium
                 )
+            }
+
+            if (onOpenStudio != null) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = HealthColors.Secondary.copy(alpha = 0.14f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onOpenStudio() }
+                        .bounceClick()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = HealthColors.Secondary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (preset.isMix) "İçerik Seviyelerini Ayarla" else "Seviye / Ölçek Değiştir",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            fontWeight = FontWeight.Bold,
+                            color = HealthColors.Secondary,
+                            maxLines = 1
+                        )
+                    }
+                }
+            } else if (preset.micronutrients.isNotEmpty()) {
+                // Micronutrient badge if preset has micronutrients
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = HealthColors.Secondary.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "🧬 ${preset.micronutrients.size} Mikro Besin",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = HealthColors.Secondary,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                }
             }
 
             // Quantity Stepper: [-]  portion  [+]

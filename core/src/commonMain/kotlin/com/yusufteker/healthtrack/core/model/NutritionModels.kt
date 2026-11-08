@@ -61,10 +61,14 @@ data class NutritionGoal(
     val ironMg: Double = 14.0,
     val calciumMg: Double = 1000.0,
     val magnesiumMg: Double = 350.0,
+    val fitnessGoal: String = FitnessGoal.MAINTAIN.id,
     val updatedAt: Long = 0L,
     val isDeleted: Boolean = false,
     val syncStatus: SyncStatus = SyncStatus.PENDING
-)
+) {
+    val parsedFitnessGoal: FitnessGoal
+        get() = FitnessGoal.fromId(fitnessGoal)
+}
 
 @Serializable
 data class NutrientProgress(

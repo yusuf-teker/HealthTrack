@@ -2,10 +2,12 @@ package com.yusufteker.healthtrack.feature.auth.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.LoginRequest
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,7 +15,8 @@ import kotlinx.coroutines.launch
 class AuthViewModel(
     private val apiClient: HealthApiClient,
     private val tokenStorage: TokenStorage,
-    private val syncEngine: SyncEngine
+    private val syncEngine: SyncEngine,
+    private val database: HealthDatabase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AuthState())
@@ -62,11 +65,17 @@ class AuthViewModel(
                     refreshToken = response.refreshToken,
                     avatarId = response.avatarId
                 )
+
+                // Await initial sync so that weights, goals, workouts, and foods are restored
+                // BEFORE navigating to Home and before checking profile configuration.
+                try {
+                    syncEngine.sync(forceFullPull = true)
+                } catch (e: Exception) {
+                    Napier.e("Giriş sonrası senkronizasyon hatası: ${e.message}", tag = "AUTH_LOG")
+                }
+
                 _state.update { it.copy(isLoading = false) }
                 _effects.send(AuthEffect.NavigateToHome)
-
-                // Trigger background sync after login
-                launch { syncEngine.sync() }
             }.onFailure { err ->
                 _state.update {
                     it.copy(
@@ -79,7 +88,10 @@ class AuthViewModel(
     }
 
     private fun performLogout() {
-        tokenStorage.clearSession()
-        _effects.trySend(AuthEffect.ShowToast("Çıkış yapıldı."))
+        viewModelScope.launch {
+            database.clearAll()
+            tokenStorage.clearSession()
+            _effects.trySend(AuthEffect.ShowToast("Çıkış yapıldı."))
+        }
     }
 }

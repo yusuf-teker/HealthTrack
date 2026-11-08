@@ -58,6 +58,7 @@ sealed interface ProfileIntent {
     data object OnSyncClicked : ProfileIntent
     data object OnLogoutClicked : ProfileIntent
     data object OnSaveProfileClicked : ProfileIntent
+    data object OnScreenAppeared : ProfileIntent
     data object OnDismissInfoMessage : ProfileIntent
     data object OnDismissErrorMessage : ProfileIntent
 }

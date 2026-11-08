@@ -120,7 +120,7 @@ class WeightViewModel(
             val now = currentTime()
             // Check if entry for date already exists
             val existing = _state.value.entries.find { it.date == date }
-            val id = existing?.id ?: Uuid.random().toString()
+            val id = existing?.id ?: "weight_${userId}_${date}"
 
             val entry = WeightEntry(
                 id = id,

@@ -1,12 +1,14 @@
 package com.yusufteker.healthtrack.feature.food.presentation
 
+import com.yusufteker.healthtrack.core.model.CustomFoodIngredient
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.FitnessGoal
-import com.yusufteker.healthtrack.core.network.FoodAiResultDto
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.FoodLog
+import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.model.NutritionGoal
+import com.yusufteker.healthtrack.core.network.FoodAiResultDto
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 
 data class FoodState(
@@ -35,7 +37,12 @@ data class FoodState(
     val isAiReviewSheetOpen: Boolean = false,
     val customFoods: List<CustomFoodItem> = emptyList(),
     val favoriteFoodIds: Set<String> = emptySet(),
-    val isAddCustomFoodDialogOpen: Boolean = false
+    val frequentFoods: List<FoodItem> = emptyList(),
+    val isAddCustomFoodDialogOpen: Boolean = false,
+    val isAnalyzingCustomFoodAi: Boolean = false,
+    val customFoodAiResult: FoodAiResultDto? = null,
+    val customFoodAiPromptUsed: String = "",
+    val customFoodAiError: String? = null
 )
 
 sealed interface FoodIntent {
@@ -54,7 +61,13 @@ sealed interface FoodIntent {
         val proteinG: Double = 0.0,
         val carbsG: Double = 0.0,
         val fatG: Double = 0.0,
-        val fiberG: Double = 0.0
+        val fiberG: Double = 0.0,
+        val micronutrients: List<Micronutrient> = emptyList(),
+        val iconKey: String? = null
+    ) : FoodIntent
+    data class OnAddMultipleItems(
+        val items: List<FoodItem>,
+        val summaryNote: String? = null
     ) : FoodIntent
     data object OnOpenEditGoalsDialog : FoodIntent
     data object OnCloseEditGoalsDialog : FoodIntent
@@ -74,9 +87,18 @@ sealed interface FoodIntent {
         val fatG: Double = 0.0,
         val fiberG: Double = 0.0,
         val categoryName: String = "ALL",
-        val makeFavorite: Boolean = false
+        val makeFavorite: Boolean = false,
+        val iconKey: String? = null,
+        val micronutrients: List<Micronutrient> = emptyList(),
+        val ingredients: List<CustomFoodIngredient> = emptyList(),
+        val baseAmount: Double = 1.0,
+        val baseUnitLabel: String = "",
+        val presetLevels: List<Double> = emptyList()
     ) : FoodIntent
     data class OnDeleteCustomFood(val id: String) : FoodIntent
+    data class OnAnalyzeCustomFoodAi(val prompt: String, val isMixMode: Boolean) : FoodIntent
+    data object OnConsumeCustomFoodAiResult : FoodIntent
+    data object OnDismissCustomFoodAiError : FoodIntent
 }
 
 sealed interface FoodEffect {
