@@ -28,6 +28,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     private val _weightsFlow = MutableStateFlow<List<WeightEntry>>(loadList(KEY_WEIGHTS))
     private val _customFoodsFlow = MutableStateFlow<List<CustomFoodItem>>(loadList(KEY_CUSTOM_FOODS))
     private val _favoriteFoodsFlow = MutableStateFlow<Map<Int, List<String>>>(loadMap(KEY_FAVORITE_FOODS))
+    private val _reportsFlow = MutableStateFlow<List<HealthAiReport>>(loadList(KEY_AI_REPORTS))
 
     // ─────────────────────────────────────────────────────────────
     // FOOD OPERATIONS
@@ -243,6 +244,13 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     fun observeWorkouts(userId: Int, date: String): Flow<List<WorkoutLog>> {
         return _workoutsFlow.map { list ->
             list.filter { it.userId == userId && it.date == date && !it.isDeleted }
+                .sortedByDescending { it.updatedAt }
+        }
+    }
+
+    fun observeAllWorkouts(userId: Int): Flow<List<WorkoutLog>> {
+        return _workoutsFlow.map { list ->
+            list.filter { it.userId == userId && !it.isDeleted }
                 .sortedByDescending { it.updatedAt }
         }
     }
@@ -493,13 +501,41 @@ class HealthDatabase(private val settings: Settings = Settings()) {
             saveList(KEY_WEIGHTS, validWeights)
         }
 
-        // 3. Workouts: remove invalid dates
+        // 3. Workouts: remove invalid dates and migrate legacy >36-char device workout IDs to VARCHAR(36)-safe IDs
         val currentWorkouts = _workoutsFlow.value.toMutableList()
-        val validWorkouts = currentWorkouts.filter { isoDateRegex.matches(it.date) }
-        if (validWorkouts.size != currentWorkouts.size) {
-            _workoutsFlow.value = validWorkouts
-            saveList(KEY_WORKOUTS, validWorkouts)
+        var workoutsChanged = false
+        val normalizedWorkouts = mutableMapOf<String, WorkoutLog>()
+        for (workout in currentWorkouts) {
+            if (!isoDateRegex.matches(workout.date)) {
+                workoutsChanged = true
+                continue
+            }
+            val safeId = normalizeWorkoutId(workout.id)
+            if (safeId != workout.id) {
+                workoutsChanged = true
+            }
+            val candidate = if (safeId != workout.id) workout.copy(id = safeId) else workout
+            val existing = normalizedWorkouts[safeId]
+            if (existing == null || candidate.updatedAt >= existing.updatedAt) {
+                if (existing != null) workoutsChanged = true
+                normalizedWorkouts[safeId] = candidate
+            } else {
+                workoutsChanged = true
+            }
         }
+        if (workoutsChanged) {
+            val cleanedList = normalizedWorkouts.values.toList()
+            _workoutsFlow.value = cleanedList
+            saveList(KEY_WORKOUTS, cleanedList)
+        }
+    }
+
+    private fun normalizeWorkoutId(id: String): String {
+        if (id.length <= 36 && !id.startsWith("workout_dev_")) return id
+        return id
+            .replace("workout_dev_", "wdev_")
+            .replace("_daily_steps", "_steps")
+            .take(36)
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -664,6 +700,57 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_WEIGHTS, current)
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // AI REPORTS OPERATIONS (DAILY & WEEKLY ANALYTICS)
+    // ─────────────────────────────────────────────────────────────
+
+    fun observeAiReports(userId: Int): Flow<List<HealthAiReport>> {
+        return _reportsFlow.map { list ->
+            list.filter { it.userId == userId }
+                .sortedByDescending { it.createdAt }
+        }
+    }
+
+    fun getAiReports(userId: Int): List<HealthAiReport> {
+        return _reportsFlow.value.filter { it.userId == userId }
+            .sortedByDescending { it.createdAt }
+    }
+
+    suspend fun upsertAiReport(report: HealthAiReport) {
+        val current = _reportsFlow.value.toMutableList()
+        val index = current.indexOfFirst {
+            it.id == report.id || (
+                it.userId == report.userId &&
+                it.periodType == report.periodType &&
+                it.startDate == report.startDate &&
+                it.endDate == report.endDate
+            )
+        }
+        if (index >= 0) {
+            current[index] = report
+        } else {
+            current.add(0, report)
+        }
+        _reportsFlow.value = current
+        saveList(KEY_AI_REPORTS, current)
+    }
+
+    suspend fun markReportSentToWhatsApp(reportId: String) {
+        val current = _reportsFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.id == reportId }
+        if (index >= 0) {
+            current[index] = current[index].copy(isSentToWhatsApp = true)
+            _reportsFlow.value = current
+            saveList(KEY_AI_REPORTS, current)
+        }
+    }
+
+    suspend fun deleteAiReport(reportId: String) {
+        val current = _reportsFlow.value.filter { it.id != reportId }
+        _reportsFlow.value = current
+        saveList(KEY_AI_REPORTS, current)
+    }
+
     suspend fun clearAll() {
         _foodsFlow.value = emptyList()
         _goalsFlow.value = emptyMap()
@@ -671,12 +758,14 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         _weightsFlow.value = emptyList()
         _customFoodsFlow.value = emptyList()
         _favoriteFoodsFlow.value = emptyMap()
+        _reportsFlow.value = emptyList()
         settings.remove(KEY_FOODS)
         settings.remove(KEY_GOALS)
         settings.remove(KEY_WORKOUTS)
         settings.remove(KEY_WEIGHTS)
         settings.remove(KEY_CUSTOM_FOODS)
         settings.remove(KEY_FAVORITE_FOODS)
+        settings.remove(KEY_AI_REPORTS)
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -722,5 +811,6 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         private const val KEY_WEIGHTS = "ht_db_weights"
         private const val KEY_CUSTOM_FOODS = "ht_db_custom_foods"
         private const val KEY_FAVORITE_FOODS = "ht_db_favorite_foods"
+        private const val KEY_AI_REPORTS = "ht_db_ai_reports"
     }
 }

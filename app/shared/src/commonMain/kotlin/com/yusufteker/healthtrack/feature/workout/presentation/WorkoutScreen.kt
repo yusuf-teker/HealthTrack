@@ -29,12 +29,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
+import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.utils.formatDayMonthYear
+import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
+import com.yusufteker.healthtrack.core.utils.getTodayIso
+import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.CrossedBarbellPlusIcon
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
+import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
@@ -49,9 +56,31 @@ fun WorkoutScreen(
     modifier: Modifier = Modifier
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
+    val deviceHealthBridge = rememberDeviceHealthBridge()
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     var showManualFields by remember { mutableStateOf(false) }
+    var showDeviceGuideDialog by remember { mutableStateOf(false) }
+
+    val todayIso = remember { getTodayIso() }
+    val isSelectedToday = state.selectedDate == todayIso
+    val markedWorkoutDates = remember(state.allWorkouts) {
+        state.allWorkouts.map { it.date }.toSet()
+    }
+
+    if (showDeviceGuideDialog) {
+        DeviceConnectionGuideDialog(
+            platformName = deviceHealthBridge.platformName,
+            onOpenHealthSettings = { deviceHealthBridge.openHealthSettings() },
+            onSyncNow = {
+                onIntent(WorkoutIntent.OnWatchSyncStarted)
+                deviceHealthBridge.syncLastDays(days = 30) { result ->
+                    onIntent(WorkoutIntent.OnWatchSnapshotReceived(result))
+                }
+            },
+            onDismiss = { showDeviceGuideDialog = false }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -71,11 +100,19 @@ fun WorkoutScreen(
                 selectedDate = state.selectedDate,
                 onDateSelected = { newDate ->
                     onIntent(WorkoutIntent.OnDateChanged(newDate))
-                }
+                },
+                markedDates = markedWorkoutDates
             )
 
             // ── Radial Strain & Calorie Burn Gauge (Hero Card) ──
             WorkoutStrainHeroCard(state = state)
+
+            // ── Ambient Daily Steps & Movement Telemetry Widget (Option 1) ──
+            state.dailySteps?.let { steps ->
+                if (steps.stepCount > 0) {
+                    DailyStepsTelemetryCard(dailySteps = steps)
+                }
+            }
 
         // ── AI Workout Telemetry Input Section ("AI Natural Log") ──
         GlassCard(
@@ -127,7 +164,7 @@ fun WorkoutScreen(
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "Copilot Aktif",
+                            text = "Gemini",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = HealthColors.Primary
@@ -355,7 +392,7 @@ fun WorkoutScreen(
             }
         }
 
-        // ── Today's Logged Workouts Feed ──
+        // ── Selected Day's Logged Workouts Feed ──
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -366,7 +403,7 @@ fun WorkoutScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Bugünkü Aktiviteler",
+                    text = if (isSelectedToday) "Bugünkü Aktiviteler" else "${formatDisplayDateTr(state.selectedDate)} Aktiviteleri",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -384,6 +421,59 @@ fun WorkoutScreen(
                     )
                 }
             }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED) {
+                    Surface(
+                        onClick = {
+                            if (!state.isSyncingWatch) {
+                                onIntent(WorkoutIntent.OnWatchSyncStarted)
+                                deviceHealthBridge.syncLastDays(days = 30) { result ->
+                                    onIntent(WorkoutIntent.OnWatchSnapshotReceived(result))
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(999.dp),
+                        color = HealthColors.TertiaryContainer.copy(alpha = 0.16f),
+                        modifier = Modifier.bounceClick()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (state.isSyncingWatch) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 1.5.dp,
+                                    color = HealthColors.TertiaryContainer
+                                )
+                            }
+                            Text(
+                                text = if (state.isSyncingWatch) "Saat Okunuyor..." else "⌚ Saatten Çek",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = HealthColors.TertiaryContainer
+                            )
+                        }
+                    }
+                }
+
+                IconButton(
+                    onClick = { showDeviceGuideDialog = true },
+                    modifier = Modifier.size(28.dp).bounceClick()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.HelpOutline,
+                        contentDescription = "Saat Nasıl Bağlanır?",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
 
         if (state.workouts.isEmpty()) {
@@ -395,7 +485,7 @@ fun WorkoutScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 32.dp),
+                        .padding(vertical = 32.dp, horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -409,12 +499,15 @@ fun WorkoutScreen(
                             modifier = Modifier.size(36.dp)
                         )
                         Text(
-                            text = "Bugün için henüz egzersiz kaydedilmedi.",
+                            text = if (isSelectedToday) "Bugün için henüz egzersiz kaydedilmedi." else "${formatDisplayDateTr(state.selectedDate)} için egzersiz kaydı yok.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Yukarıdaki kutucuğa sporunuzu yazıp AI ile hesaplatabilirsiniz.",
+                            text = if (state.dailySteps != null && state.dailySteps.stepCount > 0)
+                                "Günün ${state.dailySteps.stepCount} adımlık hareketi yukarıdaki adım panelinde takip ediliyor. Yaptığınız sporu (tenis, fitness vb.) kutucuğa yazıp AI ile ekleyebilirsiniz."
+                            else
+                                "Yukarıdaki kutucuğa sporunuzu yazıp AI ile hesaplatabilir veya saatten çekebilirsiniz.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -859,5 +952,163 @@ private fun WorkoutQuickChip(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+/**
+ * Stitch Luxury Ambient Daily Steps & Movement Telemetry Card (Option 1).
+ * Displays ambient watch steps cleanly without crowding the workout list or double-counting active sport calories.
+ */
+@Composable
+private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
+    val isDark = LocalIsDarkTheme.current
+    val progress = dailySteps.progress
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 600)
+    )
+    val percentage = (progress * 100).toInt()
+
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = 6.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(HealthColors.Primary.copy(alpha = 0.18f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsWalk,
+                            contentDescription = null,
+                            tint = HealthColors.Primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "${dailySteps.stepCount}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "adım",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "${dailySteps.distanceKm} km",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = HealthColors.Primary
+                            )
+                            Text(
+                                text = "•",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "~${dailySteps.durationMinutes} dk hareket",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (dailySteps.netCaloriesBurned > 0) {
+                                Text(
+                                    text = "•",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                                Text(
+                                    text = "${dailySteps.netCaloriesBurned} kcal",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.TertiaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Source Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(
+                            if (isDark) HealthColors.SurfaceContainerHigh
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "⌚ ${dailySteps.sourceName}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Target Progress Bar
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Hedef ${dailySteps.stepTarget} adım",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = "%$percentage",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = HealthColors.Primary
+                    )
+                }
+
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(999.dp)),
+                    color = HealthColors.Primary,
+                    trackColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
+        }
     }
 }

@@ -16,6 +16,11 @@ enum class ExternalApp(
         packageName = "com.yusufteker.healthtrack",
         scheme = "healthtrack://",
         appName = "HealthTrack"
+    ),
+    WHATSAPP(
+        packageName = "com.whatsapp",
+        scheme = "whatsapp://",
+        appName = "WhatsApp"
     )
 }
 
@@ -30,6 +35,12 @@ interface ExternalAppLauncher {
      * Returns true if successfully launched, false otherwise.
      */
     fun openApp(app: ExternalApp): Boolean
+
+    /**
+     * Sends a formatted report text via WhatsApp (to a specific [phoneNumber] if provided, or contact chooser)
+     * with fallback to the system share sheet or wa.me link.
+     */
+    fun shareToWhatsApp(text: String, phoneNumber: String? = null): Boolean
 }
 
 /**

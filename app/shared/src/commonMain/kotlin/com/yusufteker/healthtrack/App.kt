@@ -33,6 +33,7 @@ import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalApp
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
 import com.yusufteker.healthtrack.di.appModules
+import com.yusufteker.healthtrack.feature.analytics.presentation.AnalyticsScreenRoot
 import com.yusufteker.healthtrack.feature.auth.presentation.AuthScreenRoot
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScreenRoot
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileScreenRoot
@@ -54,7 +55,8 @@ import kotlin.uuid.Uuid
 enum class HealthTab(val title: String) {
     FOOD("Yemek"),
     WORKOUT("Spor"),
-    WEIGHT("Kilo")
+    WEIGHT("Kilo"),
+    ANALYTICS("Analiz")
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalUuidApi::class)
@@ -303,6 +305,17 @@ fun App() {
                                             selectedTextColor = MaterialTheme.colorScheme.primary
                                         )
                                     )
+                                    NavigationBarItem(
+                                        selected = selectedTab == HealthTab.ANALYTICS,
+                                        onClick = { selectedTab = HealthTab.ANALYTICS },
+                                        icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Analiz & Rapor") },
+                                        label = { Text(HealthTab.ANALYTICS.title) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    )
                                 }
                             }
                         }
@@ -322,6 +335,7 @@ fun App() {
                             )
                             HealthTab.WORKOUT -> WorkoutScreenRoot()
                             HealthTab.WEIGHT -> WeightScreenRoot()
+                            HealthTab.ANALYTICS -> AnalyticsScreenRoot()
                         }
                     }
                 }

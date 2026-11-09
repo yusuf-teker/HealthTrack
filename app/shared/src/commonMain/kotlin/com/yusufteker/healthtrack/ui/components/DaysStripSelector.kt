@@ -40,6 +40,7 @@ fun DaysStripSelector(
     onDateSelected: (String) -> Unit,
     onPrevWeek: () -> Unit = {},
     onNextWeek: () -> Unit = {},
+    markedDates: Set<String> = emptySet(),
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
@@ -180,13 +181,14 @@ fun DaysStripSelector(
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                         color = if (isSelected) HealthColors.OnPrimary else MaterialTheme.colorScheme.onSurface
                     )
-                    if (isSelected) {
+                    val hasMark = markedDates.contains(day.dateString)
+                    if (isSelected || hasMark) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Box(
                             modifier = Modifier
-                                .size(3.dp)
+                                .size(if (isSelected) 3.dp else 4.dp)
                                 .clip(CircleShape)
-                                .background(HealthColors.OnPrimary)
+                                .background(if (isSelected) HealthColors.OnPrimary else HealthColors.TertiaryContainer)
                         )
                     }
                 }

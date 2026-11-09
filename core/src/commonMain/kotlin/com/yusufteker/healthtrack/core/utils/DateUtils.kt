@@ -167,3 +167,41 @@ fun formatDayMonthYear(isoDate: String): String {
     }
 }
 
+/**
+ * Returns the Monday and Sunday ISO dates (YYYY-MM-DD) of the week containing [referenceDateIso].
+ */
+fun getWeekBoundsIso(referenceDateIso: String): Pair<String, String> {
+    return try {
+        val parsed = LocalDate.parse(referenceDateIso.trim())
+        val dayIndex = parsed.dayOfWeek.ordinal // Monday = 0, Sunday = 6
+        val monday = parsed.plus(-dayIndex, DateTimeUnit.DAY)
+        val sunday = monday.plus(6, DateTimeUnit.DAY)
+        monday.toString() to sunday.toString()
+    } catch (_: Exception) {
+        referenceDateIso to referenceDateIso
+    }
+}
+
+/**
+ * Formats a Monday..Sunday ISO date range into a compact Turkish label (e.g. "02 Kas - 08 Kas 2026").
+ */
+fun formatWeekRangeTr(mondayIso: String, sundayIso: String): String {
+    return try {
+        val mParts = mondayIso.split("-").map { it.toInt() }
+        val sParts = sundayIso.split("-").map { it.toInt() }
+        val mDay = if (mParts[2] < 10) "0${mParts[2]}" else "${mParts[2]}"
+        val sDay = if (sParts[2] < 10) "0${sParts[2]}" else "${sParts[2]}"
+        val mMonth = TURKISH_MONTHS_SHORT.getOrElse(mParts[1]) { "" }
+        val sMonth = TURKISH_MONTHS_SHORT.getOrElse(sParts[1]) { "" }
+        val year = sParts[0]
+        if (mParts[1] == sParts[1]) {
+            "$mDay - $sDay $sMonth $year"
+        } else {
+            "$mDay $mMonth - $sDay $sMonth $year"
+        }
+    } catch (_: Exception) {
+        "$mondayIso - $sundayIso"
+    }
+}
+
+

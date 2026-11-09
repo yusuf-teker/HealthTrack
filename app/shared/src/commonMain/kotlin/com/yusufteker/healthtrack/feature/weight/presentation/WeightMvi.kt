@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.feature.weight.presentation
 
+import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.utils.formatShortDateTr
@@ -18,6 +19,7 @@ data class WeightState(
     val inputNote: String = "",
     val isEditingTarget: Boolean = false,
     val isSaving: Boolean = false,
+    val isSyncingScale: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null
 )
@@ -28,6 +30,8 @@ sealed interface WeightIntent {
     data class OnInputWeightChanged(val weight: String) : WeightIntent
     data class OnInputNoteChanged(val note: String) : WeightIntent
     data object OnSaveWeightClicked : WeightIntent
+    data object OnScaleSyncStarted : WeightIntent
+    data class OnScaleSnapshotReceived(val result: Result<DeviceHealthSnapshot>) : WeightIntent
     data class OnDeleteWeight(val id: String) : WeightIntent
     data class OnSetEditingTarget(val isEditing: Boolean) : WeightIntent
     data class OnSaveTargetWeight(val newTargetWeight: Double) : WeightIntent

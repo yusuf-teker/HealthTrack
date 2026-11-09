@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 
@@ -26,10 +27,32 @@ private val sampleWorkouts = listOf(
     )
 )
 
+private val pastWorkouts = listOf(
+    WorkoutLog(
+        id = "wdev_1_2026-11-05_steps",
+        userId = 1,
+        date = "2026-11-05",
+        rawText = "8420 Adım • Günlük Hareket (~84 dk)",
+        caloriesBurned = 345,
+        durationMinutes = 84,
+        aiAnalysis = "⌚ Huawei Health • 6.3 km • 8420 adım • MET kalori hesabı"
+    )
+)
+
 private val populatedWorkoutState = WorkoutState(
     selectedDate = "2026-11-06",
     rawText = "",
     workouts = sampleWorkouts,
+    dailySteps = DailyStepTelemetry(
+        stepCount = 6420,
+        distanceKm = 4.8,
+        durationMinutes = 62,
+        caloriesBurned = 210,
+        netCaloriesBurned = 95,
+        sourceName = "Huawei Health",
+        stepTarget = 10_000
+    ),
+    allWorkouts = sampleWorkouts + pastWorkouts,
     totalCaloriesBurned = 560,
     totalDurationMinutes = 75,
     targetCalories = 500,

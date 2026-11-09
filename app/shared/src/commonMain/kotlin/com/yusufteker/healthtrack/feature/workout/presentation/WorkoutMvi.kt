@@ -1,5 +1,7 @@
 package com.yusufteker.healthtrack.feature.workout.presentation
 
+import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
+import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 
@@ -9,6 +11,8 @@ data class WorkoutState(
     val manualCalories: String = "",
     val manualDuration: String = "",
     val workouts: List<WorkoutLog> = emptyList(),
+    val dailySteps: DailyStepTelemetry? = null,
+    val allWorkouts: List<WorkoutLog> = emptyList(),
     val totalCaloriesBurned: Int = 0,
     val totalDurationMinutes: Int = 0,
     val targetCalories: Int = 300,
@@ -16,6 +20,7 @@ data class WorkoutState(
     val consumedCalories: Int = 0, // From Food
     val netCalories: Int = 0, // consumed - burned
     val isCalculatingAi: Boolean = false,
+    val isSyncingWatch: Boolean = false,
     val userWeightKg: Double = 75.0,
     val errorMessage: String? = null,
     val infoMessage: String? = null
@@ -35,6 +40,8 @@ sealed interface WorkoutIntent {
     data class OnTargetCaloriesChanged(val value: Int) : WorkoutIntent
     data object OnCalculateAiClicked : WorkoutIntent
     data object OnSaveManualClicked : WorkoutIntent
+    data object OnWatchSyncStarted : WorkoutIntent
+    data class OnWatchSnapshotReceived(val result: Result<DeviceHealthSnapshot>) : WorkoutIntent
     data class OnDeleteWorkout(val id: String) : WorkoutIntent
     data object OnDismissErrorMessage : WorkoutIntent
     data object OnDismissInfoMessage : WorkoutIntent

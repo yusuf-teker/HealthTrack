@@ -9,6 +9,7 @@ actual fun rememberExternalAppLauncher(): ExternalAppLauncher {
         object : ExternalAppLauncher {
             override fun isAppInstalled(app: ExternalApp): Boolean = false
             override fun openApp(app: ExternalApp): Boolean = false
+            override fun shareToWhatsApp(text: String, phoneNumber: String?): Boolean = false
         }
     }
 }

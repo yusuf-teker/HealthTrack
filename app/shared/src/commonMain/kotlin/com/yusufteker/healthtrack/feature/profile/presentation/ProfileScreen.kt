@@ -32,11 +32,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FitnessGoal
+import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
+import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.feature.food.presentation.components.EditGoalsDialog
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.theme.LocalThemeAccent
+import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -54,12 +57,14 @@ fun ProfileScreen(
     val isDark = LocalIsDarkTheme.current
     val currentAccent = LocalThemeAccent.current
     val scrollState = rememberScrollState()
+    val deviceHealthBridge = rememberDeviceHealthBridge()
 
     var weightInput by remember(state.weightKg) { mutableStateOf(state.weightKg.toString()) }
     var targetWeightInput by remember(state.targetWeightKg) { mutableStateOf(state.targetWeightKg.toString()) }
     var heightInput by remember(state.heightCm) { mutableStateOf(state.heightCm.toInt().toString()) }
     var ageInput by remember(state.age) { mutableStateOf(state.age.toString()) }
     var showEditGoalsDialog by remember { mutableStateOf(false) }
+    var showDeviceGuideDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -744,138 +749,156 @@ fun ProfileScreen(
                 color = MaterialTheme.colorScheme.primary
             )
 
+            // Akıllı Saat & Tartı Köprüsü (Xiaomi Scale & Huawei Watch via Health Connect / HealthKit)
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            if (state.isSyncing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(HealthColors.TertiaryContainer.copy(alpha = 0.18f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (state.isDeviceSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = HealthColors.TertiaryContainer
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Watch,
+                                        contentDescription = null,
+                                        tint = HealthColors.TertiaryContainer,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = "Akıllı Saat & Tartı (${deviceHealthBridge.platformName})",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Sync,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
+                                Text(
+                                    text = state.lastDeviceSyncSummary
+                                        ?: "Xiaomi Tartı (Zepp Life / Mi Fitness) ve Huawei Watch verilerini çakışmasız eşitle",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        Column {
-                            Text(
-                                text = "Bulut Senkronizasyonu",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (state.isSyncing) "Veriler eşitleniyor..." else "Yerel verileri sunucuyla eşitle",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                        if (deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED) {
+                            IconButton(
+                                onClick = { deviceHealthBridge.openHealthSettings() },
+                                modifier = Modifier.size(34.dp).bounceClick()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = "Health Connect Ayarları",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
-                    FilledTonalButton(
-                        onClick = { onIntent(ProfileIntent.OnSyncClicked) },
-                        enabled = !state.isSyncing,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.bounceClick()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = if (state.isSyncing) "Eşitleniyor" else "Yenile",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                        )
+                        FilledTonalButton(
+                            onClick = {
+                                onIntent(ProfileIntent.OnDeviceSyncStarted)
+                                deviceHealthBridge.syncLastDays(days = 30) { result ->
+                                    onIntent(ProfileIntent.OnDeviceSnapshotReceived(result))
+                                }
+                            },
+                            enabled = !state.isDeviceSyncing,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).bounceClick(),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MonitorWeight,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (state.isDeviceSyncing) "Okunuyor..." else "Cihazları Eşitle",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = { showDeviceGuideDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.bounceClick(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.HelpOutline,
+                                contentDescription = "Nasıl Bağlanır?",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Nasıl Bağlanır?",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ── Section 5: Action Buttons ──
-            Button(
-                onClick = { onIntent(ProfileIntent.OnSaveProfileClicked) },
-                enabled = !state.isSaving,
+            // ── Section 5: Otomatik Kayıt & Senkronizasyon Rozeti ──
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
-                    .bounceClick(),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White,
-                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
-                    disabledContentColor = Color.White
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    modifier = Modifier.size(15.dp)
                 )
-            ) {
-                if (state.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Kaydediliyor...",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Save,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Değişiklikleri Kaydet",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.White
-                    )
-                }
-            }
-
-            OutlinedButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .bounceClick(),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Vazgeç / Geri Dön",
-                    fontWeight = FontWeight.Medium,
+                    text = "Değişiklikleriniz anında otomatik kaydedilir ve buluta eşitlenir.",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                modifier = Modifier.padding(vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
             )
 
             // ── Section 6: Çıkış Yap (En Altta) ──
@@ -962,6 +985,20 @@ fun ProfileScreen(
                         onIntent(ProfileIntent.OnSaveNutritionGoal(updatedGoal, updatedFitnessGoal))
                         showEditGoalsDialog = false
                     }
+                )
+            }
+
+            if (showDeviceGuideDialog) {
+                DeviceConnectionGuideDialog(
+                    platformName = deviceHealthBridge.platformName,
+                    onOpenHealthSettings = { deviceHealthBridge.openHealthSettings() },
+                    onSyncNow = {
+                        onIntent(ProfileIntent.OnDeviceSyncStarted)
+                        deviceHealthBridge.syncLastDays(days = 30) { result ->
+                            onIntent(ProfileIntent.OnDeviceSnapshotReceived(result))
+                        }
+                    },
+                    onDismiss = { showDeviceGuideDialog = false }
                 )
             }
 

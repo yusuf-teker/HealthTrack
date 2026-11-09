@@ -5,87 +5,71 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Subtle Depth Shadow / Ambient Glow behind "H" -->
+    <!-- Outer neon glow (blue) around "H" pillars + connectors -->
     <path
-        android:strokeColor="#2500E5FF"
-        android:strokeWidth="14"
+        android:strokeColor="#1F2F7BFF"
+        android:strokeWidth="9"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M36,32 L36,76 M72,32 L72,76 M36,52 L72,52" />
+        android:pathData="M39,31 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -10,0 v-36 a5,5 0 0 1 5,-5 Z M69,31 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -10,0 v-36 a5,5 0 0 1 5,-5 Z M44,53 L46.6,53 M61.4,53 L64,53" />
 
-    <!-- Left Pillar of "H" -->
+    <!-- Inner neon glow -->
     <path
-        android:strokeWidth="10"
-        android:strokeLineCap="round"
-        android:pathData="M36,32 L36,76">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:startX="36"
-                android:startY="32"
-                android:endX="36"
-                android:endY="76"
-                android:type="linear">
-                <item android:color="#FF00E5FF" android:offset="0.0" />
-                <item android:color="#FF10B981" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Right Pillar of "H" -->
-    <path
-        android:strokeWidth="10"
-        android:strokeLineCap="round"
-        android:pathData="M72,32 L72,76">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:startX="72"
-                android:startY="32"
-                android:endX="72"
-                android:endY="76"
-                android:type="linear">
-                <item android:color="#FF00E5FF" android:offset="0.0" />
-                <item android:color="#FF10B981" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Straight Crossbar connecting H pillars -->
-    <path
-        android:strokeWidth="10"
+        android:strokeColor="#403D9BFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M36,52 L72,52">
+        android:pathData="M39,31 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -10,0 v-36 a5,5 0 0 1 5,-5 Z M69,31 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -10,0 v-36 a5,5 0 0 1 5,-5 Z M44,53 L46.6,53 M61.4,53 L64,53" />
+
+    <!-- Neon tube "H" -->
+    <path
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M39,31 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -10,0 v-36 a5,5 0 0 1 5,-5 Z M69,31 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -10,0 v-36 a5,5 0 0 1 5,-5 Z M44,53 L46.6,53 M61.4,53 L64,53">
         <aapt:attr name="android:strokeColor">
             <gradient
-                android:startX="36"
-                android:startY="52"
-                android:endX="72"
-                android:endY="52"
+                android:startX="54"
+                android:startY="30"
+                android:endX="54"
+                android:endY="78"
                 android:type="linear">
-                <item android:color="#FF00E5FF" android:offset="0.0" />
-                <item android:color="#FF10B981" android:offset="1.0" />
+                <item android:color="#FF4FC3FF" android:offset="0.0" />
+                <item android:color="#FF2F6BFF" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Subtle Glow behind Small Heart -->
-    <path
-        android:fillColor="#35FF3366"
-        android:pathData="M 54,62.0 C 54,60.0 52.0,58.5 49.0,58.5 C 45.8,58.5 43.5,61.0 43.5,64.0 C 43.5,67.5 47.8,71.0 54,75.0 C 60.2,71.0 64.5,67.5 64.5,64.0 C 64.5,61.0 62.2,58.5 59.0,58.5 C 56.0,58.5 54,60.0 54,62.0 Z" />
+    <!-- Small neon heart bridging the pillars -->
+    <group
+        android:pivotX="54"
+        android:pivotY="53.5"
+        android:scaleX="1.3"
+        android:scaleY="1.3">
 
-    <!-- Small Heart in the lower opening of "H" -->
-    <path
-        android:pathData="M 54,63.2 C 54,61.6 52.2,60.0 49.5,60.0 C 46.5,60.0 44.5,62.2 44.5,65.0 C 44.5,68.2 48.5,71.4 54,74.5 C 59.5,71.4 63.5,68.2 63.5,65.0 C 63.5,62.2 61.5,60.0 58.5,60.0 C 55.8,60.0 54,61.6 54,63.2 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="46"
-                android:startY="60"
-                android:endX="62"
-                android:endY="75"
-                android:type="linear">
-                <item android:color="#FFFF3366" android:offset="0.0" />
-                <item android:color="#FFFF5E7E" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        <path
+            android:strokeColor="#4D4FB8FF"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M54,51.4 C54,49.9 52.8,48.6 51.2,48.6 C49.5,48.6 48.2,49.9 48.2,51.6 C48.2,54 50.7,56.1 54,58.4 C57.3,56.1 59.8,54 59.8,51.6 C59.8,49.9 58.5,48.6 56.8,48.6 C55.2,48.6 54,49.9 54,51.4 Z" />
+
+        <path
+            android:strokeWidth="1.75"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M54,51.4 C54,49.9 52.8,48.6 51.2,48.6 C49.5,48.6 48.2,49.9 48.2,51.6 C48.2,54 50.7,56.1 54,58.4 C57.3,56.1 59.8,54 59.8,51.6 C59.8,49.9 58.5,48.6 56.8,48.6 C55.2,48.6 54,49.9 54,51.4 Z">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:startX="48"
+                    android:startY="48"
+                    android:endX="60"
+                    android:endY="60"
+                    android:type="linear">
+                    <item android:color="#FF8FE3FF" android:offset="0.0" />
+                    <item android:color="#FF3D8BFF" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
 </vector>

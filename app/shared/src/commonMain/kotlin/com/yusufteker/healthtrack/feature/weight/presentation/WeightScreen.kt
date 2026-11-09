@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
@@ -29,13 +30,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
+import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.feature.weight.presentation.components.EditTargetWeightDialog
 import io.github.aakira.napier.Napier
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
@@ -48,6 +52,22 @@ fun WeightScreen(
     onIntent: (WeightIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val deviceHealthBridge = rememberDeviceHealthBridge()
+    var showDeviceGuideDialog by remember { mutableStateOf(false) }
+
+    if (showDeviceGuideDialog) {
+        DeviceConnectionGuideDialog(
+            platformName = deviceHealthBridge.platformName,
+            onOpenHealthSettings = { deviceHealthBridge.openHealthSettings() },
+            onSyncNow = {
+                onIntent(WeightIntent.OnScaleSyncStarted)
+                deviceHealthBridge.syncLastDays(days = 30) { result ->
+                    onIntent(WeightIntent.OnScaleSnapshotReceived(result))
+                }
+            },
+            onDismiss = { showDeviceGuideDialog = false }
+        )
+    }
     LaunchedEffect(state.isEditingTarget) {
         if (state.isEditingTarget) Napier.d("SCREEN: EditTargetWeightDialog açıldı")
     }
@@ -103,29 +123,88 @@ fun WeightScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(HealthColors.Primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MonitorWeight,
-                            contentDescription = null,
-                            tint = HealthColors.Primary,
-                            modifier = Modifier.size(18.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(HealthColors.Primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MonitorWeight,
+                                contentDescription = null,
+                                tint = HealthColors.Primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = "Günlük Kilo Ekle",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    Text(
-                        text = "Günlük Kilo Ekle",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED) {
+                            Surface(
+                                onClick = {
+                                    if (!state.isSyncingScale) {
+                                        onIntent(WeightIntent.OnScaleSyncStarted)
+                                        deviceHealthBridge.syncLastDays(days = 30) { result ->
+                                            onIntent(WeightIntent.OnScaleSnapshotReceived(result))
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(999.dp),
+                                color = HealthColors.Primary.copy(alpha = 0.14f),
+                                modifier = Modifier.bounceClick()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (state.isSyncingScale) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(12.dp),
+                                            strokeWidth = 1.5.dp,
+                                            color = HealthColors.Primary
+                                        )
+                                    }
+                                    Text(
+                                        text = if (state.isSyncingScale) "Tartı Okunuyor..." else "⚖️ Tartıdan Çek",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = HealthColors.Primary
+                                    )
+                                }
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { showDeviceGuideDialog = true },
+                            modifier = Modifier.size(28.dp).bounceClick()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = "Tartı Nasıl Bağlanır?",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
 
                 val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.33f)

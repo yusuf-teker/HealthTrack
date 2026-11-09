@@ -46,6 +46,57 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
             false
         }
     }
+
+    override fun shareToWhatsApp(text: String, phoneNumber: String?): Boolean {
+        val cleanedPhone = phoneNumber?.filter { it.isDigit() }?.let { digits ->
+            when {
+                digits.startsWith("0") && digits.length == 11 -> "90${digits.drop(1)}"
+                digits.length == 10 -> "90$digits"
+                else -> digits
+            }
+        }?.takeIf { it.length >= 10 }
+
+        return try {
+            val encodedText = Uri.encode(text)
+            val uriString = if (cleanedPhone != null) {
+                "https://api.whatsapp.com/send?phone=$cleanedPhone&text=$encodedText"
+            } else {
+                "whatsapp://send?text=$encodedText"
+            }
+            val directIntent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(directIntent)
+            true
+        } catch (_: Exception) {
+            try {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                    setPackage("com.whatsapp")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(shareIntent)
+                true
+            } catch (_: Exception) {
+                try {
+                    val chooser = Intent.createChooser(
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        },
+                        "Raporu Paylaş"
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(chooser)
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        }
+    }
 }
 
 @Composable

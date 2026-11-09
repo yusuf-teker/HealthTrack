@@ -3,15 +3,19 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.math.round
+import kotlin.math.roundToInt
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -20,7 +24,8 @@ class WorkoutViewModel(
     private val database: HealthDatabase,
     private val apiClient: HealthApiClient,
     private val tokenStorage: TokenStorage,
-    private val syncEngine: SyncEngine
+    private val syncEngine: SyncEngine,
+    private val deviceHealthSyncManager: DeviceHealthSyncManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -32,6 +37,7 @@ class WorkoutViewModel(
     val effects: Flow<WorkoutEffect> = _effects.receiveAsFlow()
 
     private var workoutObservationJob: Job? = null
+    private var allWorkoutsObservationJob: Job? = null
     private var foodObservationJob: Job? = null
     private var weightObservationJob: Job? = null
 
@@ -40,6 +46,7 @@ class WorkoutViewModel(
             tokenStorage.sessionFlow.collect { session ->
                 if (session.isLoggedIn) {
                     observeWorkoutsAndCalories(session.userId, _state.value.selectedDate)
+                    observeAllWorkoutsHistory(session.userId)
                     observeWeight(session.userId)
                 }
             }
@@ -61,6 +68,26 @@ class WorkoutViewModel(
             is WorkoutIntent.OnTargetCaloriesChanged -> _state.update { it.copy(targetCalories = intent.value) }
             is WorkoutIntent.OnCalculateAiClicked -> calculateWithAi()
             is WorkoutIntent.OnSaveManualClicked -> saveManualWorkout()
+            is WorkoutIntent.OnWatchSyncStarted -> {
+                _state.update { it.copy(isSyncingWatch = true, errorMessage = null, infoMessage = null) }
+            }
+            is WorkoutIntent.OnWatchSnapshotReceived -> {
+                viewModelScope.launch {
+                    intent.result.onSuccess { snapshot ->
+                        val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                        val msg = summary.toUserMessage()
+                        _state.update { it.copy(isSyncingWatch = false, infoMessage = msg) }
+                        _effects.send(WorkoutEffect.ShowToast(msg))
+                    }.onFailure { err ->
+                        _state.update {
+                            it.copy(
+                                isSyncingWatch = false,
+                                errorMessage = err.message ?: "Saat antrenman verileri alınamadı."
+                            )
+                        }
+                    }
+                }
+            }
             is WorkoutIntent.OnDeleteWorkout -> deleteWorkout(intent.id)
             is WorkoutIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
             is WorkoutIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
@@ -71,14 +98,37 @@ class WorkoutViewModel(
         workoutObservationJob?.cancel()
         workoutObservationJob = viewModelScope.launch {
             database.observeWorkouts(userId, date).collect { list ->
-                val burned = list.sumOf { it.caloriesBurned }
-                val duration = list.sumOf { it.durationMinutes }
+                val stepLog = list.firstOrNull { it.isDailySteps }
+                val explicitWorkouts = list.filter { !it.isDailySteps }
+
+                val explicitBurned = explicitWorkouts.sumOf { it.caloriesBurned }
+                val explicitDuration = explicitWorkouts.sumOf { it.durationMinutes }
+
+                // Estimate steps taken during explicit active sports to prevent double-counting
+                val estimatedSportSteps = explicitWorkouts.sumOf { w ->
+                    estimateSportSteps(w.rawText, w.durationMinutes)
+                }
+
+                val stepTelemetry = stepLog?.let {
+                    val parsed = parseDailyStepTelemetry(it)
+                    val netSteps = (parsed.stepCount - estimatedSportSteps).coerceAtLeast(0)
+                    val netKcal = if (parsed.stepCount > 0) {
+                        val ratio = netSteps.toDouble() / parsed.stepCount
+                        (parsed.caloriesBurned * ratio).roundToInt()
+                    } else 0
+                    parsed.copy(netCaloriesBurned = netKcal)
+                }
+
+                val totalBurned = explicitBurned + (stepTelemetry?.netCaloriesBurned ?: 0)
+                val totalDuration = explicitDuration + (if (explicitWorkouts.isEmpty() && stepTelemetry != null) stepTelemetry.durationMinutes else 0)
+
                 _state.update { current ->
                     current.copy(
-                        workouts = list,
-                        totalCaloriesBurned = burned,
-                        totalDurationMinutes = duration,
-                        netCalories = current.consumedCalories - burned
+                        workouts = explicitWorkouts,
+                        dailySteps = stepTelemetry,
+                        totalCaloriesBurned = totalBurned,
+                        totalDurationMinutes = totalDuration,
+                        netCalories = current.consumedCalories - totalBurned
                     )
                 }
             }
@@ -94,6 +144,19 @@ class WorkoutViewModel(
                         netCalories = consumed - current.totalCaloriesBurned
                     )
                 }
+            }
+        }
+    }
+
+    private fun observeAllWorkoutsHistory(userId: Int) {
+        allWorkoutsObservationJob?.cancel()
+        allWorkoutsObservationJob = viewModelScope.launch {
+            database.observeAllWorkouts(userId).collect { allList ->
+                val sorted = allList.sortedWith(
+                    compareByDescending<WorkoutLog> { it.date }
+                        .thenByDescending { it.updatedAt }
+                )
+                _state.update { it.copy(allWorkouts = sorted) }
             }
         }
     }
@@ -230,6 +293,46 @@ class WorkoutViewModel(
             database.deleteWorkout(id)
             launch { syncEngine.sync() }
         }
+    }
+
+    private fun parseDailyStepTelemetry(log: WorkoutLog): DailyStepTelemetry {
+        val steps = Regex("""(\d+)\s*Adım""").find(log.rawText)?.groupValues?.get(1)?.toIntOrNull()
+            ?: (log.durationMinutes * 100).coerceAtLeast(0)
+        val analysis = log.aiAnalysis.orEmpty()
+        val distanceKm = Regex("""([\d.,]+)\s*km""").find(analysis)?.groupValues?.get(1)
+            ?.replace(',', '.')?.toDoubleOrNull()
+            ?: ((steps * 0.75) / 1000.0)
+        val source = if (analysis.contains("•")) {
+            analysis.substringBefore("•").trim().removePrefix("⌚").trim()
+        } else {
+            "Akıllı Saat"
+        }
+        return DailyStepTelemetry(
+            stepCount = steps,
+            distanceKm = round(distanceKm * 10.0) / 10.0,
+            durationMinutes = log.durationMinutes,
+            caloriesBurned = log.caloriesBurned,
+            netCaloriesBurned = log.caloriesBurned,
+            sourceName = source.ifBlank { "Akıllı Saat" },
+            stepTarget = 10_000
+        )
+    }
+
+    private fun estimateSportSteps(rawText: String, durationMinutes: Int): Int {
+        if (durationMinutes <= 0) return 0
+        val lower = rawText.lowercase()
+        val stepsPerMinute = when {
+            lower.contains("koşu") || lower.contains("running") || lower.contains("jogging") -> 140
+            lower.contains("tenis") || lower.contains("tennis") -> 85
+            lower.contains("basket") || lower.contains("futbol") || lower.contains("soccer") -> 100
+            lower.contains("yürüyüş") || lower.contains("walking") || lower.contains("trekking") -> 100
+            lower.contains("hiit") || lower.contains("kardiyo") -> 90
+            lower.contains("fitness") || lower.contains("ağırlık") || lower.contains("body") || lower.contains("bench") -> 25
+            lower.contains("pilates") || lower.contains("yoga") -> 10
+            lower.contains("bisiklet") || lower.contains("cycling") || lower.contains("yüzme") || lower.contains("swim") -> 0
+            else -> 60
+        }
+        return stepsPerMinute * durationMinutes
     }
 
     private fun currentTime(): Long = com.yusufteker.healthtrack.core.utils.currentTimeMillis()

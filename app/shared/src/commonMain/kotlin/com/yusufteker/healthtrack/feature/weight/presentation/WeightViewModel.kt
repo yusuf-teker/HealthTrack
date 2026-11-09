@@ -7,6 +7,7 @@ import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.normalizeDateToIso
@@ -21,7 +22,8 @@ import kotlin.uuid.Uuid
 class WeightViewModel(
     private val database: HealthDatabase,
     private val tokenStorage: TokenStorage,
-    private val syncEngine: SyncEngine
+    private val syncEngine: SyncEngine,
+    private val deviceHealthSyncManager: DeviceHealthSyncManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WeightState())
@@ -56,6 +58,26 @@ class WeightViewModel(
             is WeightIntent.OnSetEditingTarget -> _state.update { it.copy(isEditingTarget = intent.isEditing) }
             is WeightIntent.OnSaveTargetWeight -> saveTargetWeight(intent.newTargetWeight)
             is WeightIntent.OnSaveWeightClicked -> saveWeight()
+            is WeightIntent.OnScaleSyncStarted -> {
+                _state.update { it.copy(isSyncingScale = true, errorMessage = null, infoMessage = null) }
+            }
+            is WeightIntent.OnScaleSnapshotReceived -> {
+                viewModelScope.launch {
+                    intent.result.onSuccess { snapshot ->
+                        val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                        val msg = summary.toUserMessage()
+                        _state.update { it.copy(isSyncingScale = false, infoMessage = msg) }
+                        _effects.send(WeightEffect.ShowToast(msg))
+                    }.onFailure { err ->
+                        _state.update {
+                            it.copy(
+                                isSyncingScale = false,
+                                errorMessage = err.message ?: "Tartı verileri alınamadı."
+                            )
+                        }
+                    }
+                }
+            }
             is WeightIntent.OnDeleteWeight -> deleteWeight(intent.id)
             is WeightIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
             is WeightIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }

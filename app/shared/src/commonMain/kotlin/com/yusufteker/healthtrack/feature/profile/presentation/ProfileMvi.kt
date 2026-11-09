@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.feature.profile.presentation
 
+import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
@@ -21,6 +22,8 @@ data class ProfileState(
     val latestWeightDate: String? = null,
     val isSaving: Boolean = false,
     val isSyncing: Boolean = false,
+    val isDeviceSyncing: Boolean = false,
+    val lastDeviceSyncSummary: String? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null
 ) {
@@ -56,6 +59,8 @@ sealed interface ProfileIntent {
     data class OnThemeModeChanged(val isDark: Boolean) : ProfileIntent
     data class OnThemeAccentChanged(val accent: AppThemeColor) : ProfileIntent
     data object OnSyncClicked : ProfileIntent
+    data object OnDeviceSyncStarted : ProfileIntent
+    data class OnDeviceSnapshotReceived(val result: Result<DeviceHealthSnapshot>) : ProfileIntent
     data object OnLogoutClicked : ProfileIntent
     data object OnSaveProfileClicked : ProfileIntent
     data object OnScreenAppeared : ProfileIntent

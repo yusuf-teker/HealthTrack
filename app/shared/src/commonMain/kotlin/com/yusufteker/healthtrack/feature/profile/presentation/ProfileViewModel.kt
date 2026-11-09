@@ -10,12 +10,15 @@ import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.sync.SyncState
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.theme.AppThemeColor
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
@@ -26,7 +29,8 @@ class ProfileViewModel(
     private val database: HealthDatabase,
     private val tokenStorage: TokenStorage,
     private val syncEngine: SyncEngine,
-    private val settings: Settings
+    private val settings: Settings,
+    private val deviceHealthSyncManager: DeviceHealthSyncManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(createInitialState())
@@ -120,42 +124,39 @@ class ProfileViewModel(
         }
     }
 
+    private var autoSaveJob: Job? = null
+
     fun onIntent(intent: ProfileIntent) {
         when (intent) {
             is ProfileIntent.OnWeightChanged -> {
                 hasUserModifiedWeight = true
-                _state.update { it.copy(weightKg = kotlin.math.round(intent.weight * 10) / 10.0) }
+                val w = kotlin.math.round(intent.weight * 10) / 10.0
+                _state.update { it.copy(weightKg = w) }
+                scheduleAutoSave(debounceMs = 350L)
             }
             is ProfileIntent.OnTargetWeightChanged -> {
-                _state.update { it.copy(targetWeightKg = kotlin.math.round(intent.target * 10) / 10.0) }
+                val t = kotlin.math.round(intent.target * 10) / 10.0
+                _state.update { it.copy(targetWeightKg = t) }
+                scheduleAutoSave(debounceMs = 350L)
             }
             is ProfileIntent.OnHeightChanged -> {
-                _state.update { it.copy(heightCm = kotlin.math.round(intent.height * 10) / 10.0) }
+                val h = kotlin.math.round(intent.height * 10) / 10.0
+                _state.update { it.copy(heightCm = h) }
+                scheduleAutoSave(debounceMs = 350L)
             }
             is ProfileIntent.OnAgeChanged -> {
-                _state.update { it.copy(age = intent.age.coerceIn(10, 120)) }
+                val a = intent.age.coerceIn(10, 120)
+                _state.update { it.copy(age = a) }
+                scheduleAutoSave(debounceMs = 350L)
             }
             is ProfileIntent.OnGenderChanged -> {
                 _state.update { it.copy(gender = intent.gender) }
+                scheduleAutoSave(debounceMs = 0L)
             }
             is ProfileIntent.OnFitnessGoalChanged -> {
                 tokenStorage.setUserFitnessGoal(intent.goal)
                 _state.update { it.copy(fitnessGoal = intent.goal) }
-                viewModelScope.launch {
-                    val userId = tokenStorage.getUserId()
-                    if (userId > 0) {
-                        val currentGoal = database.observeNutritionGoal(userId).firstOrNull() ?: NutritionGoal(id = "goal_$userId", userId = userId)
-                        val calculatedProtein = calculateProteinTarget(_state.value.weightKg, intent.goal)
-                        val updated = currentGoal.copy(
-                            proteinG = calculatedProtein,
-                            fitnessGoal = intent.goal.id,
-                            updatedAt = currentTimeMillis(),
-                            syncStatus = SyncStatus.PENDING
-                        )
-                        database.upsertNutritionGoal(updated)
-                        launch { syncEngine.sync() }
-                    }
-                }
+                scheduleAutoSave(debounceMs = 0L)
             }
             is ProfileIntent.OnSaveNutritionGoal -> {
                 viewModelScope.launch {
@@ -191,6 +192,33 @@ class ProfileViewModel(
                     }
                 }
             }
+            ProfileIntent.OnDeviceSyncStarted -> {
+                _state.update { it.copy(isDeviceSyncing = true, errorMessage = null, infoMessage = null) }
+            }
+            is ProfileIntent.OnDeviceSnapshotReceived -> {
+                viewModelScope.launch {
+                    intent.result.onSuccess { snapshot ->
+                        val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                        val msg = summary.toUserMessage()
+                        _state.update {
+                            it.copy(
+                                isDeviceSyncing = false,
+                                lastDeviceSyncSummary = msg,
+                                infoMessage = msg
+                            )
+                        }
+                        _effects.send(ProfileEffect.ShowToast(msg))
+                    }.onFailure { err ->
+                        val msg = err.message ?: "Cihaz senkronizasyonu başarısız oldu."
+                        _state.update {
+                            it.copy(
+                                isDeviceSyncing = false,
+                                errorMessage = msg
+                            )
+                        }
+                    }
+                }
+            }
             ProfileIntent.OnLogoutClicked -> {
                 viewModelScope.launch {
                     database.clearAll()
@@ -210,74 +238,108 @@ class ProfileViewModel(
         }
     }
 
-    private fun saveProfile() {
+    private fun scheduleAutoSave(debounceMs: Long) {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            if (debounceMs > 0) {
+                delay(debounceMs)
+            }
+            persistProfileChanges()
+        }
+    }
+
+    private suspend fun persistProfileChanges() {
         val s = _state.value
         val userId = s.userId
+        if (userId <= 0) return
+
+        try {
+            // Update persistent token storage
+            tokenStorage.setUserWeight(s.weightKg)
+            tokenStorage.setUserTargetWeight(s.targetWeightKg)
+            tokenStorage.setUserHeight(s.heightCm)
+            tokenStorage.setUserAge(s.age)
+            tokenStorage.setUserGender(s.gender)
+            tokenStorage.setUserFitnessGoal(s.fitnessGoal)
+            settings.putBoolean("dark_mode", s.isDarkMode)
+            settings.putString("theme_accent", s.themeAccent.id)
+
+            // Update Nutrition Goal with recalculated dynamic protein
+            val calculatedProtein = calculateProteinTarget(s.weightKg, s.fitnessGoal)
+            val currentGoal = database.observeNutritionGoal(userId).firstOrNull() ?: NutritionGoal(id = "goal_$userId", userId = userId)
+            database.upsertNutritionGoal(
+                currentGoal.copy(
+                    proteinG = calculatedProtein,
+                    fitnessGoal = s.fitnessGoal.id,
+                    updatedAt = currentTimeMillis(),
+                    syncStatus = SyncStatus.PENDING
+                )
+            )
+
+            // Kilo ve hedef kilo kaydı kontrolü:
+            val today = getTodayIso()
+            val existingWeights = database.getWeights(userId).sortedBy { it.date }
+            val todayEntry = existingWeights.find { it.date == today }
+            val now = currentTimeMillis()
+
+            if (todayEntry == null || hasUserModifiedWeight) {
+                val entry = WeightEntry(
+                    id = todayEntry?.id ?: "weight_${userId}_${today}",
+                    userId = userId,
+                    date = today,
+                    weightKg = s.weightKg,
+                    targetWeightKg = s.targetWeightKg,
+                    note = todayEntry?.note ?: "Profil Kilo Kaydı",
+                    createdAt = todayEntry?.createdAt ?: now,
+                    updatedAt = now,
+                    syncStatus = SyncStatus.PENDING
+                )
+                database.upsertWeight(entry)
+                hasUserModifiedWeight = false
+            } else {
+                val latest = existingWeights.lastOrNull()
+                if (latest != null && latest.targetWeightKg != s.targetWeightKg) {
+                    database.upsertWeight(
+                        latest.copy(
+                            targetWeightKg = s.targetWeightKg,
+                            updatedAt = now,
+                            syncStatus = SyncStatus.PENDING
+                        )
+                    )
+                }
+            }
+
+            // Cloud sync in background
+            syncEngine.sync()
+        } catch (_: Exception) {
+            // Quietly retain offline SSOT
+        }
+    }
+
+    private fun saveProfile() {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
             try {
-                // Update storage
-                tokenStorage.setUserWeight(s.weightKg)
-                tokenStorage.setUserTargetWeight(s.targetWeightKg)
-                tokenStorage.setUserHeight(s.heightCm)
-                tokenStorage.setUserAge(s.age)
-                tokenStorage.setUserGender(s.gender)
-                tokenStorage.setUserFitnessGoal(s.fitnessGoal)
-                settings.putBoolean("dark_mode", s.isDarkMode)
-                settings.putString("theme_accent", s.themeAccent.id)
-
-                // Update Nutrition Goal with recalculated dynamic protein
-                val calculatedProtein = calculateProteinTarget(s.weightKg, s.fitnessGoal)
-                val currentGoal = database.observeNutritionGoal(userId).firstOrNull() ?: NutritionGoal(id = "goal_$userId", userId = userId)
-                database.upsertNutritionGoal(
-                    currentGoal.copy(
-                        proteinG = calculatedProtein,
-                        fitnessGoal = s.fitnessGoal.id,
-                        updatedAt = currentTimeMillis(),
-                        syncStatus = SyncStatus.PENDING
-                    )
-                )
-
-                // Kilo ve hedef kilo kaydı kontrolü:
-                val today = getTodayIso()
-                val existingWeights = database.getWeights(userId).sortedBy { it.date }
-                val todayEntry = existingWeights.find { it.date == today }
-                val now = currentTimeMillis()
-
-                if (todayEntry == null || hasUserModifiedWeight) {
-                    val entry = WeightEntry(
-                        id = todayEntry?.id ?: "weight_${userId}_${today}",
-                        userId = userId,
-                        date = today,
-                        weightKg = s.weightKg,
-                        targetWeightKg = s.targetWeightKg,
-                        note = todayEntry?.note ?: "Profil Kilo Kaydı",
-                        createdAt = todayEntry?.createdAt ?: now,
-                        updatedAt = now,
-                        syncStatus = SyncStatus.PENDING
-                    )
-                    database.upsertWeight(entry)
-                    hasUserModifiedWeight = false
-                } else {
-                    val latest = existingWeights.lastOrNull()
-                    if (latest != null && latest.targetWeightKg != s.targetWeightKg) {
-                        database.upsertWeight(
-                            latest.copy(
-                                targetWeightKg = s.targetWeightKg,
-                                updatedAt = now,
-                                syncStatus = SyncStatus.PENDING
-                            )
-                        )
-                    }
-                }
-                launch { syncEngine.sync() }
-
-                _state.update { it.copy(isSaving = false, infoMessage = "Profil ve tercihleriniz kaydedildi.") }
-                _effects.send(ProfileEffect.ShowToast("Profil başarıyla kaydedildi."))
+                persistProfileChanges()
+                _state.update { it.copy(isSaving = false, infoMessage = "Değişiklikler kaydedildi.") }
+                _effects.send(ProfileEffect.ShowToast("Değişiklikler kaydedildi."))
                 _effects.send(ProfileEffect.NavigateBack)
             } catch (e: Exception) {
                 _state.update { it.copy(isSaving = false, errorMessage = "Kayıt sırasında hata: ${e.message}") }
             }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        val s = _state.value
+        if (s.userId > 0) {
+            tokenStorage.setUserWeight(s.weightKg)
+            tokenStorage.setUserTargetWeight(s.targetWeightKg)
+            tokenStorage.setUserHeight(s.heightCm)
+            tokenStorage.setUserAge(s.age)
+            tokenStorage.setUserGender(s.gender)
+            tokenStorage.setUserFitnessGoal(s.fitnessGoal)
         }
     }
 }

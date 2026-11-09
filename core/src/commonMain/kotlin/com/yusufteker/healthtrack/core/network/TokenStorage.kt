@@ -57,6 +57,21 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_USER_FITNESS_GOAL, goal.id)
     }
 
+    fun getWhatsAppNumber(): String = settings.getString(KEY_WHATSAPP_NUMBER, "")
+    fun setWhatsAppNumber(phone: String) {
+        settings.putString(KEY_WHATSAPP_NUMBER, phone.trim())
+    }
+
+    fun isAutoWeeklyWhatsAppEnabled(): Boolean = settings.getBoolean(KEY_AUTO_WEEKLY_WHATSAPP, true)
+    fun setAutoWeeklyWhatsAppEnabled(enabled: Boolean) {
+        settings.putBoolean(KEY_AUTO_WEEKLY_WHATSAPP, enabled)
+    }
+
+    fun getLastAutoWeeklyReportMonday(): String = settings.getString(KEY_LAST_AUTO_WEEK_MONDAY, "")
+    fun setLastAutoWeeklyReportMonday(mondayIso: String) {
+        settings.putString(KEY_LAST_AUTO_WEEK_MONDAY, mondayIso)
+    }
+
     fun isProfileConfigured(): Boolean {
         return getUserWeight() > 0.0
     }
@@ -166,5 +181,8 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_USER_AGE = "ht_user_age"
         private const val KEY_USER_GENDER = "ht_user_gender"
         private const val KEY_USER_FITNESS_GOAL = "ht_user_fitness_goal"
+        private const val KEY_WHATSAPP_NUMBER = "ht_whatsapp_number"
+        private const val KEY_AUTO_WEEKLY_WHATSAPP = "ht_auto_weekly_whatsapp"
+        private const val KEY_LAST_AUTO_WEEK_MONDAY = "ht_last_auto_week_monday"
     }
 }
