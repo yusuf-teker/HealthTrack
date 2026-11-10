@@ -264,17 +264,20 @@ fun App() {
                             val imeBottom = WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
                             AnimatedVisibility(
                                 visible = imeBottom == 0 && bottomBarVisibility.value,
-                                enter = expandVertically() + fadeIn(),
-                                exit = shrinkVertically() + fadeOut()
+                                enter = fadeIn(),
+                                exit = fadeOut()
                             ) {
                                 Column {
                                     HorizontalDivider(
                                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
                                         thickness = 0.5.dp
                                     )
+                                    val bottomInsetPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                                     NavigationBar(
                                         containerColor = MaterialTheme.colorScheme.surface,
-                                        tonalElevation = 4.dp
+                                        tonalElevation = 4.dp,
+                                        windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
+                                        modifier = Modifier.height(64.dp + bottomInsetPadding)
                                     ) {
                                         NavigationBarItem(
                                             selected = selectedTab == HealthTab.FOOD,

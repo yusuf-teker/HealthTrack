@@ -78,6 +78,7 @@ fun InitialProfileDialog(
                     .fillMaxWidth(0.92f)
                     .padding(vertical = 24.dp),
                 shape = RoundedCornerShape(28.dp),
+                backgroundColor = if (isDark) HealthColors.SurfaceContainer else Color.White,
                 elevation = 16.dp
             ) {
                 Column(

@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -535,11 +536,10 @@ fun AddCustomFoodDialog(
                         capturedPhoto = cropped
                         isCropDialogOpen = false
                         val text = cropped.extractedText
-                        if (!text.isNullOrBlank()) {
-                            aiPromptText = text
-                            aiSuccessMessage = null
-                            onAnalyzeWithAi?.invoke(text, isMixMode)
-                        }
+                        val effectiveText = if (!text.isNullOrBlank()) text else "Fotoğraftaki ürün ve besin değerleri"
+                        aiPromptText = effectiveText
+                        aiSuccessMessage = null
+                        onAnalyzeWithAi?.invoke(effectiveText, isMixMode)
                     }
                 },
                 onScanFull = { rotation: Int ->
@@ -547,11 +547,10 @@ fun AddCustomFoodDialog(
                         capturedPhoto = fullPhoto
                         isCropDialogOpen = false
                         val text = fullPhoto.extractedText
-                        if (!text.isNullOrBlank()) {
-                            aiPromptText = text
-                            aiSuccessMessage = null
-                            onAnalyzeWithAi?.invoke(text, isMixMode)
-                        }
+                        val effectiveText = if (!text.isNullOrBlank()) text else "Fotoğraftaki ürün ve besin değerleri"
+                        aiPromptText = effectiveText
+                        aiSuccessMessage = null
+                        onAnalyzeWithAi?.invoke(effectiveText, isMixMode)
                     }
                 },
                 onDismiss = { isCropDialogOpen = false }
@@ -571,6 +570,7 @@ fun AddCustomFoodDialog(
                     .fillMaxWidth()
                     .wrapContentHeight(),
                 shape = RoundedCornerShape(24.dp),
+                backgroundColor = if (isDark) HealthColors.SurfaceContainer else Color.White,
                 elevation = 12.dp
             ) {
                 Column(
@@ -788,7 +788,8 @@ fun AddCustomFoodDialog(
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.AutoAwesome,
@@ -797,12 +798,15 @@ fun AddCustomFoodDialog(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = if (isMixMode) "AI ile Karışım & Birim Analizi" else "AI ile Ürün & Besin Değeri Doldur",
+                                            text = if (isMixMode) "AI Karışım & Birim Analizi" else "AI ile Ürün & Besin Değeri Doldur",
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
                                         shape = RoundedCornerShape(999.dp),
                                         color = HealthColors.Primary.copy(alpha = 0.14f)
@@ -812,7 +816,9 @@ fun AddCustomFoodDialog(
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = HealthColors.Primary,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
                                 }

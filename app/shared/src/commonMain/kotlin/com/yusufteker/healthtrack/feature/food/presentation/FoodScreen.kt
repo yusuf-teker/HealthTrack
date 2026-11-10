@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.feature.food.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -116,6 +117,7 @@ fun FoodScreen(
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
     val appLauncher = rememberExternalAppLauncher()
+    val isDark = LocalIsDarkTheme.current
     var showManualAddSheet by remember { mutableStateOf(false) }
     var showGeneralMicrosSheet by remember { mutableStateOf(false) }
     var showInventoryStudio by remember { mutableStateOf(false) }
@@ -255,7 +257,8 @@ fun FoodScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
-                                color = HealthColors.Secondary.copy(alpha = 0.15f),
+                                color = (if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant).copy(alpha = if (isDark) 0.16f else 0.12f),
+                                border = if (isDark) null else BorderStroke(1.dp, HealthColors.SecondaryVariant.copy(alpha = 0.35f)),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
                                     .clickable {
@@ -272,14 +275,14 @@ fun FoodScreen(
                                     Icon(
                                         imageVector = Icons.Default.Inventory2,
                                         contentDescription = null,
-                                        tint = HealthColors.Secondary,
+                                        tint = if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "Envanterim",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = HealthColors.Secondary
+                                        color = if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant
                                     )
                                 }
                             }
@@ -807,6 +810,7 @@ private fun ManualAddBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        scrimColor = Color.Black.copy(alpha = 0.65f),
         containerColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
         dragHandle = {
             Box(
@@ -936,9 +940,11 @@ private fun ManualAddBottomSheet(
 
                 // ── "Envanterim" Card (Right above "Aradığınızı bulamadınız mı?") ──
                 if (onOpenInventoryStudio != null) {
+                    val invAccent = if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = HealthColors.Secondary.copy(alpha = 0.12f),
+                        color = invAccent.copy(alpha = if (isDark) 0.12f else 0.10f),
+                        border = BorderStroke(1.dp, invAccent.copy(alpha = if (isDark) 0.25f else 0.40f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onOpenInventoryStudio(null) }
@@ -960,13 +966,13 @@ private fun ManualAddBottomSheet(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(HealthColors.Secondary.copy(alpha = 0.18f)),
+                                        .background(invAccent.copy(alpha = 0.18f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Inventory2,
                                         contentDescription = null,
-                                        tint = HealthColors.Secondary,
+                                        tint = invAccent,
                                         modifier = Modifier.size(17.dp)
                                     )
                                 }
@@ -987,7 +993,7 @@ private fun ManualAddBottomSheet(
                             if (onOpenAddCustomFood != null) {
                                 Surface(
                                     shape = RoundedCornerShape(999.dp),
-                                    color = HealthColors.Secondary.copy(alpha = 0.18f),
+                                    color = invAccent.copy(alpha = 0.18f),
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(999.dp))
                                         .clickable { onOpenAddCustomFood() }
@@ -1001,14 +1007,14 @@ private fun ManualAddBottomSheet(
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = null,
-                                            tint = HealthColors.Secondary,
+                                            tint = invAccent,
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Text(
                                             text = "Yeni",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             fontWeight = FontWeight.Bold,
-                                            color = HealthColors.Secondary
+                                            color = invAccent
                                         )
                                     }
                                 }
@@ -1017,7 +1023,7 @@ private fun ManualAddBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = null,
-                                tint = HealthColors.Secondary,
+                                tint = invAccent,
                                 modifier = Modifier.size(18.dp)
                             )
                         }

@@ -17,5 +17,17 @@
 	<array>
 		<string>planora</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Yemek ve besin etiketi fotoğraflarını çekip analiz etmek için kameranıza erişim gereklidir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Besin tablosu ve yemek fotoğraflarını seçip analiz etmek için galerinize erişim gereklidir.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Sesli olarak yemek veya ürün kaydetmek için mikrofonunuza erişim gereklidir.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Söylediklerinizi metne dönüştürerek hızlı yemek kaydı yapmak için konuşma tanıma gereklidir.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Kilo, vücut yağ oranı ve antrenman verilerinizi takip edip analiz edebilmek ve HealthTrack profilinizle senkronize etmek için Apple Health okuma izni gereklidir.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Kilo, beslenme ve egzersiz kayıtlarınızı Apple Health ile senkronize etmek ve verilerinizi güncel tutmak için Apple Health güncelleme izni gereklidir.</string>
 </dict>
 </plist>

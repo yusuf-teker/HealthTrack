@@ -522,12 +522,13 @@ fun InventoryMixStudioDialog(
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // ── 1. Unified Selected Product Card with Integrated Live Macros ──
                         GlassCard(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(22.dp),
+                            backgroundColor = if (isDark) HealthColors.SurfaceContainer else Color.White,
                             elevation = 6.dp
                         ) {
                             Column(
@@ -537,7 +538,7 @@ fun InventoryMixStudioDialog(
                                         Brush.horizontalGradient(
                                             listOf(
                                                 HealthColors.Primary.copy(alpha = 0.12f),
-                                                HealthColors.Secondary.copy(alpha = 0.08f)
+                                                (if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant).copy(alpha = 0.08f)
                                             )
                                         )
                                     )
@@ -563,7 +564,8 @@ fun InventoryMixStudioDialog(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.fillMaxWidth()
                                             ) {
                                                 Text(
                                                     text = currentSelected.name,
@@ -571,12 +573,13 @@ fun InventoryMixStudioDialog(
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = MaterialTheme.colorScheme.onSurface,
                                                     maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f, fill = false)
                                                 )
                                                 Surface(
                                                     shape = RoundedCornerShape(6.dp),
                                                     color = if (effectiveIngredients.size > 1) {
-                                                        HealthColors.Secondary.copy(alpha = 0.18f)
+                                                        (if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant).copy(alpha = 0.18f)
                                                     } else {
                                                         HealthColors.Primary.copy(alpha = 0.16f)
                                                     }
@@ -585,8 +588,12 @@ fun InventoryMixStudioDialog(
                                                         text = if (effectiveIngredients.size > 1) "⚡ ${effectiveIngredients.size} İçerik" else "🏷️ Tekli",
                                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                                         fontWeight = FontWeight.Bold,
-                                                        color = if (effectiveIngredients.size > 1) HealthColors.Secondary else HealthColors.Primary,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        color = if (effectiveIngredients.size > 1) {
+                                                            if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant
+                                                        } else HealthColors.Primary,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        maxLines = 1,
+                                                        softWrap = false
                                                     )
                                                 }
                                             }
@@ -617,13 +624,16 @@ fun InventoryMixStudioDialog(
                                         }
                                     }
 
+                                    Spacer(modifier = Modifier.width(10.dp))
+
                                     Surface(
                                         shape = RoundedCornerShape(16.dp),
-                                        color = HealthColors.Primary.copy(alpha = 0.18f)
+                                        color = HealthColors.Primary.copy(alpha = 0.18f),
+                                        modifier = Modifier.defaultMinSize(minWidth = 58.dp)
                                     ) {
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
                                             Text(
                                                 text = "$totalCalories",
@@ -898,6 +908,8 @@ private fun InventoryGridItemCard(
             .clickable(onClick = onSelect)
             .bounceClick(),
         shape = RoundedCornerShape(18.dp),
+        backgroundColor = if (isDark) HealthColors.SurfaceContainer else Color.White,
+        borderGradient = if (isDark) null else listOf(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), HealthColors.Primary.copy(alpha = 0.25f)),
         elevation = 3.dp
     ) {
         Column(
@@ -912,19 +924,18 @@ private fun InventoryGridItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val mixTagColor = if (isMix) {
+                    if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant
+                } else HealthColors.Primary
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = if (isMix) {
-                        HealthColors.Secondary.copy(alpha = 0.18f)
-                    } else {
-                        HealthColors.Primary.copy(alpha = 0.16f)
-                    }
+                    color = mixTagColor.copy(alpha = 0.16f)
                 ) {
                     Text(
                         text = if (isMix) "⚡ ${effectiveIngredients.size} İçerik" else "🏷️ Tekli",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
-                        color = if (isMix) HealthColors.Secondary else HealthColors.Primary,
+                        color = mixTagColor,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
@@ -1133,6 +1144,8 @@ private fun IngredientLevelWidgetCard(
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
+        backgroundColor = if (isDark) HealthColors.SurfaceContainer else Color.White,
+        borderGradient = if (isDark) null else listOf(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), HealthColors.Primary.copy(alpha = 0.2f)),
         elevation = if (isEnabled) 4.dp else 1.dp
     ) {
         Column(
@@ -1205,6 +1218,8 @@ private fun IngredientLevelWidgetCard(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Fine-Tune Stepper: [-] 200 ml [+]
                 if (isEnabled) {

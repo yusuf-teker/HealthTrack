@@ -73,11 +73,15 @@ fun FoodPhotoScanBottomSheet(
                 cameraLauncher.cropAndScan(cropRect, rotation) { cropped ->
                     capturedPhoto = cropped
                     isCropDialogOpen = false
-                    if (!cropped.extractedText.isNullOrBlank()) {
-                        labelInputText = cropped.extractedText
+                    val text = cropped.extractedText
+                    if (!text.isNullOrBlank()) {
+                        labelInputText = text
                         ocrFailedNoText = false
                     } else {
-                        ocrFailedNoText = true
+                        if (labelInputText.isBlank()) {
+                            labelInputText = "Fotoğraftaki besin/ürün tablosu analizi"
+                        }
+                        ocrFailedNoText = false
                     }
                 }
             },
@@ -85,11 +89,15 @@ fun FoodPhotoScanBottomSheet(
                 cameraLauncher.cropAndScan(CropRect(0f, 0f, 1f, 1f), rotation) { fullPhoto ->
                     capturedPhoto = fullPhoto
                     isCropDialogOpen = false
-                    if (!fullPhoto.extractedText.isNullOrBlank()) {
-                        labelInputText = fullPhoto.extractedText
+                    val text = fullPhoto.extractedText
+                    if (!text.isNullOrBlank()) {
+                        labelInputText = text
                         ocrFailedNoText = false
                     } else {
-                        ocrFailedNoText = true
+                        if (labelInputText.isBlank()) {
+                            labelInputText = "Fotoğraftaki besin/ürün tablosu analizi"
+                        }
+                        ocrFailedNoText = false
                     }
                 }
             },
@@ -100,6 +108,7 @@ fun FoodPhotoScanBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        scrimColor = Color.Black.copy(alpha = 0.65f),
         containerColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier
@@ -513,14 +522,15 @@ fun FoodPhotoScanBottomSheet(
             // ── Primary Action Button: Extract & Calculate with AI ──
             Button(
                 onClick = {
+                    val promptBase = labelInputText.ifBlank { "Görseldeki ürün/besin değerleri ve kalori analizi" }
                     val fullPrompt = if (selectedTarget == FoodScanTarget.DAILY_MEAL) {
-                        "$labelInputText (Tüketilen porsiyon: $labelPortionInfo)"
+                        "$promptBase (Tüketilen porsiyon: $labelPortionInfo)"
                     } else {
-                        labelInputText
+                        promptBase
                     }
                     onAnalyze(fullPrompt, capturedPhoto?.base64, selectedTarget)
                 },
-                enabled = labelInputText.isNotBlank() && !isAnalyzing,
+                enabled = (labelInputText.isNotBlank() || capturedPhoto?.base64 != null) && !isAnalyzing,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
