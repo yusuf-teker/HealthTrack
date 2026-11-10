@@ -17,8 +17,8 @@ data class ProfileState(
     val gender: String = "MALE", // "MALE" or "FEMALE"
     val fitnessGoal: FitnessGoal = FitnessGoal.MAINTAIN,
     val nutritionGoal: NutritionGoal = NutritionGoal(id = "default", userId = 0),
-    val isDarkMode: Boolean = false,
-    val themeAccent: AppThemeColor = AppThemeColor.TEAL,
+    val isDarkMode: Boolean = true,
+    val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
     val latestWeightDate: String? = null,
     val isSaving: Boolean = false,
     val isSyncing: Boolean = false,

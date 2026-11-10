@@ -33,10 +33,14 @@ import com.yusufteker.healthtrack.core.model.CustomFoodIngredient
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
+import com.yusufteker.healthtrack.core.utils.CapturedPhoto
+import com.yusufteker.healthtrack.core.utils.CropRect
+import com.yusufteker.healthtrack.core.utils.rememberCameraPhotoLauncher
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.GlassCard
+import com.yusufteker.healthtrack.ui.components.ImageCropDialog
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import kotlin.math.roundToInt
@@ -282,6 +286,10 @@ fun AddCustomFoodDialog(
 ) {
     val isDark = LocalIsDarkTheme.current
     val speechLauncher = rememberSpeechToTextLauncher()
+    val cameraLauncher = rememberCameraPhotoLauncher()
+    var capturedPhoto by remember { mutableStateOf<CapturedPhoto?>(null) }
+    var isCropDialogOpen by remember { mutableStateOf(false) }
+
     val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f)
     val calmFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = HealthColors.Primary,
@@ -518,6 +526,38 @@ fun AddCustomFoodDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        if (isCropDialogOpen && capturedPhoto?.imageBitmap != null) {
+            ImageCropDialog(
+                photo = capturedPhoto!!.imageBitmap!!,
+                isProcessing = cameraLauncher.isScanning,
+                onConfirmCrop = { cropRect: CropRect, rotation: Int ->
+                    cameraLauncher.cropAndScan(cropRect, rotation) { cropped ->
+                        capturedPhoto = cropped
+                        isCropDialogOpen = false
+                        val text = cropped.extractedText
+                        if (!text.isNullOrBlank()) {
+                            aiPromptText = text
+                            aiSuccessMessage = null
+                            onAnalyzeWithAi?.invoke(text, isMixMode)
+                        }
+                    }
+                },
+                onScanFull = { rotation: Int ->
+                    cameraLauncher.cropAndScan(CropRect(0f, 0f, 1f, 1f), rotation) { fullPhoto ->
+                        capturedPhoto = fullPhoto
+                        isCropDialogOpen = false
+                        val text = fullPhoto.extractedText
+                        if (!text.isNullOrBlank()) {
+                            aiPromptText = text
+                            aiSuccessMessage = null
+                            onAnalyzeWithAi?.invoke(text, isMixMode)
+                        }
+                    }
+                },
+                onDismiss = { isCropDialogOpen = false }
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -834,6 +874,56 @@ fun AddCustomFoodDialog(
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                 }
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    cameraLauncher.launchCamera { photo ->
+                                                        capturedPhoto = photo
+                                                        if (photo.imageBitmap != null) {
+                                                            isCropDialogOpen = true
+                                                        }
+                                                        if (!photo.extractedText.isNullOrBlank()) {
+                                                            aiPromptText = photo.extractedText
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier
+                                                    .size(30.dp)
+                                                    .clip(CircleShape)
+                                                    .background(HealthColors.Primary.copy(alpha = 0.15f))
+                                                    .bounceClick()
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.CameraAlt,
+                                                    contentDescription = "Etiket Çek ve Tara",
+                                                    tint = HealthColors.Primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    cameraLauncher.launchGallery { photo ->
+                                                        capturedPhoto = photo
+                                                        if (photo.imageBitmap != null) {
+                                                            isCropDialogOpen = true
+                                                        }
+                                                        if (!photo.extractedText.isNullOrBlank()) {
+                                                            aiPromptText = photo.extractedText
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier
+                                                    .size(30.dp)
+                                                    .clip(CircleShape)
+                                                    .background(HealthColors.Primary.copy(alpha = 0.15f))
+                                                    .bounceClick()
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PhotoLibrary,
+                                                    contentDescription = "Galeriden Etiket Seç",
+                                                    tint = HealthColors.Primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         }
                                     },

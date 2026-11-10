@@ -10,11 +10,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -178,11 +183,7 @@ fun InventoryMixStudioDialog(
     val isDark = LocalIsDarkTheme.current
 
     var selectedItem by remember(customFoods, initialSelectedItem) {
-        mutableStateOf(
-            initialSelectedItem
-                ?: customFoods.firstOrNull { it.isMix }
-                ?: customFoods.firstOrNull()
-        )
+        mutableStateOf(initialSelectedItem)
     }
 
     val effectiveIngredients = remember(selectedItem) {
@@ -205,9 +206,9 @@ fun InventoryMixStudioDialog(
         }
     }
 
-    // Add mode: true = add each ingredient separately to daily log, false = add as single combined row
+    // Add mode: default is false ("Tek satır olarak ekle")
     var addSeparately by remember(selectedItem) {
-        mutableStateOf(effectiveIngredients.size > 1)
+        mutableStateOf(false)
     }
 
     // Calculate live totals across all enabled ingredients
@@ -268,25 +269,233 @@ fun InventoryMixStudioDialog(
                 .imePadding(),
             color = MaterialTheme.colorScheme.background
         ) {
+            val currentSelected = selectedItem
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
-                // ── 1. Top Header Bar ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                if (currentSelected == null) {
+                    // ═══════════════════════════════════════════════════════
+                    // VIEW A: 2-COLUMN INVENTORY LIST / GRID
+                    // ═══════════════════════════════════════════════════════
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight
+                                    )
+                                    .bounceClick()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Kapat",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Envanterim",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${customFoods.size} Ürün / Karışım",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    color = HealthColors.Primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = HealthColors.Primary.copy(alpha = 0.16f),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .clickable { onOpenCreateCustomFood() }
+                                .bounceClick()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = HealthColors.Primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Yeni Ekle",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.Primary
+                                )
+                            }
+                        }
+                    }
+
+                    if (customFoods.isEmpty()) {
+                        // Empty Inventory State
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            GlassCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                elevation = 6.dp
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(56.dp)
+                                            .clip(CircleShape)
+                                            .background(HealthColors.Primary.copy(alpha = 0.14f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Inventory2,
+                                            contentDescription = null,
+                                            tint = HealthColors.Primary,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = "Envanteriniz Henüz Boş",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Kendi tükettiğiniz ürünleri veya çoklu içerikli öğünlerinizi (örn: kahve + protein tozu + süt) envanterinize ekleyerek her seferinde seviyelerini (1 shot, 2 ölçek, 100ml vb.) tek dokunuşla seçebilirsiniz.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                    Button(
+                                        onClick = onOpenCreateCustomFood,
+                                        shape = RoundedCornerShape(999.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                            .bounceClick(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = HealthColors.Primary,
+                                            contentColor = HealthColors.OnPrimary
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Envanterime Ürün / Öğün Ekle", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // 2-Column Grid List (2 items per row)
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) {
+                            items(customFoods, key = { it.id }) { item ->
+                                InventoryGridItemCard(
+                                    item = item,
+                                    onSelect = { selectedItem = item },
+                                    onDelete = onDeleteCustomFood
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // ═══════════════════════════════════════════════════════
+                    // VIEW B: PRODUCT DETAIL & LEVEL STUDIO
+                    // ═══════════════════════════════════════════════════════
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            IconButton(
+                                onClick = { selectedItem = null },
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight
+                                    )
+                                    .bounceClick()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Listeye Dön",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = currentSelected.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Seviye & Porsiyon Ayarı",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    color = HealthColors.Primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
                         IconButton(
                             onClick = onDismiss,
                             modifier = Modifier
@@ -304,247 +513,18 @@ fun InventoryMixStudioDialog(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Envanterim",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Eklediğiniz ürün ve öğünlerin seviyelerini (ölçek, shot, ml, gr) ayarlayın",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = HealthColors.Primary.copy(alpha = 0.16f),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .clickable { onOpenCreateCustomFood() }
-                            .bounceClick()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = HealthColors.Primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "Yeni Ekle",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = HealthColors.Primary
-                            )
-                        }
-                    }
-                }
-
-                val currentSelected = selectedItem
-                if (customFoods.isEmpty() || currentSelected == null) {
-                    // ── Empty Inventory State (No AI/Preset Suggestions) ──
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        GlassCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp),
-                            elevation = 6.dp
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(CircleShape)
-                                        .background(HealthColors.Primary.copy(alpha = 0.14f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Inventory2,
-                                        contentDescription = null,
-                                        tint = HealthColors.Primary,
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                }
-                                Text(
-                                    text = "Envanteriniz Henüz Boş",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Kendi tükettiğiniz ürünleri veya çoklu içerikli öğünlerinizi (örn: kahve + protein tozu + süt) envanterinize ekleyerek her seferinde seviyelerini (1 shot, 2 ölçek, 100ml vb.) tek dokunuşla seçebilirsiniz.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                                Button(
-                                    onClick = onOpenCreateCustomFood,
-                                    shape = RoundedCornerShape(999.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp)
-                                        .bounceClick(),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = HealthColors.Primary,
-                                        contentColor = HealthColors.OnPrimary
-                                    )
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Envanterime Ürün / Öğün Ekle", fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // ── Scrollable Studio Body ──
+                    // Scrollable Studio Body
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // ── 2. Inventory Selector Strip ──
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Envanterimdeki Ürünler",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "${customFoods.size} Kayıt",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                    color = HealthColors.Primary,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                customFoods.forEach { item ->
-                                    val isSelected = currentSelected.id == item.id
-                                    val ingCount = item.toEffectiveIngredients().size
-
-                                    Surface(
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = if (isSelected) {
-                                            HealthColors.Primary.copy(alpha = if (isDark) 0.22f else 0.14f)
-                                        } else {
-                                            if (isDark) HealthColors.SurfaceContainerHigh.copy(alpha = 0.65f)
-                                            else HealthColors.SurfaceVariantLight.copy(alpha = 0.7f)
-                                        },
-                                        modifier = Modifier
-                                            .widthIn(min = 145.dp, max = 210.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .border(
-                                                width = if (isSelected) 1.5.dp else 1.dp,
-                                                color = if (isSelected) HealthColors.Primary else Color.Transparent,
-                                                shape = RoundedCornerShape(16.dp)
-                                            )
-                                            .clickable { selectedItem = item }
-                                            .bounceClick()
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Surface(
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    color = if (ingCount > 1) {
-                                                        HealthColors.Secondary.copy(alpha = 0.16f)
-                                                    } else {
-                                                        HealthColors.Primary.copy(alpha = 0.14f)
-                                                    }
-                                                ) {
-                                                    Text(
-                                                        text = if (ingCount > 1) "⚡ $ingCount İçerik" else "🏷️ Tekli Ürün",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (ingCount > 1) HealthColors.Secondary else HealthColors.Primary,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-                                                }
-
-                                                if (onDeleteCustomFood != null) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.DeleteOutline,
-                                                        contentDescription = "Sil",
-                                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                                                        modifier = Modifier
-                                                            .size(15.dp)
-                                                            .clickable { onDeleteCustomFood(item.id) }
-                                                    )
-                                                }
-                                            }
-
-                                            Text(
-                                                text = item.name,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-
-                                            Text(
-                                                text = if (ingCount > 1) {
-                                                    item.toEffectiveIngredients().joinToString(" + ") { it.name.substringBefore(" ") }
-                                                } else {
-                                                    item.portionUnit
-                                                },
-                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── 3. Live Macro Telemetry Hero Banner ──
+                        // ── 1. Unified Selected Product Card with Integrated Live Macros ──
                         GlassCard(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(22.dp),
@@ -562,37 +542,83 @@ fun InventoryMixStudioDialog(
                                         )
                                     )
                                     .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
+                                // Product Header & Calories
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = currentSelected.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        FoodIconBadge(
+                                            iconKey = currentSelected.iconKey,
+                                            size = 40.dp,
+                                            tint = HealthColors.Primary
                                         )
-                                        Text(
-                                            text = if (activeScaledIngredients.isEmpty()) {
-                                                "En az 1 içerik seçin"
-                                            } else {
-                                                activeScaledIngredients.joinToString(" • ") {
-                                                    "${it.ingredient.name.substringBefore(" ")}: ${it.formattedPortion}"
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = currentSelected.name,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = if (effectiveIngredients.size > 1) {
+                                                        HealthColors.Secondary.copy(alpha = 0.18f)
+                                                    } else {
+                                                        HealthColors.Primary.copy(alpha = 0.16f)
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = if (effectiveIngredients.size > 1) "⚡ ${effectiveIngredients.size} İçerik" else "🏷️ Tekli",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (effectiveIngredients.size > 1) HealthColors.Secondary else HealthColors.Primary,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
                                                 }
-                                            },
-                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                            }
+
+                                            val brand = currentSelected.brand
+                                            if (!brand.isNullOrBlank()) {
+                                                Text(
+                                                    text = brand,
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+
+                                            Text(
+                                                text = if (activeScaledIngredients.isEmpty()) {
+                                                    "En az 1 içerik seçin"
+                                                } else {
+                                                    activeScaledIngredients.joinToString(" • ") {
+                                                        "${it.ingredient.name.substringBefore(" ")}: ${it.formattedPortion}"
+                                                    }
+                                                },
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = HealthColors.Primary,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
                                     }
 
                                     Surface(
-                                        shape = RoundedCornerShape(14.dp),
+                                        shape = RoundedCornerShape(16.dp),
                                         color = HealthColors.Primary.copy(alpha = 0.18f)
                                     ) {
                                         Column(
@@ -615,7 +641,7 @@ fun InventoryMixStudioDialog(
                                     }
                                 }
 
-                                // Macro Pills Row
+                                // Integrated Macro Pills Row inside the same card
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -648,7 +674,7 @@ fun InventoryMixStudioDialog(
                             }
                         }
 
-                        // ── 4. Interactive Ingredient Level Tweaker Cards ──
+                        // ── 2. Interactive Seviye Ayarı ──
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -694,7 +720,7 @@ fun InventoryMixStudioDialog(
                             )
                         }
 
-                        // ── 5. Logging Mode Selector (When > 1 ingredient) ──
+                        // ── 3. Logging Mode Selector (When > 1 ingredient) ──
                         if (effectiveIngredients.size > 1) {
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
@@ -717,17 +743,17 @@ fun InventoryMixStudioDialog(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         ModeOptionChip(
-                                            title = "İçerikleri Ayrı Ayrı Ekle",
-                                            subtitle = "Her içerik tabloda ayrı satır olur",
-                                            selected = addSeparately,
-                                            onClick = { addSeparately = true },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        ModeOptionChip(
                                             title = "Tek Satır Olarak Ekle",
                                             subtitle = "${currentSelected.name} adıyla tek satır",
                                             selected = !addSeparately,
                                             onClick = { addSeparately = false },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        ModeOptionChip(
+                                            title = "İçerikleri Ayrı Ayrı Ekle",
+                                            subtitle = "Her içerik tabloda ayrı satır olur",
+                                            selected = addSeparately,
+                                            onClick = { addSeparately = true },
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
@@ -738,7 +764,7 @@ fun InventoryMixStudioDialog(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
-                    // ── 6. Sticky Bottom Action Bar ──
+                    // ── 4. Sticky Bottom Action Bar ──
                     Surface(
                         color = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
                         tonalElevation = 8.dp,
@@ -841,7 +867,7 @@ fun InventoryMixStudioDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Seçili Seviyelerle Öğüne Ekle (+$totalCalories kcal • ${totalProtein}g P)",
+                                    text = "Öğünüme Ekle ($totalCalories kcal)",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
@@ -849,6 +875,184 @@ fun InventoryMixStudioDialog(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InventoryGridItemCard(
+    item: CustomFoodItem,
+    onSelect: () -> Unit,
+    onDelete: ((String) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsDarkTheme.current
+    val effectiveIngredients = item.toEffectiveIngredients()
+    val isMix = effectiveIngredients.size > 1 || item.isMix
+
+    GlassCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onSelect)
+            .bounceClick(),
+        shape = RoundedCornerShape(18.dp),
+        elevation = 3.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Top tag & delete
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isMix) {
+                        HealthColors.Secondary.copy(alpha = 0.18f)
+                    } else {
+                        HealthColors.Primary.copy(alpha = 0.16f)
+                    }
+                ) {
+                    Text(
+                        text = if (isMix) "⚡ ${effectiveIngredients.size} İçerik" else "🏷️ Tekli",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = if (isMix) HealthColors.Secondary else HealthColors.Primary,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                if (onDelete != null) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Sil",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onDelete(item.id) }
+                    )
+                }
+            }
+
+            // Food icon + Title
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                FoodIconBadge(
+                    iconKey = item.iconKey,
+                    size = 32.dp,
+                    tint = HealthColors.Primary
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val itemBrand = item.brand
+                    if (!itemBrand.isNullOrBlank()) {
+                        Text(
+                            text = itemBrand,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            // Calorie & Portion badge
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = HealthColors.Primary.copy(alpha = 0.12f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${item.calories} kcal",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = HealthColors.Primary
+                    )
+                    Text(
+                        text = if (isMix) {
+                            effectiveIngredients.joinToString(" + ") { it.name.substringBefore(" ") }
+                        } else {
+                            item.portionUnit
+                        },
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false).padding(start = 4.dp)
+                    )
+                }
+            }
+
+            // Macros mini-row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "P: ${item.proteinG.roundToInt()}g",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = HealthColors.NutrientProtein
+                )
+                Text(
+                    text = "K: ${item.carbsG.roundToInt()}g",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = HealthColors.NutrientCarbs
+                )
+                Text(
+                    text = "Y: ${item.fatG.roundToInt()}g",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = HealthColors.NutrientLipids
+                )
+            }
+
+            // Action hint
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Ayarla & Ekle",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = HealthColors.Primary
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = HealthColors.Primary,
+                    modifier = Modifier.size(11.dp)
+                )
             }
         }
     }

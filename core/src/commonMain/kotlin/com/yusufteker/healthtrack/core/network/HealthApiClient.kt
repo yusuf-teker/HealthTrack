@@ -19,7 +19,9 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class FoodAiRequestDto(
     val text: String,
-    val date: String
+    val date: String,
+    val imageBase64: String? = null,
+    val imageMimeType: String? = "image/jpeg"
 )
 
 @Serializable
@@ -227,10 +229,15 @@ class HealthApiClient(
         }
     }
 
-    suspend fun analyzeFood(text: String, date: String): Result<FoodAiResultDto> = runCatching {
+    suspend fun analyzeFood(
+        text: String,
+        date: String,
+        imageBase64: String? = null,
+        imageMimeType: String? = "image/jpeg"
+    ): Result<FoodAiResultDto> = runCatching {
         val response = httpClient.post("/health/ai/food") {
             contentType(ContentType.Application.Json)
-            setBody(FoodAiRequestDto(text, date))
+            setBody(FoodAiRequestDto(text, date, imageBase64, imageMimeType))
         }
         if (response.status.isSuccess()) {
             response.body<FoodAiResultDto>()

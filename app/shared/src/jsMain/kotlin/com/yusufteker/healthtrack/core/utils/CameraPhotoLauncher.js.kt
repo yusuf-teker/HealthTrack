@@ -8,10 +8,14 @@ actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
     return remember {
         object : CameraPhotoLauncher {
             override val isCameraAvailable: Boolean = false
-            override val isOcrScanning: Boolean = false
-            override fun launchCamera(onTextExtracted: (String) -> Unit) {}
-            override fun launchGallery(onTextExtracted: (String) -> Unit) {}
+            override val isScanning: Boolean = false
+            override fun launchCamera(onPhotoCaptured: (CapturedPhoto) -> Unit) {}
+            override fun launchGallery(onPhotoCaptured: (CapturedPhoto) -> Unit) {}
+            override fun cropAndScan(
+                cropRect: CropRect,
+                rotationDegrees: Int,
+                onPhotoCaptured: (CapturedPhoto) -> Unit
+            ) {}
         }
     }
 }
-

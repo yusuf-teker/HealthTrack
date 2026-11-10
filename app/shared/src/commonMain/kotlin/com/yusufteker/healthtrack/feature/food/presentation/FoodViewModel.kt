@@ -241,8 +241,11 @@ class FoodViewModel(
 
             // ── 2.D: Fotoğraf / Etiket Tarama ──
             is FoodIntent.OnOpenPhotoScanSheet -> _state.update { it.copy(isPhotoScanSheetOpen = true) }
-            is FoodIntent.OnClosePhotoScanSheet -> _state.update { it.copy(isPhotoScanSheetOpen = false) }
-            is FoodIntent.OnAnalyzePhotoOrLabel -> analyzePhotoOrLabel(intent.textOrPrompt)
+            is FoodIntent.OnClosePhotoScanSheet -> _state.update { it.copy(isPhotoScanSheetOpen = false, isPhotoScanAnalyzing = false) }
+            is FoodIntent.OnSetPhotoScanTarget -> _state.update { it.copy(photoScanTarget = intent.target) }
+            is FoodIntent.OnAnalyzePhotoOrLabel -> analyzePhotoOrLabel(intent.textOrPrompt, intent.imageBase64, intent.target)
+            is FoodIntent.OnSaveAiItemsToInventory -> saveAiItemsToInventory(intent.items)
+            is FoodIntent.OnSaveSingleAiItemToInventory -> saveSingleAiItemToInventory(intent.item)
 
             // ── Market Listesi & Planora ──
             is FoodIntent.OnOpenGroceryListSheet -> {
@@ -372,10 +375,11 @@ class FoodViewModel(
         }
 
         val date = _state.value.selectedDate
+        val ocrSanityRule = "ÖNEMLİ KURAL: Taranan veya girilen metinde OCR kaynaklı nokta/virgül atlamaları olabilir ('3.3g' -> '33g', '6.1g' -> '61g' veya '610g', '0.5g' -> '50g'). 100g'da makroların toplamı 100g'ı asla geçemez ve toplam kalori (4*P + 4*K + 9*Y) ile uyumlu olmalıdır. Kaloriyle çelişen sayıları nokta kayması olarak düzeltip doğru ondalıklı değer yaz (örn: 3.3, 6.1)."
         val structuredText = if (isMixMode) {
-            "$cleanPrompt (Bu bir karışım/öğün tarifidir. Lütfen içindeki her bileşeni ayrı bir kalem olarak ayır. Her kalemin formattedPortion alanına kullanıcının belirttiği miktarı ve birimini net yaz: örn '150 ml', '2 shot', '1 ölçek', '35 g', '1 adet'. Kalori, protein, karbonhidrat, yağ, lif ve varsa vitamin/mineral/kafein/l-karnitin gibi mikro besinlerini doldur.)"
+            "$cleanPrompt ($ocrSanityRule. Bu bir karışım/öğün tarifidir. Lütfen içindeki her bileşeni ayrı bir kalem olarak ayır. Her kalemin formattedPortion alanına kullanıcının belirttiği miktarı ve birimini net yaz: örn '150 ml', '2 shot', '1 ölçek', '35 g', '1 adet'. Kalori, protein, karbonhidrat, yağ, lif ve varsa vitamin/mineral/kafein/l-karnitin gibi mikro besinlerini doldur.)"
         } else {
-            "$cleanPrompt (Bu tek bir üründür. Lütfen tek bir kalem olarak analiz et, formattedPortion alanına kullanıcının belirttiği birimi ve gramaj/ml bilgisini net yaz: örn '1 Ölçek (35g)' veya '1 Ölçek (30ml)'. Kalori, protein, karbonhidrat, yağ, lif ve içindeki tüm vitamin, mineral, aminoasit, kafein, l-karnitin, kreatin gibi mikro besin/içerik değerlerini micronutrients listesine eksiksiz ekle.)"
+            "$cleanPrompt ($ocrSanityRule. Bu tek bir üründür. Lütfen tek bir kalem olarak analiz et, formattedPortion alanına kullanıcının belirttiği birimi ve gramaj/ml bilgisini net yaz: örn '1 Ölçek (35g)' veya '1 Ölçek (30ml)'. Kalori, protein, karbonhidrat, yağ, lif ve içindeki tüm vitamin, mineral, aminoasit, kafein, l-karnitin, kreatin gibi mikro besin/içerik değerlerini micronutrients listesine eksiksiz ekle.)"
         }
 
         viewModelScope.launch {
@@ -1176,19 +1180,62 @@ class FoodViewModel(
     // 2.D: PHOTO / LABEL SCANNER
     // ─────────────────────────────────────────────────────────────
 
-    private fun analyzePhotoOrLabel(textOrPrompt: String) {
+    private fun analyzePhotoOrLabel(
+        textOrPrompt: String,
+        imageBase64: String? = null,
+        target: FoodScanTarget = FoodScanTarget.DAILY_MEAL
+    ) {
         val date = _state.value.selectedDate
-        val structuredPrompt = "Besin Değerleri Etiketi veya Tabak Fotoğrafı Analizi: $textOrPrompt. " +
-            "Lütfen ürünün veya tabağın porsiyonunu, kalori, protein, karbonhidrat, yağ, lif ve varsa etiket üzerindeki vitamin ve mineral değerlerini tam olarak çıkar."
+        val ocrDecimalFixInstruction =
+            "DİKKAT - OCR NOKTA/VİRGÜL VE MATEMATİKSEL SAĞLAMA KONTROLÜ:\n" +
+            "1. Paketli gıda tablolarında OCR bazen küçük nokta ve virgülleri kaçırarak boşluk veya sıfır gibi okuyabilir (örneğin: '3.3 g' veya '3,3 g' metinde '33' veya '3 3' olarak görünebilir; '6.1 g' metinde '61' veya '610' olarak görünebilir; '0.5 g' metinde '50' olarak görünebilir; '1.5 g' metinde '15' olarak görünebilir).\n" +
+            "2. Fiziksel ve Biyolojik Gerçeklik Kuralı: 100 gramlık bir ürünün içindeki protein, karbonhidrat, yağ ve lif toplamı ASLA 100 gramı geçemez!\n" +
+            "3. Kalori Sağlaması: Toplam kalori yaklaşık olarak (Protein*4 + Karbonhidrat*4 + Yağ*9) formülüyle tutarlı olmalıdır.\n" +
+            "   - Örneğin: 45-60 kcal olan bir süt/yoğurt ürününde '33g protein' okunmuşsa o KESİNLİKLE '3.3g'dır.\n" +
+            "   - '610g' veya '61g' karbonhidrat okunmuşsa o KESİNLİKLE '6.1g'dır.\n" +
+            "   - '15g' yağ okunmuşsa o KESİNLİKLE '1.5g'dır.\n" +
+            "Bu tür kalori veya porsiyonla çelişen sayıları kesinlikle doğru ondalıklı değere (örn: 3.3, 6.1, 0.5) dönüştür."
+
+        val structuredPrompt = when (target) {
+            FoodScanTarget.INVENTORY -> {
+                if (!imageBase64.isNullOrBlank()) {
+                    "Görseldeki ürün/besin etiketi veya market fişinin envanter analizi: $textOrPrompt.\n\n" +
+                    "$ocrDecimalFixInstruction\n\n" +
+                    "4. ÇIKTI FORMATI: Lütfen tespit edilen her bir ürünü kullanıcının kendi kütüphanesine/envanterine ekleyebileceği net ürün ismi, standart porsiyon/paket birimi (örn '100g' veya '1 Paket (45g)'), kalori ve makro/mikro besinleriyle tam olarak çıkar."
+                } else {
+                    "Besin Değerleri Etiketi veya Market Fişi Envanter Metni Analizi: $textOrPrompt.\n\n" +
+                    "$ocrDecimalFixInstruction\n\n" +
+                    "4. ÇIKTI FORMATI: Lütfen tespit edilen her bir ürünü kullanıcının kendi kütüphanesine/envanterine ekleyebileceği net ürün ismi, standart porsiyon/paket birimi (örn '100g' veya '1 Paket (45g)'), kalori ve makro/mikro besinleriyle tam olarak çıkar."
+                }
+            }
+            FoodScanTarget.DAILY_MEAL -> {
+                if (!imageBase64.isNullOrBlank()) {
+                    "Görseldeki yemek/tabak veya besin etiketi analizi: $textOrPrompt.\n\n" +
+                    "$ocrDecimalFixInstruction\n\n" +
+                    "4. ÇIKTI FORMATI: Lütfen yemeğin/ürünün porsiyonunu, kalori, protein, karbonhidrat, yağ, lif ve vitamin/mineral değerlerini tam olarak çıkar."
+                } else {
+                    "Besin Değerleri Etiketi veya Tabak Metni Analizi: $textOrPrompt.\n\n" +
+                    "$ocrDecimalFixInstruction\n\n" +
+                    "4. ÇIKTI FORMATI: Lütfen ürünün veya tabağın porsiyonunu, kalori, protein, karbonhidrat, yağ, lif ve varsa etiket üzerindeki vitamin ve mineral değerlerini tam olarak çıkar."
+                }
+            }
+        }
 
         viewModelScope.launch {
-            _state.update { it.copy(isPhotoScanAnalyzing = true, isPhotoScanSheetOpen = false, isCalculatingAi = true) }
-            val result = apiClient.analyzeFood(structuredPrompt, date)
+            _state.update {
+                it.copy(
+                    isPhotoScanAnalyzing = true,
+                    isCalculatingAi = true,
+                    photoScanTarget = target
+                )
+            }
+            val result = apiClient.analyzeFood(structuredPrompt, date, imageBase64)
             result.onSuccess { aiResult ->
                 _state.update {
                     it.copy(
                         isCalculatingAi = false,
                         isPhotoScanAnalyzing = false,
+                        isPhotoScanSheetOpen = false,
                         pendingAiResult = aiResult,
                         isAiReviewSheetOpen = true
                     )
@@ -1202,6 +1249,67 @@ class FoodViewModel(
                     )
                 }
             }
+        }
+    }
+
+    private fun saveAiItemsToInventory(items: List<FoodItem>) {
+        val userId = tokenStorage.getUserId()
+        val now = currentTime()
+        viewModelScope.launch {
+            items.forEach { item ->
+                val customId = "custom_" + Uuid.random().toString().take(12)
+                val customItem = CustomFoodItem(
+                    id = customId,
+                    userId = userId,
+                    name = item.name.trim(),
+                    brand = null,
+                    portionUnit = item.formattedPortion.ifBlank { "1 Porsiyon" },
+                    unitStep = 1,
+                    calories = item.calories,
+                    proteinG = item.proteinG,
+                    carbsG = item.carbsG,
+                    fatG = item.fatG,
+                    fiberG = item.fiberG,
+                    micronutrients = item.micronutrients,
+                    createdAt = now,
+                    updatedAt = now
+                )
+                database.upsertCustomFood(customItem)
+            }
+            _state.update {
+                it.copy(
+                    isAiReviewSheetOpen = false,
+                    pendingAiResult = null,
+                    infoMessage = "${items.size} ürün envanterinize kaydedildi! 🏷️"
+                )
+            }
+            _effects.send(FoodEffect.ShowToast("${items.size} ürün envanterinize başarıyla eklendi!"))
+        }
+    }
+
+    private fun saveSingleAiItemToInventory(item: FoodItem) {
+        val userId = tokenStorage.getUserId()
+        val now = currentTime()
+        viewModelScope.launch {
+            val customId = "custom_" + Uuid.random().toString().take(12)
+            val customItem = CustomFoodItem(
+                id = customId,
+                userId = userId,
+                name = item.name.trim(),
+                brand = null,
+                portionUnit = item.formattedPortion.ifBlank { "1 Porsiyon" },
+                unitStep = 1,
+                calories = item.calories,
+                proteinG = item.proteinG,
+                carbsG = item.carbsG,
+                fatG = item.fatG,
+                fiberG = item.fiberG,
+                micronutrients = item.micronutrients,
+                createdAt = now,
+                updatedAt = now
+            )
+            database.upsertCustomFood(customItem)
+            _effects.send(FoodEffect.ShowToast("${item.name} envanterinize eklendi! 🏷️"))
         }
     }
 

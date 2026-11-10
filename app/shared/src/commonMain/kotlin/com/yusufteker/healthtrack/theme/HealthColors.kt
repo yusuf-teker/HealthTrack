@@ -74,7 +74,7 @@ enum class AppThemeColor(
 
     companion object {
         fun fromId(id: String?): AppThemeColor {
-            return entries.find { it.id.equals(id, ignoreCase = true) } ?: TEAL
+            return entries.find { it.id.equals(id, ignoreCase = true) } ?: OCEAN
         }
     }
 }
@@ -84,7 +84,7 @@ enum class AppThemeColor(
  * Faithfully matches the Stitch Luxury Telemetry design system while keeping Planora harmony.
  */
 object HealthColors {
-    var currentAccent: AppThemeColor = AppThemeColor.TEAL
+    var currentAccent: AppThemeColor = AppThemeColor.OCEAN
 
     // ── Primary (Dynamically reflects selected AppThemeColor) ────
     val Primary: Color get() = currentAccent.primary

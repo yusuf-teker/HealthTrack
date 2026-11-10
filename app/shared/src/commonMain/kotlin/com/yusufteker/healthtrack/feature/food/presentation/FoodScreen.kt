@@ -242,7 +242,7 @@ fun FoodScreen(
                                 )
                             }
                             Text(
-                                text = "Öğün Ekle (AI)",
+                                text = "Öğün Ekle",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -346,19 +346,7 @@ fun FoodScreen(
                                         )
                                     }
                                 }
-                                IconButton(
-                                    onClick = { onIntent(FoodIntent.OnOpenPhotoScanSheet) },
-                                    modifier = Modifier.size(34.dp).clip(CircleShape)
-                                        .background(HealthColors.Primary.copy(alpha = 0.15f))
-                                        .bounceClick()
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CameraAlt,
-                                        contentDescription = "Fotoğraf / Etiket Tara",
-                                        tint = HealthColors.Primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+
                                 if (speechLauncher.isAvailable) {
                                     IconButton(
                                         onClick = {
@@ -467,28 +455,6 @@ fun FoodScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = Color.White
-                                )
-                            }
-                        }
-
-                        if (state.rawText.isNotBlank()) {
-                            OutlinedButton(
-                                onClick = { onIntent(FoodIntent.OnSaveManualClicked) },
-                                modifier = Modifier.height(44.dp).bounceClick(),
-                                shape = RoundedCornerShape(999.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "Ham Kaydet",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -609,8 +575,16 @@ fun FoodScreen(
         if (state.isAiReviewSheetOpen && state.pendingAiResult != null) {
             FoodAiReviewBottomSheet(
                 aiResult = state.pendingAiResult,
+                target = state.photoScanTarget,
                 onDismiss = { onIntent(FoodIntent.OnDismissAiReview) },
-                onConfirm = { onIntent(FoodIntent.OnConfirmAiReview) })
+                onConfirm = { onIntent(FoodIntent.OnConfirmAiReview) },
+                onSaveToInventory = {
+                    onIntent(FoodIntent.OnSaveAiItemsToInventory(state.pendingAiResult.items))
+                },
+                onSaveSingleItemToInventory = { item ->
+                    onIntent(FoodIntent.OnSaveSingleAiItemToInventory(item))
+                }
+            )
         }
 
         // ── Edit Goals Dialog ──
@@ -761,7 +735,10 @@ fun FoodScreen(
         if (state.isPhotoScanSheetOpen) {
             FoodPhotoScanBottomSheet(
                 isAnalyzing = state.isPhotoScanAnalyzing,
-                onAnalyze = { onIntent(FoodIntent.OnAnalyzePhotoOrLabel(it)) },
+                initialTarget = state.photoScanTarget,
+                onAnalyze = { prompt, base64, target ->
+                    onIntent(FoodIntent.OnAnalyzePhotoOrLabel(prompt, base64, target))
+                },
                 onDismiss = { onIntent(FoodIntent.OnClosePhotoScanSheet) }
             )
         }

@@ -67,12 +67,11 @@ fun App() {
         modules(appModules)
     }) {
         val settings: Settings = koinInject()
-        val systemDark = isSystemInDarkTheme()
         var isDark by remember {
-            mutableStateOf(settings.getBoolean("dark_mode", systemDark))
+            mutableStateOf(settings.getBoolean("dark_mode", true))
         }
         var currentThemeColor by remember {
-            mutableStateOf(AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.TEAL.id)))
+            mutableStateOf(AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id)))
         }
 
         HealthTrackTheme(darkTheme = isDark, themeAccent = currentThemeColor) {

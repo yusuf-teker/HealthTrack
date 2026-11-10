@@ -10,14 +10,14 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 
-val LocalIsDarkTheme = compositionLocalOf { false }
-val LocalThemeAccent = compositionLocalOf { AppThemeColor.TEAL }
+val LocalIsDarkTheme = compositionLocalOf { true }
+val LocalThemeAccent = compositionLocalOf { AppThemeColor.OCEAN }
 val LocalBottomBarVisibility = compositionLocalOf<MutableState<Boolean>> { mutableStateOf(true) }
 
 @Composable
 fun HealthTrackTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    themeAccent: AppThemeColor = AppThemeColor.TEAL,
+    darkTheme: Boolean = true,
+    themeAccent: AppThemeColor = AppThemeColor.OCEAN,
     content: @Composable () -> Unit
 ) {
     HealthColors.currentAccent = themeAccent

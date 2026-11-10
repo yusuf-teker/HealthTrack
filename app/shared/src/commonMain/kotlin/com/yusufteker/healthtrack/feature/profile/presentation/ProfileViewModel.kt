@@ -77,8 +77,8 @@ class ProfileViewModel(
         val age = tokenStorage.getUserAge().takeIf { it > 0 } ?: 26
         val gender = tokenStorage.getUserGender().takeIf { it.isNotBlank() } ?: "MALE"
         val fitnessGoal = tokenStorage.getUserFitnessGoal()
-        val isDark = settings.getBoolean("dark_mode", false)
-        val accent = AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.TEAL.id))
+        val isDark = settings.getBoolean("dark_mode", true)
+        val accent = AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id))
 
         return ProfileState(
             userId = userId,

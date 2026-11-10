@@ -78,6 +78,7 @@ data class FoodState(
     // ── 2.D: Fotoğraftan / Barkoddan / Besin Etiketinden Ekleme ──
     val isPhotoScanSheetOpen: Boolean = false,
     val isPhotoScanAnalyzing: Boolean = false,
+    val photoScanTarget: FoodScanTarget = FoodScanTarget.DAILY_MEAL,
 
     // ── Market Listesi & Planora Entegrasyonu ──
     val isGroceryListSheetOpen: Boolean = false,
@@ -85,6 +86,11 @@ data class FoodState(
     val groceryItems: List<String> = emptyList(),
     val selectedGroceryItems: Set<String> = emptySet()
 )
+
+enum class FoodScanTarget {
+    DAILY_MEAL,    // Günlük Öğünüme Ekle
+    INVENTORY      // Envanterime (Özel Ürünlerime) Ekle
+}
 
 sealed interface FoodIntent {
     data class OnDateChanged(val newDate: String) : FoodIntent
@@ -159,7 +165,14 @@ sealed interface FoodIntent {
     // ── 2.D: Fotoğraf / Etiket Tarama Intent'leri ──
     data object OnOpenPhotoScanSheet : FoodIntent
     data object OnClosePhotoScanSheet : FoodIntent
-    data class OnAnalyzePhotoOrLabel(val textOrPrompt: String) : FoodIntent
+    data class OnSetPhotoScanTarget(val target: FoodScanTarget) : FoodIntent
+    data class OnAnalyzePhotoOrLabel(
+        val textOrPrompt: String,
+        val imageBase64: String? = null,
+        val target: FoodScanTarget = FoodScanTarget.DAILY_MEAL
+    ) : FoodIntent
+    data class OnSaveAiItemsToInventory(val items: List<FoodItem>) : FoodIntent
+    data class OnSaveSingleAiItemToInventory(val item: FoodItem) : FoodIntent
 
     // ── Market Listesi & Planora Intent'leri ──
     data class OnOpenGroceryListSheet(val title: String, val items: List<String>) : FoodIntent
