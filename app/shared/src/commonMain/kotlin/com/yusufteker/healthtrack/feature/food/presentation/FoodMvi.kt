@@ -16,6 +16,7 @@ import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 
 enum class SmartMealFilterType {
+    FROM_USER_DB,
     QUICK,
     FEW_INGREDIENTS,
     EXCLUDE_RECENT_3_DAYS,
@@ -62,6 +63,8 @@ data class FoodState(
     // ── 1: Akıllı Öğün & "Ne Yesem?" Önerisi ──
     val isSmartMealSheetOpen: Boolean = false,
     val smartMealSuggestions: List<SmartMealSuggestion> = emptyList(),
+    val latestAiRecipe: SmartMealSuggestion? = null,
+    val isSmartMealFromUserDb: Boolean = false,
     val isSmartMealOnlyQuick: Boolean = false,
     val isSmartMealOnlyFewIngredients: Boolean = false,
     val isSmartMealExcludeRecent3Days: Boolean = true,
@@ -148,6 +151,7 @@ sealed interface FoodIntent {
     data class OnToggleSmartMealFilter(val filterType: SmartMealFilterType) : FoodIntent
     data class OnAddSuggestedMeal(val meal: SmartMealSuggestion) : FoodIntent
     data object OnRequestCustomAiMealSuggestion : FoodIntent
+    data object OnDismissAiRecipe : FoodIntent
 
     // ── 2.B: Besin Sinerjisi Intent'i ──
     data class OnDismissSynergyTip(val tipId: String) : FoodIntent

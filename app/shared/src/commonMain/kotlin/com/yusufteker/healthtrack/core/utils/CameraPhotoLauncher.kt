@@ -17,3 +17,4 @@ interface CameraPhotoLauncher {
  */
 @Composable
 expect fun rememberCameraPhotoLauncher(): CameraPhotoLauncher
+

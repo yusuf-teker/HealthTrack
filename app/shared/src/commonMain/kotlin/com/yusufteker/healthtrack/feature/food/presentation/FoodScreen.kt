@@ -94,6 +94,7 @@ import com.yusufteker.healthtrack.feature.food.presentation.components.GeneralMi
 import com.yusufteker.healthtrack.feature.food.presentation.components.InventoryMixStudioDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.QuickFoodPresetsView
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.CalorieProgressGauge
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
@@ -131,6 +132,18 @@ fun FoodScreen(
     }
     LaunchedEffect(state.isEditGoalsDialogOpen) {
         if (state.isEditGoalsDialogOpen) Napier.d("SCREEN: EditGoalsDialog açıldı")
+    }
+
+    val bottomBarVisibility = LocalBottomBarVisibility.current
+    val isAnySheetOpen = state.isSmartMealSheetOpen ||
+        state.isPhotoScanSheetOpen ||
+        state.isGroceryListSheetOpen ||
+        state.isAiReviewSheetOpen ||
+        showManualAddSheet ||
+        showGeneralMicrosSheet
+
+    LaunchedEffect(isAnySheetOpen) {
+        bottomBarVisibility.value = !isAnySheetOpen
     }
 
     Box(
@@ -714,6 +727,8 @@ fun FoodScreen(
                 suggestions = state.smartMealSuggestions,
                 nutrientBars = state.nutrientBars,
                 remainingCalories = (state.nutritionGoal.calories - state.totalCalories).coerceAtLeast(0),
+                latestAiRecipe = state.latestAiRecipe,
+                isFromUserDb = state.isSmartMealFromUserDb,
                 isOnlyQuick = state.isSmartMealOnlyQuick,
                 isOnlyFewIngredients = state.isSmartMealOnlyFewIngredients,
                 isExcludeRecent3Days = state.isSmartMealExcludeRecent3Days,
@@ -725,6 +740,7 @@ fun FoodScreen(
                     onIntent(FoodIntent.OnOpenGroceryListSheet(title, ingredients))
                 },
                 onRequestAiRecipe = { onIntent(FoodIntent.OnRequestCustomAiMealSuggestion) },
+                onDismissAiRecipe = { onIntent(FoodIntent.OnDismissAiRecipe) },
                 onDismiss = { onIntent(FoodIntent.OnCloseSmartMealSheet) }
             )
         }

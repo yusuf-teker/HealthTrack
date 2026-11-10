@@ -6,10 +6,13 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
 
 val LocalIsDarkTheme = compositionLocalOf { false }
 val LocalThemeAccent = compositionLocalOf { AppThemeColor.TEAL }
+val LocalBottomBarVisibility = compositionLocalOf<MutableState<Boolean>> { mutableStateOf(true) }
 
 @Composable
 fun HealthTrackTheme(

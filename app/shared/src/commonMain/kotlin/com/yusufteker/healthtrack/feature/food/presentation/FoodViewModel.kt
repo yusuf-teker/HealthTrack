@@ -212,6 +212,7 @@ class FoodViewModel(
             is FoodIntent.OnToggleSmartMealFilter -> {
                 _state.update { current ->
                     when (intent.filterType) {
+                        SmartMealFilterType.FROM_USER_DB -> current.copy(isSmartMealFromUserDb = !current.isSmartMealFromUserDb)
                         SmartMealFilterType.QUICK -> current.copy(isSmartMealOnlyQuick = !current.isSmartMealOnlyQuick)
                         SmartMealFilterType.FEW_INGREDIENTS -> current.copy(isSmartMealOnlyFewIngredients = !current.isSmartMealOnlyFewIngredients)
                         SmartMealFilterType.EXCLUDE_RECENT_3_DAYS -> current.copy(isSmartMealExcludeRecent3Days = !current.isSmartMealExcludeRecent3Days)
@@ -222,6 +223,10 @@ class FoodViewModel(
             }
             is FoodIntent.OnAddSuggestedMeal -> addSuggestedMeal(intent.meal)
             is FoodIntent.OnRequestCustomAiMealSuggestion -> requestCustomAiMealSuggestion()
+            is FoodIntent.OnDismissAiRecipe -> {
+                cachedAiRecipe = null
+                _state.update { it.copy(latestAiRecipe = null) }
+            }
 
             // ── 2.B: Besin Sinerjisi & Emilim ──
             is FoodIntent.OnDismissSynergyTip -> {
@@ -997,6 +1002,8 @@ class FoodViewModel(
     // 1 & 2.B: SMART MEAL MATCHER & SYNERGY TIPS ENGINE
     // ─────────────────────────────────────────────────────────────
 
+    private var cachedAiRecipe: SmartMealSuggestion? = null
+
     private fun updateSmartMealsAndSynergy() {
         val current = _state.value
         val remainingCals = (current.nutritionGoal.calories - current.totalCalories).coerceAtLeast(0)
@@ -1007,11 +1014,20 @@ class FoodViewModel(
             missingProteinG = missingProtein,
             nutrientBars = current.nutrientBars,
             recent3DaysFoodNames = cachedRecent3DaysFoodNames,
+            customFoods = current.customFoods,
+            frequentFoods = current.frequentFoods,
             onlyQuick = current.isSmartMealOnlyQuick,
             onlyFewIngredients = current.isSmartMealOnlyFewIngredients,
             excludeRecent3Days = current.isSmartMealExcludeRecent3Days,
-            highProteinOnly = current.isSmartMealHighProtein
+            highProteinOnly = current.isSmartMealHighProtein,
+            fromUserDbOnly = current.isSmartMealFromUserDb
         )
+
+        val combinedSuggestions = if (cachedAiRecipe != null) {
+            listOf(cachedAiRecipe!!) + suggestions.filterNot { it.id == cachedAiRecipe!!.id }
+        } else {
+            suggestions
+        }
 
         val tips = SmartMealEngine.detectSynergyTips(
             todayItems = current.items,
@@ -1021,7 +1037,8 @@ class FoodViewModel(
 
         _state.update {
             it.copy(
-                smartMealSuggestions = suggestions,
+                smartMealSuggestions = combinedSuggestions,
+                latestAiRecipe = cachedAiRecipe,
                 synergyTips = tips
             )
         }
@@ -1070,6 +1087,18 @@ class FoodViewModel(
             if (current.isSmartMealExcludeRecent3Days && cachedRecent3DaysFoodNames.isNotEmpty()) {
                 append("son 3 günde yediğim (${cachedRecent3DaysFoodNames.take(4).joinToString(", ")}) dışındaki malzemelerle ")
             }
+
+            val userDbItems = (current.customFoods.map { "${it.name} (${it.portionUnit})" } +
+                current.frequentFoods.map { "${it.name} (${it.formattedPortion})" }).distinct().take(10)
+
+            if (userDbItems.isNotEmpty()) {
+                if (current.isSmartMealFromUserDb) {
+                    append("özellikle kullanıcının kendi kütüphanesinde/envanterinde kayıtlı şu ürünlerden yararlanarak: [${userDbItems.joinToString(", ")}], ")
+                } else {
+                    append("kullanıcının envanterindeki şu kayıtlı ürünleri de göz önünde bulundurarak: [${userDbItems.joinToString(", ")}], ")
+                }
+            }
+
             append("lif ve magnezyum zengini pratik bir sağlıklı öğün öner ve tam porsiyon besin değerlerini (kalori, protein, karbonhidrat, yağ, lif, vitamin/mineral) hesapla.")
         }
 
@@ -1077,32 +1106,60 @@ class FoodViewModel(
             _state.update { it.copy(isGeneratingAiCustomRecipe = true) }
             val result = apiClient.analyzeFood(prompt, date)
             result.onSuccess { aiResult ->
-                val firstItem = aiResult.items.firstOrNull()
-                if (firstItem != null) {
-                    val customSuggestion = SmartMealSuggestion(
-                        id = "ai_${Uuid.random()}",
-                        title = firstItem.name,
-                        subtitle = aiResult.summary,
-                        tags = listOf("AI Özel Tarif", "Tam Uyumlu"),
-                        prepTimeMinutes = if (current.isSmartMealOnlyQuick) 8 else 15,
-                        ingredients = aiResult.items.map { "${it.name} (${it.formattedPortion})" },
-                        calories = aiResult.totalCalories,
-                        proteinG = aiResult.items.sumOf { it.proteinG },
-                        carbsG = aiResult.items.sumOf { it.carbsG },
-                        fatG = aiResult.items.sumOf { it.fatG },
-                        fiberG = aiResult.items.sumOf { it.fiberG },
-                        keyMicros = aiResult.items.flatMap { it.micronutrients },
-                        instructions = aiResult.summary
-                    )
-                    _state.update { st ->
-                        st.copy(
-                            isGeneratingAiCustomRecipe = false,
-                            smartMealSuggestions = listOf(customSuggestion) + st.smartMealSuggestions
-                        )
+                val recipeTitle = run {
+                    val firstLine = aiResult.summary.lineSequence().firstOrNull()?.trim() ?: ""
+                    val candidate = when {
+                        firstLine.contains(":") -> firstLine.substringBefore(":").trim()
+                        firstLine.contains("\"") -> firstLine.substringAfter("\"").substringBefore("\"").trim()
+                        firstLine.length in 4..35 && !firstLine.startsWith("Kalan", ignoreCase = true) -> firstLine
+                        else -> null
                     }
-                    _effects.send(FoodEffect.ShowToast("Yapay zeka eksiklerinize göre yeni bir tarif üretti!"))
+                    if (!candidate.isNullOrBlank() && candidate.length <= 35) {
+                        candidate
+                    } else if (aiResult.items.size >= 2) {
+                        val topTwo = aiResult.items.take(2).joinToString(" & ") { it.name.trim() }
+                        "$topTwo Kasesi"
+                    } else if (aiResult.items.isNotEmpty()) {
+                        "${aiResult.items.first().name} Tabağı"
+                    } else {
+                        "Yapay Zeka Özel Öğünü"
+                    }
+                }
+
+                val ingredientList = if (aiResult.items.isNotEmpty()) {
+                    aiResult.items.map { "${it.name} (${it.formattedPortion})" }
                 } else {
-                    _state.update { it.copy(isGeneratingAiCustomRecipe = false) }
+                    listOf(aiResult.summary.take(80))
+                }
+
+                val customSuggestion = SmartMealSuggestion(
+                    id = "ai_${Uuid.random()}",
+                    title = recipeTitle,
+                    subtitle = "✨ Gemini AI Tarafından Size Özel Üretildi",
+                    tags = listOf("AI Özel Tarif", "Kişiselleştirilmiş") +
+                        if (aiResult.items.sumOf { it.proteinG } >= 20.0) listOf("Yüksek Protein") else emptyList(),
+                    prepTimeMinutes = if (current.isSmartMealOnlyQuick) 8 else 15,
+                    ingredients = ingredientList,
+                    calories = aiResult.totalCalories,
+                    proteinG = aiResult.items.sumOf { it.proteinG },
+                    carbsG = aiResult.items.sumOf { it.carbsG },
+                    fatG = aiResult.items.sumOf { it.fatG },
+                    fiberG = aiResult.items.sumOf { it.fiberG },
+                    keyMicros = aiResult.items.flatMap { it.micronutrients },
+                    instructions = aiResult.summary
+                )
+
+                cachedAiRecipe = customSuggestion
+
+                _state.update { st ->
+                    val updatedSuggestions = listOf(customSuggestion) +
+                        st.smartMealSuggestions.filterNot { it.id == customSuggestion.id }
+                    st.copy(
+                        isGeneratingAiCustomRecipe = false,
+                        latestAiRecipe = customSuggestion,
+                        smartMealSuggestions = updatedSuggestions,
+                        infoMessage = "✨ \"$recipeTitle\" tarifi başarıyla hazırlandı!"
+                    )
                 }
             }.onFailure { err ->
                 _state.update {

@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.core.sync
 
+import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
@@ -173,17 +174,21 @@ object SmartMealEngine {
     )
 
     /**
-     * Recommends smart meals based on user deficiencies, time constraints and ingredient filters.
+     * Recommends smart meals based on user deficiencies, time constraints, ingredient filters,
+     * and the user's own database inventory (custom foods and frequent foods).
      */
     fun matchSmartMeals(
         remainingCalories: Int,
         missingProteinG: Double,
         nutrientBars: List<NutrientProgress>,
         recent3DaysFoodNames: Set<String>,
-        onlyQuick: Boolean,
-        onlyFewIngredients: Boolean,
-        excludeRecent3Days: Boolean,
-        highProteinOnly: Boolean
+        customFoods: List<CustomFoodItem> = emptyList(),
+        frequentFoods: List<FoodItem> = emptyList(),
+        onlyQuick: Boolean = false,
+        onlyFewIngredients: Boolean = false,
+        excludeRecent3Days: Boolean = false,
+        highProteinOnly: Boolean = false,
+        fromUserDbOnly: Boolean = false
     ): List<SmartMealSuggestion> {
         // 1. Identify key deficiencies
         val fiberProgress = nutrientBars.firstOrNull { it.key == "fiber" }?.percentage ?: 0f
@@ -192,7 +197,75 @@ object SmartMealEngine {
         val vitCProgress = nutrientBars.firstOrNull { it.key == "vit_c" }?.percentage ?: 0f
         val calciumProgress = nutrientBars.firstOrNull { it.key == "calcium" }?.percentage ?: 0f
 
-        return CURATED_MEAL_DATABASE
+        // 2. Convert user's custom foods into smart suggestions
+        val userDbSuggestions = mutableListOf<SmartMealSuggestion>()
+        customFoods.forEach { custom ->
+            val ingredientsList = if (custom.isMix && custom.ingredients.isNotEmpty()) {
+                custom.ingredients.map { "${it.defaultAmount} ${it.unitLabel} ${it.name}" }
+            } else {
+                listOf("${custom.portionUnit} ${custom.name}")
+            }
+            val tags = buildList {
+                add("Kendi Ürününüz (DB)")
+                add(custom.portionUnit)
+                if (custom.proteinG >= 20.0) add("Yüksek Protein")
+                if (custom.fiberG >= 4.0) add("Lif Zengin")
+            }
+            userDbSuggestions.add(
+                SmartMealSuggestion(
+                    id = "db_custom_${custom.id}",
+                    title = custom.name,
+                    subtitle = "📦 Kendi Kütüphanenizden (${custom.brand ?: custom.portionUnit})",
+                    tags = tags,
+                    prepTimeMinutes = if (custom.isMix) 5 else 2,
+                    ingredients = ingredientsList,
+                    calories = custom.calories,
+                    proteinG = custom.proteinG,
+                    carbsG = custom.carbsG,
+                    fatG = custom.fatG,
+                    fiberG = custom.fiberG,
+                    keyMicros = custom.micronutrients,
+                    instructions = "Kendi veritabanınızda kayıtlı ${custom.name} (${custom.portionUnit}) porsiyonu."
+                )
+            )
+        }
+
+        // 3. Convert frequent foods from user history into smart suggestions
+        frequentFoods.take(6).forEach { freq ->
+            if (userDbSuggestions.none { it.title.equals(freq.name, ignoreCase = true) }) {
+                val tags = buildList {
+                    add("Sık Tüketilen (DB)")
+                    add(freq.formattedPortion)
+                    if (freq.proteinG >= 20.0) add("Yüksek Protein")
+                }
+                userDbSuggestions.add(
+                    SmartMealSuggestion(
+                        id = "db_freq_${freq.id.ifBlank { freq.name.hashCode().toString() }}",
+                        title = freq.name,
+                        subtitle = "⭐ Sık Tükettiğiniz Favori (${freq.formattedPortion})",
+                        tags = tags,
+                        prepTimeMinutes = 5,
+                        ingredients = listOf("${freq.formattedPortion} ${freq.name}"),
+                        calories = freq.calories,
+                        proteinG = freq.proteinG,
+                        carbsG = freq.carbsG,
+                        fatG = freq.fatG,
+                        fiberG = freq.fiberG,
+                        keyMicros = freq.micronutrients,
+                        instructions = "Daha önce sıkça tükettiğiniz ${freq.name} porsiyonu."
+                    )
+                )
+            }
+        }
+
+        // 4. Candidate pool based on DB toggle
+        val candidatePool = if (fromUserDbOnly) {
+            if (userDbSuggestions.isNotEmpty()) userDbSuggestions else CURATED_MEAL_DATABASE
+        } else {
+            userDbSuggestions + CURATED_MEAL_DATABASE
+        }
+
+        return candidatePool
             .filter { meal ->
                 // Filter by quick prep (<10 mins)
                 if (onlyQuick && meal.prepTimeMinutes > 10) return@filter false
@@ -224,6 +297,11 @@ object SmartMealEngine {
             }
             .sortedByDescending { meal ->
                 var score = 0.0
+
+                // Bonus for user's own DB item
+                if (meal.tags.any { it.contains("(DB)") }) {
+                    score += 50.0
+                }
 
                 // Bonus for tackling the weakest micronutrients
                 if (fiberProgress < 50f && meal.fiberG >= 6.0) score += 40.0

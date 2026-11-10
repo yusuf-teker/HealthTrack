@@ -42,6 +42,7 @@ import com.yusufteker.healthtrack.feature.workout.presentation.WorkoutScreenRoot
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
+import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -141,53 +142,20 @@ fun App() {
                     }
                 )
             } else {
-                Scaffold(
-                    snackbarHost = { SnackbarHost(snackbarHostState) },
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    // Brand Mark "H" (Tıklanınca Planora 'P' pod'unu açar/kapatır)
-                                    Box(
-                                        modifier = Modifier
-                                            .size(38.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(
-                                                Brush.linearGradient(
-                                                    listOf(
-                                                        HealthColors.GradientPrimary.first().copy(alpha = 0.22f),
-                                                        HealthColors.GradientPrimary.last().copy(alpha = 0.18f)
-                                                    )
-                                                )
-                                            )
-                                            .bounceClick()
-                                            .clickable {
-                                                isEcoSwitcherOpen = !isEcoSwitcherOpen
-                                            },
-                                        contentAlignment = Alignment.Center
+                val bottomBarVisibility = remember { mutableStateOf(true) }
+                CompositionLocalProvider(
+                    LocalBottomBarVisibility provides bottomBarVisibility
+                ) {
+                    Scaffold(
+                        snackbarHost = { SnackbarHost(snackbarHostState) },
+                        topBar = {
+                            TopAppBar(
+                                title = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        GradientText(
-                                            text = "H",
-                                            colors = HealthColors.GradientPrimary,
-                                            style = MaterialTheme.typography.titleLarge.copy(
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        )
-                                    }
-
-                                    // Ekosistem Geçişi: H'ye tıklanınca açılan Planora ("P") Pod'u
-                                    AnimatedVisibility(
-                                        visible = isEcoSwitcherOpen,
-                                        enter = fadeIn() + expandHorizontally(),
-                                        exit = fadeOut() + shrinkHorizontally()
-                                    ) {
-                                        val isPlanoraInstalled = remember(isEcoSwitcherOpen) {
-                                            appLauncher.isAppInstalled(ExternalApp.PLANORA)
-                                        }
-
+                                        // Brand Mark "H" (Tıklanınca Planora 'P' pod'unu açar/kapatır)
                                         Box(
                                             modifier = Modifier
                                                 .size(38.dp)
@@ -195,147 +163,185 @@ fun App() {
                                                 .background(
                                                     Brush.linearGradient(
                                                         listOf(
-                                                            Color(0xFF6366F1).copy(alpha = 0.22f),
-                                                            Color(0xFF8B5CF6).copy(alpha = 0.18f)
+                                                            HealthColors.GradientPrimary.first().copy(alpha = 0.22f),
+                                                            HealthColors.GradientPrimary.last().copy(alpha = 0.18f)
                                                         )
                                                     )
                                                 )
                                                 .bounceClick()
                                                 .clickable {
-                                                    if (isPlanoraInstalled) {
-                                                        appLauncher.openApp(ExternalApp.PLANORA)
-                                                    } else {
-                                                        coroutineScope.launch {
-                                                            snackbarHostState.showSnackbar("Planora uygulaması cihazınızda yüklü değil.")
-                                                        }
-                                                    }
+                                                    isEcoSwitcherOpen = !isEcoSwitcherOpen
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             GradientText(
-                                                text = "P",
-                                                colors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6)),
+                                                text = "H",
+                                                colors = HealthColors.GradientPrimary,
                                                 style = MaterialTheme.typography.titleLarge.copy(
                                                     fontWeight = FontWeight.Black
                                                 )
                                             )
                                         }
-                                    }
 
-                                    Column {
-                                        GradientText(
-                                            text = "HealthTrack",
-                                            colors = HealthColors.GradientPrimary,
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold
+                                        // Ekosistem Geçişi: H'ye tıklanınca açılan Planora ("P") Pod'u
+                                        AnimatedVisibility(
+                                            visible = isEcoSwitcherOpen,
+                                            enter = fadeIn() + expandHorizontally(),
+                                            exit = fadeOut() + shrinkHorizontally()
+                                        ) {
+                                            val isPlanoraInstalled = remember(isEcoSwitcherOpen) {
+                                                appLauncher.isAppInstalled(ExternalApp.PLANORA)
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(38.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(
+                                                        Brush.linearGradient(
+                                                            listOf(
+                                                                Color(0xFF6366F1).copy(alpha = 0.22f),
+                                                                Color(0xFF8B5CF6).copy(alpha = 0.18f)
+                                                            )
+                                                        )
+                                                    )
+                                                    .bounceClick()
+                                                    .clickable {
+                                                        if (isPlanoraInstalled) {
+                                                            appLauncher.openApp(ExternalApp.PLANORA)
+                                                        } else {
+                                                            coroutineScope.launch {
+                                                                snackbarHostState.showSnackbar("Planora uygulaması cihazınızda yüklü değil.")
+                                                            }
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                GradientText(
+                                                    text = "P",
+                                                    colors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6)),
+                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                        fontWeight = FontWeight.Black
+                                                    )
+                                                )
+                                            }
+                                        }
+
+                                        Column {
+                                            GradientText(
+                                                text = "HealthTrack",
+                                                colors = HealthColors.GradientPrimary,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                            Text(
+                                                text = if (session.name.isNotBlank()) session.name else "@${session.username}",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                },
+                                actions = {
+                                    // Sadece Profil Butonu
+                                    IconButton(
+                                        onClick = { isProfileScreenOpen = true },
+                                        modifier = Modifier.bounceClick()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Profil & Ayarlar",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        },
+                        bottomBar = {
+                            val imeBottom = WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
+                            AnimatedVisibility(
+                                visible = imeBottom == 0 && bottomBarVisibility.value,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Column {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                        thickness = 0.5.dp
+                                    )
+                                    NavigationBar(
+                                        containerColor = MaterialTheme.colorScheme.surface,
+                                        tonalElevation = 4.dp
+                                    ) {
+                                        NavigationBarItem(
+                                            selected = selectedTab == HealthTab.FOOD,
+                                            onClick = { selectedTab = HealthTab.FOOD },
+                                            icon = { Icon(Icons.Default.Restaurant, contentDescription = "Yemek") },
+                                            label = { Text(HealthTab.FOOD.title) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary
                                             )
                                         )
-                                        Text(
-                                            text = if (session.name.isNotBlank()) session.name else "@${session.username}",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        NavigationBarItem(
+                                            selected = selectedTab == HealthTab.WORKOUT,
+                                            onClick = { selectedTab = HealthTab.WORKOUT },
+                                            icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Spor") },
+                                            label = { Text(HealthTab.WORKOUT.title) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                        NavigationBarItem(
+                                            selected = selectedTab == HealthTab.WEIGHT,
+                                            onClick = { selectedTab = HealthTab.WEIGHT },
+                                            icon = { Icon(Icons.Default.MonitorWeight, contentDescription = "Kilo") },
+                                            label = { Text(HealthTab.WEIGHT.title) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                        NavigationBarItem(
+                                            selected = selectedTab == HealthTab.ANALYTICS,
+                                            onClick = { selectedTab = HealthTab.ANALYTICS },
+                                            icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Analiz & Rapor") },
+                                            label = { Text(HealthTab.ANALYTICS.title) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary
+                                            )
                                         )
                                     }
-                                }
-                            },
-                            actions = {
-                                // Sadece Profil Butonu
-                                IconButton(
-                                    onClick = { isProfileScreenOpen = true },
-                                    modifier = Modifier.bounceClick()
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = "Profil & Ayarlar",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-                    },
-                    bottomBar = {
-                        val imeBottom = WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
-                        AnimatedVisibility(
-                            visible = imeBottom == 0,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Column {
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                                    thickness = 0.5.dp
-                                )
-                                NavigationBar(
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    tonalElevation = 4.dp
-                                ) {
-                                    NavigationBarItem(
-                                        selected = selectedTab == HealthTab.FOOD,
-                                        onClick = { selectedTab = HealthTab.FOOD },
-                                        icon = { Icon(Icons.Default.Restaurant, contentDescription = "Yemek") },
-                                        label = { Text(HealthTab.FOOD.title) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    NavigationBarItem(
-                                        selected = selectedTab == HealthTab.WORKOUT,
-                                        onClick = { selectedTab = HealthTab.WORKOUT },
-                                        icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Spor") },
-                                        label = { Text(HealthTab.WORKOUT.title) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    NavigationBarItem(
-                                        selected = selectedTab == HealthTab.WEIGHT,
-                                        onClick = { selectedTab = HealthTab.WEIGHT },
-                                        icon = { Icon(Icons.Default.MonitorWeight, contentDescription = "Kilo") },
-                                        label = { Text(HealthTab.WEIGHT.title) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    NavigationBarItem(
-                                        selected = selectedTab == HealthTab.ANALYTICS,
-                                        onClick = { selectedTab = HealthTab.ANALYTICS },
-                                        icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Analiz & Rapor") },
-                                        label = { Text(HealthTab.ANALYTICS.title) },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
                                 }
                             }
                         }
-                    }
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .consumeWindowInsets(innerPadding)
-                            .imePadding()
-                            .clearFocusOnTap()
-                    ) {
-                        when (selectedTab) {
-                            HealthTab.FOOD -> FoodScreenRoot(
-                                onNavigateToWeight = { selectedTab = HealthTab.WEIGHT }
-                            )
-                            HealthTab.WORKOUT -> WorkoutScreenRoot()
-                            HealthTab.WEIGHT -> WeightScreenRoot()
-                            HealthTab.ANALYTICS -> AnalyticsScreenRoot()
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                                .consumeWindowInsets(innerPadding)
+                                .imePadding()
+                                .clearFocusOnTap()
+                        ) {
+                            when (selectedTab) {
+                                HealthTab.FOOD -> FoodScreenRoot(
+                                    onNavigateToWeight = { selectedTab = HealthTab.WEIGHT }
+                                )
+                                HealthTab.WORKOUT -> WorkoutScreenRoot()
+                                HealthTab.WEIGHT -> WeightScreenRoot()
+                                HealthTab.ANALYTICS -> AnalyticsScreenRoot()
+                            }
                         }
                     }
                 }
