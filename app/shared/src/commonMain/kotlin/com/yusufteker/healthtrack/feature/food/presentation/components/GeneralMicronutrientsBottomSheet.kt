@@ -65,7 +65,7 @@ fun GeneralMicronutrientsBottomSheet(
         containerColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
-            .navigationBarsPadding()
+            .fillMaxWidth()
             .imePadding()
     ) {
         Column(

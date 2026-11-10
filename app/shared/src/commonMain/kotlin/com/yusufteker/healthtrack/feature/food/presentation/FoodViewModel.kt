@@ -1219,12 +1219,17 @@ class FoodViewModel(
         }
         val title = _state.value.groceryListTitle
         val success = appLauncher.sendToPlanoraTodo(title, itemsToSend)
-        _state.update { it.copy(isGroceryListSheetOpen = false) }
+        _state.update {
+            it.copy(
+                isGroceryListSheetOpen = false,
+                isSmartMealSheetOpen = false
+            )
+        }
         viewModelScope.launch {
             if (success) {
-                _effects.send(FoodEffect.ShowToast("${itemsToSend.size} malzeme Planora to-do listesine aktarıldı!"))
+                _effects.send(FoodEffect.ShowToast("${itemsToSend.size} malzeme Planora görev listesine aktarıldı."))
             } else {
-                _effects.send(FoodEffect.ShowToast("Planora açılamadı. Liste panoya kopyalandı."))
+                _effects.send(FoodEffect.ShowToast("Planora cihazınızda yüklü değil. Liste panoya kopyalandı."))
             }
         }
     }

@@ -50,14 +50,14 @@ fun FoodPhotoScanBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier
-            .fillMaxHeight(0.90f)
-            .navigationBarsPadding()
+            .fillMaxWidth()
             .imePadding()
             .clearFocusOnTap()
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .fillMaxHeight(0.90f)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)

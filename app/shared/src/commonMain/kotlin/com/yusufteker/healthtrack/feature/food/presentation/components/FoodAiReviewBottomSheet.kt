@@ -51,7 +51,7 @@ fun FoodAiReviewBottomSheet(
         containerColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier
-            .navigationBarsPadding()
+            .fillMaxWidth()
             .imePadding()
     ) {
         Column(

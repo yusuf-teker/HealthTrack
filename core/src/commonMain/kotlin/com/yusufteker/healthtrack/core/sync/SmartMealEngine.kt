@@ -10,13 +10,53 @@ import com.yusufteker.healthtrack.core.model.SmartMealSuggestion
 object SmartMealEngine {
 
     private val CURATED_MEAL_DATABASE: List<SmartMealSuggestion> = listOf(
+        // ── 0. Aç-Ye & Süper Pratik Atıştırmalıklar ──
+        SmartMealSuggestion(
+            id = "meal_banana_peanut_butter",
+            title = "Muz & Şekersiz Fıstık Ezmesi",
+            subtitle = "Potasyum, Sağlıklı Yağ & Anında Enerji",
+            tags = listOf("Aç & Ye", "Pişirmesiz", "2 Malzeme", "Hızlı Enerji"),
+            prepTimeMinutes = 0,
+            ingredients = listOf("1 Adet Orta Boy Muz", "1 Tatlı Kaşığı Şekersiz Fıstık Ezmesi"),
+            calories = 185,
+            proteinG = 4.5,
+            carbsG = 28.0,
+            fatG = 6.5,
+            fiberG = 3.5,
+            keyMicros = listOf(
+                Micronutrient("Potasyum", 450.0, "mg"),
+                Micronutrient("Magnezyum", 42.0, "mg"),
+                Micronutrient("Lif", 3.5, "g")
+            ),
+            instructions = "Muzun kabuğunu soyun, fıstık ezmesiyle anında aç-ye şeklinde tüketin."
+        ),
+        SmartMealSuggestion(
+            id = "meal_green_apple_walnut",
+            title = "Yeşil Elma & Çiğ Ceviz",
+            subtitle = "Lif, Antioksidan & Tok Tutan Ara Öğün",
+            tags = listOf("Aç & Ye", "Pişirmesiz", "2 Malzeme", "Lif Zengin"),
+            prepTimeMinutes = 0,
+            ingredients = listOf("1 Adet Orta Boy Yeşil Elma", "3 Adet Bütün Ceviz İçi"),
+            calories = 160,
+            proteinG = 3.0,
+            carbsG = 21.0,
+            fatG = 8.5,
+            fiberG = 4.2,
+            keyMicros = listOf(
+                Micronutrient("C Vitamini", 12.0, "mg"),
+                Micronutrient("Magnezyum", 35.0, "mg"),
+                Micronutrient("Lif", 4.2, "g")
+            ),
+            instructions = "Elmayı yıkayıp cevizlerle birlikte aç-ye şeklinde doğrudan tüketin."
+        ),
+
         // ── 1. Lif & Magnezyum Odaklı (Hızlı, Az Malzemeli) ──
         SmartMealSuggestion(
             id = "meal_chia_oat_bowl",
             title = "Chia Tohumlu & Muzlu Yulaf Kasesi",
             subtitle = "Yüksek Lif & Magnezyum Deposu",
-            tags = listOf("Az Malzemeli", "Hızlı (<5 dk)", "Pişirmesiz", "Lif Zengin"),
-            prepTimeMinutes = 5,
+            tags = listOf("Az Malzemeli", "Hızlı (2 dk)", "Pişirmesiz", "Lif Zengin"),
+            prepTimeMinutes = 2,
             ingredients = listOf("40g Yulaf Ezmesi", "1 Tatlı Kaşığı Chia Tohumu", "150ml Yarım Yağlı Süt/Badem Sütü", "Yarım Muz"),
             calories = 275,
             proteinG = 11.5,
@@ -28,14 +68,14 @@ object SmartMealEngine {
                 Micronutrient("Magnezyum", 85.0, "mg"),
                 Micronutrient("Kalsiyum", 220.0, "mg")
             ),
-            instructions = "Yulaf ve chia tohumunu süt ile karıştırıp 3-4 dakika bekletin. Üzerine dilimlenmiş yarım muz ekleyerek tüketin."
+            instructions = "Yulaf ve chia tohumunu süt ile karıştırın. Üzerine dilimlenmiş yarım muz ekleyip afiyetle tüketin."
         ),
         SmartMealSuggestion(
             id = "meal_avocado_green_salad",
             title = "Yeşil Mercimek & Avokado Salatası",
             subtitle = "Bitkisel Lif, Demir ve Sağlıklı Yağ",
             tags = listOf("Lif Zengin", "Demir & Magnezyum", "Az Malzemeli"),
-            prepTimeMinutes = 8,
+            prepTimeMinutes = 5,
             ingredients = listOf("1 Su Bardağı Haşlanmış Yeşil Mercimek", "Yarım Avokado", "1 Avuç Roka veya Maydanoz", "1 Yemek Kaşığı Limon & Zeytinyağı"),
             calories = 340,
             proteinG = 16.0,
@@ -54,8 +94,8 @@ object SmartMealEngine {
             id = "meal_pumpkin_seed_yogurt",
             title = "Kabak Çekirdekli & Keten Tohumlu Süzme Yoğurt",
             subtitle = "Magnezyum, Çinko ve Doğal Protein",
-            tags = listOf("3 Malzeme", "Pişirmesiz (<3 dk)", "Yüksek Magnezyum"),
-            prepTimeMinutes = 3,
+            tags = listOf("Aç & Ye", "Pişirmesiz", "3 Malzeme", "Yüksek Magnezyum"),
+            prepTimeMinutes = 0,
             ingredients = listOf("150g Süzme Yoğurt", "1 Yemek Kaşığı Çiğ Kabak Çekirdeği", "1 Çay Kaşığı Öğütülmüş Keten Tohumu"),
             calories = 220,
             proteinG = 19.5,
@@ -75,8 +115,8 @@ object SmartMealEngine {
             id = "meal_spinach_mushroom_omelet",
             title = "Ispanaklı & Mantarlı Lorlu Omlet",
             subtitle = "Demir, B12 ve Yüksek Kas Proteini",
-            tags = listOf("Yüksek Protein", "Demir & C Vitamini", "Hızlı (<10 dk)"),
-            prepTimeMinutes = 10,
+            tags = listOf("Yüksek Protein", "Demir & C Vitamini", "Tavada (7 dk)"),
+            prepTimeMinutes = 7,
             ingredients = listOf("2 Adet Yumurta", "50g Lor Peyniri", "1 Avuç Taze Ispanak", "3-4 Adet Kültür Mantarı"),
             calories = 265,
             proteinG = 24.5,
@@ -108,14 +148,14 @@ object SmartMealEngine {
                 Micronutrient("Demir", 2.4, "mg"),
                 Micronutrient("B12 Vitamini", 0.6, "µg")
             ),
-            instructions = "Tavuk göğsünü yağsız tavada ızgara yapın. Brokoliyi 5 dakika buharda haşlayıp üzerine limon suyu gezdirin."
+            instructions = "Tavuk göğsünü yağsız tavada ızgara yapın. Brokoliyi buharda haşlayıp üzerine limon suyu gezdirin."
         ),
         SmartMealSuggestion(
             id = "meal_tuna_arugula_bowl",
             title = "Ton Balıklı & Cevizli Roka Kasesi",
             subtitle = "Omega-3, B12 Vitamini ve Sağlıklı Yağlar",
-            tags = listOf("Az Malzemeli", "Pişirmesiz (<5 dk)", "Omega-3"),
-            prepTimeMinutes = 4,
+            tags = listOf("Az Malzemeli", "Pişirmesiz (2 dk)", "Omega-3"),
+            prepTimeMinutes = 2,
             ingredients = listOf("1 Kutu Konserve Ton Balığı (Süzülmüş)", "1 Demet Roka", "3 Adet Bütün Ceviz İçi", "Yarım Limon"),
             calories = 295,
             proteinG = 31.0,
@@ -136,8 +176,8 @@ object SmartMealEngine {
             id = "meal_berry_cottage_parfait",
             title = "Yaban Mersinli & Bademli Lor Kasesi",
             subtitle = "Kalsiyum & Antioksidan Gücü",
-            tags = listOf("3 Malzeme", "Tatlı Krizine Birebir", "Pişirmesiz (<3 dk)"),
-            prepTimeMinutes = 3,
+            tags = listOf("Aç & Ye", "3 Malzeme", "Tatlı Krizine Birebir", "Pişirmesiz"),
+            prepTimeMinutes = 0,
             ingredients = listOf("120g Lor Peyniri veya Süzme Yoğurt", "1 Avuç Yaban Mersini / Çilek", "10 Adet Çiğ Badem"),
             calories = 210,
             proteinG = 18.0,
@@ -149,14 +189,14 @@ object SmartMealEngine {
                 Micronutrient("C Vitamini", 22.0, "mg"),
                 Micronutrient("Magnezyum", 45.0, "mg")
             ),
-            instructions = "Loru kaseye alın, üzerine meyveleri ve bademleri ekleyerek karıştırın."
+            instructions = "Loru kaseye alın, üzerine meyveleri ve bademleri ekleyerek anında tüketin."
         ),
         SmartMealSuggestion(
             id = "meal_boiled_eggs_walnuts_bellpepper",
             title = "Haşlanmış Yumurta, Kapya Biber & Ceviz Tabağı",
             subtitle = "D Vitamini, C Vitamini & Kolin",
-            tags = listOf("Az Malzemeli", "D Vitamini", "Hızlı (<8 dk)"),
-            prepTimeMinutes = 8,
+            tags = listOf("Az Malzemeli", "D Vitamini", "Hızlı (6 dk)"),
+            prepTimeMinutes = 6,
             ingredients = listOf("2 Adet Haşlanmış Yumurta", "1 Adet Kırmızı Kapya Biber", "3 Adet Ceviz İçi"),
             calories = 280,
             proteinG = 16.5,
@@ -205,11 +245,18 @@ object SmartMealEngine {
             } else {
                 listOf("${custom.portionUnit} ${custom.name}")
             }
+            val prepTime = estimatePrepTimeMinutes(custom.name, custom.isMix)
             val tags = buildList {
                 add("Kendi Ürününüz (DB)")
                 add(custom.portionUnit)
+                if (prepTime <= 0) add("Aç & Ye") else if (prepTime <= 2) add("Hızlı")
                 if (custom.proteinG >= 20.0) add("Yüksek Protein")
                 if (custom.fiberG >= 4.0) add("Lif Zengin")
+            }
+            val instructions = if (prepTime <= 0) {
+                "Doğrudan tüketime hazır ${custom.name} (${custom.portionUnit}) porsiyonu. Aç ve anında ye!"
+            } else {
+                "Kendi veritabanınızda kayıtlı ${custom.name} (${custom.portionUnit}) porsiyonu."
             }
             userDbSuggestions.add(
                 SmartMealSuggestion(
@@ -217,7 +264,7 @@ object SmartMealEngine {
                     title = custom.name,
                     subtitle = "📦 Kendi Kütüphanenizden (${custom.brand ?: custom.portionUnit})",
                     tags = tags,
-                    prepTimeMinutes = if (custom.isMix) 5 else 2,
+                    prepTimeMinutes = prepTime,
                     ingredients = ingredientsList,
                     calories = custom.calories,
                     proteinG = custom.proteinG,
@@ -225,7 +272,7 @@ object SmartMealEngine {
                     fatG = custom.fatG,
                     fiberG = custom.fiberG,
                     keyMicros = custom.micronutrients,
-                    instructions = "Kendi veritabanınızda kayıtlı ${custom.name} (${custom.portionUnit}) porsiyonu."
+                    instructions = instructions
                 )
             )
         }
@@ -233,10 +280,17 @@ object SmartMealEngine {
         // 3. Convert frequent foods from user history into smart suggestions
         frequentFoods.take(6).forEach { freq ->
             if (userDbSuggestions.none { it.title.equals(freq.name, ignoreCase = true) }) {
+                val prepTime = estimatePrepTimeMinutes(freq.name, isMix = false)
                 val tags = buildList {
                     add("Sık Tüketilen (DB)")
                     add(freq.formattedPortion)
+                    if (prepTime <= 0) add("Aç & Ye") else if (prepTime <= 2) add("Hızlı")
                     if (freq.proteinG >= 20.0) add("Yüksek Protein")
+                }
+                val instructions = if (prepTime <= 0) {
+                    "Doğrudan tüketime hazır ${freq.name} porsiyonu. Aç ve anında tüket!"
+                } else {
+                    "Daha önce sıkça tükettiğiniz pratik ${freq.name} porsiyonu."
                 }
                 userDbSuggestions.add(
                     SmartMealSuggestion(
@@ -244,7 +298,7 @@ object SmartMealEngine {
                         title = freq.name,
                         subtitle = "⭐ Sık Tükettiğiniz Favori (${freq.formattedPortion})",
                         tags = tags,
-                        prepTimeMinutes = 5,
+                        prepTimeMinutes = prepTime,
                         ingredients = listOf("${freq.formattedPortion} ${freq.name}"),
                         calories = freq.calories,
                         proteinG = freq.proteinG,
@@ -252,7 +306,7 @@ object SmartMealEngine {
                         fatG = freq.fatG,
                         fiberG = freq.fiberG,
                         keyMicros = freq.micronutrients,
-                        instructions = "Daha önce sıkça tükettiğiniz ${freq.name} porsiyonu."
+                        instructions = instructions
                     )
                 )
             }
@@ -391,6 +445,55 @@ object SmartMealEngine {
         }
 
         return tips.take(2)
+    }
+
+    /**
+     * Estimates realistic preparation time in minutes for foods and snacks.
+     * Instant / ready-to-eat foods (fruits like banana, nuts, drinks, dairy) return 0 ("Aç Ye").
+     */
+    fun estimatePrepTimeMinutes(foodName: String, isMix: Boolean = false): Int {
+        if (isMix) return 4
+        val name = foodName.lowercase().trim()
+
+        // 1. Instant / Aç-Ye / Yıka-Ye / Pişirmesiz (0 dk - Anında Hazır / Aç Ye)
+        val isInstantReady = listOf(
+            "muz", "elma", "armut", "mandalina", "portakal", "çilek", "kiraz", "vişne",
+            "şeftali", "kayısı", "karpuz", "kavun", "incir", "üzüm", "hurma", "erik",
+            "yaban mersini", "dut", "ananas", "kivi", "greyfurt", "avokado",
+            "ceviz", "badem", "fındık", "fıstık", "kaju", "çekirdek", "leblebi",
+            "süt", "kefir", "ayran", "yoğurt", "peynir", "kaşar", "lor",
+            "su", "maden suyu", "soda",
+            "protein bar", "bar", "bisküvi", "kraker", "galeta", "ekmek", "simit",
+            "çikolata", "kuru üzüm", "kuru kayısı", "kuru incir"
+        ).any { name.contains(it) }
+
+        if (isInstantReady) return 0
+
+        // 2. Çok Hızlı Pratik (1-2 dk)
+        val isQuickColdPrep = listOf(
+            "shake", "protein tozu", "whey", "yulaf", "chia", "kase", "bowl",
+            "sandviç", "tost", "müsli", "gevrek", "ton balık", "ton balığı"
+        ).any { name.contains(it) }
+
+        if (isQuickColdPrep) return 2
+
+        // 3. Sıcak / Tavada / Pişirme gerektirenler (5-7 dk)
+        val isMediumCook = listOf(
+            "omlet", "menemen", "haşlanmış yumurta", "haşlama yumurta", "makarna", "pilav",
+            "sote", "tavada", "krep", "pankek"
+        ).any { name.contains(it) }
+
+        if (isMediumCook) return 6
+
+        // 4. Uzun Pişirme (12-20 dk)
+        val isLongCook = listOf(
+            "tavuk", "et", "biftek", "köfte", "balık", "somon", "fırın", "ızgara",
+            "çorba", "güveç", "sebze yemeği", "nohut", "kuru fasulye", "mercimek yemeği"
+        ).any { name.contains(it) }
+
+        if (isLongCook) return 15
+
+        return 1 // Diğer hazır veya tekil besinler için varsayılan pratik 1 dk
     }
 }
 

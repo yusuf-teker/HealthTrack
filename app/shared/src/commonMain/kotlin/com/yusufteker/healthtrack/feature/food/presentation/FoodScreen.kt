@@ -722,7 +722,7 @@ fun FoodScreen(
         }
 
         // ── "Ne Yesem?" Smart Meal Matcher Bottom Sheet (1) ──
-        if (state.isSmartMealSheetOpen) {
+        if (state.isSmartMealSheetOpen && !state.isGroceryListSheetOpen) {
             SmartMealMatcherBottomSheet(
                 suggestions = state.smartMealSuggestions,
                 nutrientBars = state.nutrientBars,

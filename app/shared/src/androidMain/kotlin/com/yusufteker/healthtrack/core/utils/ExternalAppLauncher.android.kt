@@ -100,29 +100,33 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
 
     override fun sendToPlanoraTodo(title: String, items: List<String>): Boolean {
         if (items.isEmpty()) return false
+        val noteBody = items.joinToString("\n") { "• $it" }
         val formattedBody = buildString {
             appendLine(title)
             appendLine()
-            items.forEach { appendLine("• $it") }
+            append(noteBody)
         }
 
-        // 1. Try Planora custom deep link
-        try {
-            val encodedTitle = Uri.encode(title)
-            val encodedItems = Uri.encode(items.joinToString(";") { it.trim() })
-            val planoraUri = Uri.parse("planora://todo/add?title=$encodedTitle&items=$encodedItems")
-            val viewIntent = Intent(Intent.ACTION_VIEW, planoraUri).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            if (isAppInstalled(ExternalApp.PLANORA) && viewIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(viewIntent)
-                return true
-            }
-        } catch (_: Exception) {}
+        val isInstalled = isAppInstalled(ExternalApp.PLANORA)
 
-        // 2. Try explicit Intent targeted at Planora app package
-        try {
-            if (isAppInstalled(ExternalApp.PLANORA)) {
+        // 1. Try Planora custom deep link
+        if (isInstalled) {
+            try {
+                val encodedTitle = Uri.encode(title)
+                val encodedNote = Uri.encode(noteBody)
+                val encodedItems = Uri.encode(items.joinToString(";") { it.trim() })
+                val planoraUri = Uri.parse("planora://share/task?title=$encodedTitle&note=$encodedNote&items=$encodedItems")
+                val viewIntent = Intent(Intent.ACTION_VIEW, planoraUri).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                if (viewIntent.resolveActivity(context.packageManager) != null) {
+                    context.startActivity(viewIntent)
+                    return true
+                }
+            } catch (_: Exception) {}
+
+            // 2. Try explicit Intent targeted at Planora app package
+            try {
                 val directIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     `package` = ExternalApp.PLANORA.packageName
@@ -133,11 +137,19 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
                 }
                 context.startActivity(directIntent)
                 return true
-            }
+            } catch (_: Exception) {}
+        }
+
+        // 3. Planora is NOT installed or deep link could not be dispatched:
+        // Copy list to system clipboard for instant paste
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText(title, formattedBody)
+            clipboard?.setPrimaryClip(clip)
         } catch (_: Exception) {}
 
-        // 3. Fallback: System share chooser for notes/to-do/messaging
-        return try {
+        // Fallback: Open system chooser so user can share with any app
+        try {
             val chooser = Intent.createChooser(
                 Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
@@ -145,15 +157,14 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
                     putExtra(Intent.EXTRA_SUBJECT, title)
                     putExtra(Intent.EXTRA_TEXT, formattedBody)
                 },
-                "Planora veya Başka Uygulamaya Gönder"
+                "Listeyi Paylaş"
             ).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(chooser)
-            true
-        } catch (_: Exception) {
-            false
-        }
+        } catch (_: Exception) {}
+
+        return false
     }
 }
 

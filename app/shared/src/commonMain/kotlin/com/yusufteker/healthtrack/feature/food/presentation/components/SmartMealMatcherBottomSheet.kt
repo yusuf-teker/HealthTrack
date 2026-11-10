@@ -70,13 +70,14 @@ fun SmartMealMatcherBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier
-            .fillMaxHeight(0.92f)
+            .fillMaxWidth()
             .imePadding()
             .clearFocusOnTap()
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .fillMaxHeight(0.92f)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -397,8 +398,13 @@ private fun SmartMealCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(13.dp)
                     )
+                    val timeText = when {
+                        meal.prepTimeMinutes <= 0 -> "Aç Ye"
+                        meal.prepTimeMinutes == 1 -> "1 dk"
+                        else -> "${meal.prepTimeMinutes} dk"
+                    }
                     Text(
-                        text = "${meal.prepTimeMinutes} dk",
+                        text = timeText,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
