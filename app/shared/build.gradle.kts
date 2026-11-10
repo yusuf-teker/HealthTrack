@@ -54,6 +54,7 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.health.connect)
+            implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
         }
         commonMain.dependencies {
             api(project(":core"))

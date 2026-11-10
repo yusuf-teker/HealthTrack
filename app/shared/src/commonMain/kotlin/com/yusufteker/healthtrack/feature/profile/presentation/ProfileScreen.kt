@@ -38,14 +38,13 @@ import com.yusufteker.healthtrack.feature.food.presentation.components.EditGoals
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
-import com.yusufteker.healthtrack.theme.LocalThemeAccent
 import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     state: ProfileState,
@@ -54,33 +53,22 @@ fun ProfileScreen(
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDarkTheme.current
-    val currentAccent = LocalThemeAccent.current
     val scrollState = rememberScrollState()
     val deviceHealthBridge = rememberDeviceHealthBridge()
 
-    var weightInput by remember(state.weightKg) { mutableStateOf(state.weightKg.toString()) }
-    var targetWeightInput by remember(state.targetWeightKg) { mutableStateOf(state.targetWeightKg.toString()) }
-    var heightInput by remember(state.heightCm) { mutableStateOf(state.heightCm.toInt().toString()) }
-    var ageInput by remember(state.age) { mutableStateOf(state.age.toString()) }
+    var showEditBodyDialog by remember { mutableStateOf(false) }
     var showEditGoalsDialog by remember { mutableStateOf(false) }
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Profil & Ayarlar",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Kişisel ölçüleriniz ve tema tercihleri",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Profil & Ayarlar",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
                 },
                 navigationIcon = {
                     IconButton(
@@ -95,7 +83,6 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
-                    // Brand Mark "H"
                     Box(
                         modifier = Modifier
                             .padding(end = 12.dp)
@@ -133,7 +120,7 @@ fun ProfileScreen(
                 .clearFocusOnTap()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ── Feedback Banner Messages ──
             AnimatedVisibility(visible = state.errorMessage != null, enter = fadeIn(), exit = fadeOut()) {
@@ -186,85 +173,145 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Section 1: User Identity Card ──
+            // ── Section 1: Kimlik & Fiziksel Profil Özeti (Tek Kompakt Kart) ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 elevation = 4.dp
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.30f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = state.name.firstOrNull()?.uppercase() ?: state.username.firstOrNull()?.uppercase() ?: "U",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (state.name.isNotBlank()) state.name else "Kullanıcı",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "@${state.username}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (state.latestWeightDate != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.30f)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                text = "Son Tartım: ${state.latestWeightDate}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                text = state.name.firstOrNull()?.uppercase() ?: state.username.firstOrNull()?.uppercase() ?: "U",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (state.name.isNotBlank()) state.name else "Kullanıcı",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "@${state.username}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Surface(
+                            onClick = { showEditBodyDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                            modifier = Modifier.bounceClick()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = "Fiziksel Bilgileri Düzenle",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Düzenle",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
+
+                    // Salt-okunur (Read-Only) Kompakt Vücut Özeti Şeridi
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { showEditBodyDialog = true }
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ProfileStatPill(
+                            label = "Güncel / Hedef",
+                            value = "${state.weightKg} / ${state.targetWeightKg} kg",
+                            modifier = Modifier.weight(1.25f)
+                        )
+                        ProfileStatPill(
+                            label = "Boy & Yaş",
+                            value = "${state.heightCm.toInt()} cm • ${state.age}",
+                            modifier = Modifier.weight(1.1f)
+                        )
+                        ProfileStatPill(
+                            label = "Cinsiyet",
+                            value = if (state.gender == "FEMALE") "Kadın" else "Erkek",
+                            modifier = Modifier.weight(0.8f)
+                        )
+                        ProfileStatPill(
+                            label = "BMI (${state.bmiCategory})",
+                            value = "${state.bmi}",
+                            highlight = true,
+                            modifier = Modifier.weight(0.95f)
+                        )
                     }
                 }
             }
 
-            // ── Section 2: Fitness Hedefi & Besin Hedefleri (En Üst Bölüm) ──
-            Text(
-                text = "Fitness & Besin Hedefleri",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
-
+            // ── Section 2: Fitness & Besin Hedefleri ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(22.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "Hedefinize Göre Günlük Protein İhtiyacı",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Vücut ağırlığınıza ve hedefinize göre günlük alınması gereken protein miktarı otomatik hesaplanır.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Fitness & Besin Hedefleri",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${state.nutritionGoal.calories} kcal • ${state.targetProteinG.toInt()}g Protein",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
 
                     // 3 Hedef Kartı
                     Row(
@@ -302,404 +349,123 @@ fun ProfileScreen(
                         )
                     }
 
-                    // Dinamik Protein Telemetrisi & Bilgi Notu
+                    // Kompakt Özet & Makro Düzenleme Satırı
                     Surface(
-                        color = when (state.fitnessGoal) {
-                            FitnessGoal.BUILD_MUSCLE -> HealthColors.NutrientProtein.copy(alpha = 0.12f)
-                            FitnessGoal.LOSE_WEIGHT -> HealthColors.NutrientCarbs.copy(alpha = 0.12f)
-                            FitnessGoal.MAINTAIN -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            when (state.fitnessGoal) {
-                                FitnessGoal.BUILD_MUSCLE -> HealthColors.NutrientProtein.copy(alpha = 0.35f)
-                                FitnessGoal.LOSE_WEIGHT -> HealthColors.NutrientCarbs.copy(alpha = 0.35f)
-                                FitnessGoal.MAINTAIN -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                            }
-                        ),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "Günlük Hedef Protein",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Row(verticalAlignment = Alignment.Bottom) {
-                                        Text(
-                                            text = "${state.targetProteinG.toInt()}",
-                                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
-                                            color = when (state.fitnessGoal) {
-                                                FitnessGoal.BUILD_MUSCLE -> HealthColors.NutrientProtein
-                                                FitnessGoal.LOSE_WEIGHT -> HealthColors.NutrientCarbs
-                                                FitnessGoal.MAINTAIN -> MaterialTheme.colorScheme.primary
-                                            }
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "g / gün",
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.padding(bottom = 3.dp)
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Text(
-                                        text = "${state.weightKg} kg × ${state.fitnessGoal.proteinMultiplier}x",
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
+                            Column {
+                                Text(
+                                    text = "Günlük Protein: ${state.targetProteinG.toInt()}g (${state.weightKg}kg × ${state.fitnessGoal.proteinMultiplier}x)",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Karb: ${state.nutritionGoal.carbsG.toInt()}g • Yağ: ${state.nutritionGoal.fatG.toInt()}g • Lif: ${state.nutritionGoal.fiberG.toInt()}g",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
 
-                            Text(
-                                text = when (state.fitnessGoal) {
-                                    FitnessGoal.BUILD_MUSCLE -> "Kas hipertrofisi ve hacim artışı için vücut ağırlığınızın en az 1.4 katı protein almanız gerekmektedir. Günlük tartımınıza göre ana sayfada otomatik güncellenir."
-                                    FitnessGoal.MAINTAIN -> "Mevcut kas dokunuzu korumak için en az vücut ağırlığınız kadar (1.0x) protein alınmalıdır. Günlük tartımınıza göre ana sayfada otomatik güncellenir."
-                                    FitnessGoal.LOSE_WEIGHT -> "Yağ yakımı ve kalori açığı sürecinde kas kaybını önlemek için vücut ağırlığınızın 1.2 katı protein alınmalıdır."
-                                },
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            TextButton(
+                                onClick = { showEditGoalsDialog = true },
+                                modifier = Modifier.bounceClick(),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Tune,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Makrolar",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
                         }
                     }
-
-                    // Detaylı Besin & Makro Hedeflerini Düzenleme Butonu
-                    OutlinedButton(
-                        onClick = { showEditGoalsDialog = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bounceClick(),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Tune,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Tüm Besin & Makro Hedeflerini Düzenle",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                        )
-                    }
                 }
             }
 
-            // ── Section 3: Vücut Bilgileri & Ölçüler ──
-            Text(
-                text = "Vücut Ölçüleri",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            // Güncel Kilo
-            ProfileMetricCard(
-                title = "Güncel Kilo",
-                subtitle = state.latestWeightDate?.let { "Kilo günlüğündeki son kayıt: $it" } ?: "Kilo günlüğünden otomatik güncellenir",
-                valueText = weightInput,
-                unit = "kg",
-                icon = Icons.Rounded.MonitorWeight,
-                accentColor = MaterialTheme.colorScheme.primary,
-                onValueChange = {
-                    weightInput = it
-                    it.toDoubleOrNull()?.let { w -> onIntent(ProfileIntent.OnWeightChanged(w)) }
-                },
-                onDecrement = {
-                    val cur = state.weightKg
-                    val next = (cur - 0.5).coerceAtLeast(30.0)
-                    val rounded = kotlin.math.round(next * 10) / 10.0
-                    weightInput = rounded.toString()
-                    onIntent(ProfileIntent.OnWeightChanged(rounded))
-                },
-                onIncrement = {
-                    val cur = state.weightKg
-                    val next = (cur + 0.5).coerceAtMost(300.0)
-                    val rounded = kotlin.math.round(next * 10) / 10.0
-                    weightInput = rounded.toString()
-                    onIntent(ProfileIntent.OnWeightChanged(rounded))
-                }
-            )
-
-            // Hedef Kilo
-            ProfileMetricCard(
-                title = "Hedef Kilo",
-                subtitle = "Ulaşmak istediğiniz kilo hedefi",
-                valueText = targetWeightInput,
-                unit = "kg",
-                icon = Icons.Rounded.Flag,
-                accentColor = HealthColors.Tertiary,
-                onValueChange = {
-                    targetWeightInput = it
-                    it.toDoubleOrNull()?.let { t -> onIntent(ProfileIntent.OnTargetWeightChanged(t)) }
-                },
-                onDecrement = {
-                    val cur = state.targetWeightKg
-                    val next = (cur - 0.5).coerceAtLeast(30.0)
-                    val rounded = kotlin.math.round(next * 10) / 10.0
-                    targetWeightInput = rounded.toString()
-                    onIntent(ProfileIntent.OnTargetWeightChanged(rounded))
-                },
-                onIncrement = {
-                    val cur = state.targetWeightKg
-                    val next = (cur + 0.5).coerceAtMost(300.0)
-                    val rounded = kotlin.math.round(next * 10) / 10.0
-                    targetWeightInput = rounded.toString()
-                    onIntent(ProfileIntent.OnTargetWeightChanged(rounded))
-                }
-            )
-
-            // Boy
-            ProfileMetricCard(
-                title = "Boy",
-                subtitle = "BKI ve kalori hesabında kullanılır",
-                valueText = heightInput,
-                unit = "cm",
-                icon = Icons.Rounded.Height,
-                accentColor = MaterialTheme.colorScheme.secondary,
-                onValueChange = {
-                    heightInput = it
-                    it.toDoubleOrNull()?.let { h -> onIntent(ProfileIntent.OnHeightChanged(h)) }
-                },
-                onDecrement = {
-                    val cur = state.heightCm
-                    val next = (cur - 1.0).coerceAtLeast(100.0)
-                    heightInput = next.toInt().toString()
-                    onIntent(ProfileIntent.OnHeightChanged(next))
-                },
-                onIncrement = {
-                    val cur = state.heightCm
-                    val next = (cur + 1.0).coerceAtMost(250.0)
-                    heightInput = next.toInt().toString()
-                    onIntent(ProfileIntent.OnHeightChanged(next))
-                }
-            )
-
-            // Yaş
-            ProfileMetricCard(
-                title = "Yaş",
-                subtitle = "Metabolizma ve kalori ihtiyacı için",
-                valueText = ageInput,
-                unit = "yaş",
-                icon = Icons.Rounded.Cake,
-                accentColor = HealthColors.NutrientCarbs,
-                onValueChange = {
-                    ageInput = it
-                    it.toIntOrNull()?.let { a -> onIntent(ProfileIntent.OnAgeChanged(a)) }
-                },
-                onDecrement = {
-                    val next = (state.age - 1).coerceAtLeast(10)
-                    ageInput = next.toString()
-                    onIntent(ProfileIntent.OnAgeChanged(next))
-                },
-                onIncrement = {
-                    val next = (state.age + 1).coerceAtMost(120)
-                    ageInput = next.toString()
-                    onIntent(ProfileIntent.OnAgeChanged(next))
-                }
-            )
-
-            // Cinsiyet
+            // ── Section 3: Görünüm & Tema (Tek Birleşik Kart) ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(22.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Biyolojik Cinsiyet",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Bazal metabolizma (BMR) formülleri için gereklidir",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val isMale = state.gender == "MALE"
-                        val isFemale = state.gender == "FEMALE"
-
-                        GenderOptionCard(
-                            title = "Erkek",
-                            icon = Icons.Rounded.Male,
-                            isSelected = isMale,
-                            accentColor = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onIntent(ProfileIntent.OnGenderChanged("MALE")) }
-                        )
-
-                        GenderOptionCard(
-                            title = "Kadın",
-                            icon = Icons.Rounded.Female,
-                            isSelected = isFemale,
-                            accentColor = HealthColors.Secondary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onIntent(ProfileIntent.OnGenderChanged("FEMALE")) }
-                        )
-                    }
-                }
-            }
-
-            // BMI (Beden Kitle İndeksi) Hesap Özeti
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Beden Kitle İndeksi (BMI)",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = "${state.bmi}",
-                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "kg/m²",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
-                        }
-                    }
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                    ) {
-                        Text(
-                            text = state.bmiCategory,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // ── Section 4: Tema ve Görünüm Seçenekleri ──
-            Text(
-                text = "Görünüm ve Tema",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            // Koyu Mod / Açık Mod Switch
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(
-                                imageVector = if (state.isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (state.isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Görünüm & Tema",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (state.isDarkMode) "Koyu tema aktif" else "Açık tema aktif",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                        Column {
-                            Text(
-                                text = if (state.isDarkMode) "Koyu Tema" else "Açık Tema",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
+
+                        Switch(
+                            checked = state.isDarkMode,
+                            onCheckedChange = { onIntent(ProfileIntent.OnThemeModeChanged(it)) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
                             )
-                            Text(
-                                text = if (state.isDarkMode) "Obsidiyen gece modu aktif" else "Gündüz açık renk modu aktif",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        )
                     }
 
-                    Switch(
-                        checked = state.isDarkMode,
-                        onCheckedChange = { onIntent(ProfileIntent.OnThemeModeChanged(it)) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-            }
-
-            // Tema Vurgu Rengi Paleti
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Tema Rengi (Vurgu)",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Uygulama butonları, grafikler ve simgeler seçilen renge bürünür",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         AppThemeColor.entries.forEach { accent ->
                             val isSelected = state.themeAccent == accent
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier
                                     .bounceClick()
                                     .clickable { onIntent(ProfileIntent.OnThemeAccentChanged(accent)) }
@@ -707,13 +473,11 @@ fun ProfileScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(46.dp)
+                                        .size(40.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            Brush.linearGradient(accent.gradient)
-                                        )
+                                        .background(Brush.linearGradient(accent.gradient))
                                         .border(
-                                            width = if (isSelected) 3.dp else 1.dp,
+                                            width = if (isSelected) 2.5.dp else 1.dp,
                                             color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
                                             shape = CircleShape
                                         ),
@@ -724,14 +488,14 @@ fun ProfileScreen(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Seçili",
                                             tint = Color.White,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
                                 Text(
                                     text = accent.title.substringBefore(" "),
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                     ),
                                     color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
@@ -742,17 +506,10 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Section 4: Senkronizasyon & Veri ──
-            Text(
-                text = "Veri ve Senkronizasyon",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            // Akıllı Saat & Tartı Köprüsü (Xiaomi Scale & Huawei Watch via Health Connect / HealthKit)
+            // ── Section 4: Akıllı Saat & Tartı Köprüsü ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(22.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -767,19 +524,19 @@ fun ProfileScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
                                     .background(HealthColors.TertiaryContainer.copy(alpha = 0.18f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (state.isDeviceSyncing) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
                                         color = HealthColors.TertiaryContainer
                                     )
@@ -788,7 +545,7 @@ fun ProfileScreen(
                                         imageVector = Icons.Rounded.Watch,
                                         contentDescription = null,
                                         tint = HealthColors.TertiaryContainer,
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
@@ -800,8 +557,8 @@ fun ProfileScreen(
                                 )
                                 Text(
                                     text = state.lastDeviceSyncSummary
-                                        ?: "Xiaomi Tartı (Zepp Life / Mi Fitness) ve Huawei Watch verilerini çakışmasız eşitle",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        ?: "Tartı ve saat verilerini eşitle",
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -810,7 +567,7 @@ fun ProfileScreen(
                         if (deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED) {
                             IconButton(
                                 onClick = { deviceHealthBridge.openHealthSettings() },
-                                modifier = Modifier.size(34.dp).bounceClick()
+                                modifier = Modifier.size(32.dp).bounceClick()
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Settings,
@@ -842,7 +599,7 @@ fun ProfileScreen(
                             )
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.MonitorWeight,
+                                imageVector = Icons.Rounded.Sync,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -866,7 +623,7 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Nasıl Bağlanır?",
+                                text = "Rehber",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
@@ -874,247 +631,285 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Section 5: Otomatik Kayıt & Senkronizasyon Rozeti ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Değişiklikleriniz anında otomatik kaydedilir ve buluta eşitlenir.",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 4.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            )
-
-            // ── Section 6: Çıkış Yap (En Altta) ──
-            var showLogoutDialog by remember { mutableStateOf(false) }
-
+            // ── Section 5: Çıkış Yap ──
             OutlinedButton(
                 onClick = { showLogoutDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(48.dp)
                     .bounceClick(),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 ),
-                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.45f))
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Logout,
                     contentDescription = "Çıkış Yap",
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Hesaptan Çıkış Yap",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.error
                 )
             }
 
-            if (showLogoutDialog) {
-                AlertDialog(
-                    onDismissRequest = { showLogoutDialog = false },
-                    modifier = Modifier.imePadding(),
-                    icon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    },
-                    title = {
-                        Text(
-                            text = "Çıkış Yap",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = "Hesabınızdan çıkış yapmak istediğinize emin misiniz?",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                showLogoutDialog = false
-                                onIntent(ProfileIntent.OnLogoutClicked)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Çıkış Yap", color = MaterialTheme.colorScheme.onError)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showLogoutDialog = false }) {
-                            Text("Vazgeç")
-                        }
-                    }
-                )
-            }
-
-            // ── Detaylı Besin Hedefleri Düzenleme Diyaloğu ──
-            if (showEditGoalsDialog) {
-                EditGoalsDialog(
-                    currentGoal = state.nutritionGoal,
-                    currentWeight = state.weightKg,
-                    fitnessGoal = state.fitnessGoal,
-                    onDismiss = { showEditGoalsDialog = false },
-                    onSave = { updatedGoal, updatedFitnessGoal ->
-                        onIntent(ProfileIntent.OnSaveNutritionGoal(updatedGoal, updatedFitnessGoal))
-                        showEditGoalsDialog = false
-                    }
-                )
-            }
-
-            if (showDeviceGuideDialog) {
-                DeviceConnectionGuideDialog(
-                    platformName = deviceHealthBridge.platformName,
-                    onOpenHealthSettings = { deviceHealthBridge.openHealthSettings() },
-                    onSyncNow = {
-                        onIntent(ProfileIntent.OnDeviceSyncStarted)
-                        deviceHealthBridge.syncLastDays(days = 30) { result ->
-                            onIntent(ProfileIntent.OnDeviceSnapshotReceived(result))
-                        }
-                    },
-                    onDismiss = { showDeviceGuideDialog = false }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    // ── Fiziksel Profil Düzenleme Diyaloğu (Güncel Kilo Hariç: Hedef Kilo, Boy, Yaş, Cinsiyet) ──
+    if (showEditBodyDialog) {
+        EditBodyProfileDialog(
+            state = state,
+            onIntent = onIntent,
+            onDismiss = { showEditBodyDialog = false }
+        )
+    }
+
+    // ── Detaylı Besin Hedefleri Düzenleme Diyaloğu ──
+    if (showEditGoalsDialog) {
+        EditGoalsDialog(
+            currentGoal = state.nutritionGoal,
+            currentWeight = state.weightKg,
+            fitnessGoal = state.fitnessGoal,
+            onDismiss = { showEditGoalsDialog = false },
+            onSave = { updatedGoal, updatedFitnessGoal ->
+                onIntent(ProfileIntent.OnSaveNutritionGoal(updatedGoal, updatedFitnessGoal))
+                showEditGoalsDialog = false
+            }
+        )
+    }
+
+    if (showDeviceGuideDialog) {
+        DeviceConnectionGuideDialog(
+            platformName = deviceHealthBridge.platformName,
+            onOpenHealthSettings = { deviceHealthBridge.openHealthSettings() },
+            onSyncNow = {
+                onIntent(ProfileIntent.OnDeviceSyncStarted)
+                deviceHealthBridge.syncLastDays(days = 30) { result ->
+                    onIntent(ProfileIntent.OnDeviceSnapshotReceived(result))
+                }
+            },
+            onDismiss = { showDeviceGuideDialog = false }
+        )
+    }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            modifier = Modifier.imePadding(),
+            icon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Çıkış Yap",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Text(
+                    text = "Hesabınızdan çıkış yapmak istediğinize emin misiniz?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        onIntent(ProfileIntent.OnLogoutClicked)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Çıkış Yap", color = MaterialTheme.colorScheme.onError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Vazgeç")
+                }
+            }
+        )
     }
 }
 
 @Composable
-private fun ProfileMetricCard(
-    title: String,
-    subtitle: String,
-    valueText: String,
-    unit: String,
-    icon: ImageVector,
-    accentColor: Color,
-    onValueChange: (String) -> Unit,
-    onDecrement: () -> Unit,
-    onIncrement: () -> Unit
+private fun ProfileStatPill(
+    label: String,
+    value: String,
+    highlight: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(accentColor.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Column {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+    }
+}
 
-            Spacer(modifier = Modifier.height(12.dp))
+@Composable
+private fun EditBodyProfileDialog(
+    state: ProfileState,
+    onIntent: (ProfileIntent) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var targetWeightInput by remember(state.targetWeightKg) { mutableStateOf(state.targetWeightKg.toString()) }
+    var heightInput by remember(state.heightCm) { mutableStateOf(state.heightCm.toInt().toString()) }
+    var ageInput by remember(state.age) { mutableStateOf(state.age.toString()) }
+    var selectedGender by remember(state.gender) { mutableStateOf(state.gender) }
 
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Stepper -
-                FilledIconButton(
-                    onClick = onDecrement,
-                    modifier = Modifier.size(44.dp).bounceClick(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = "Azalt", tint = MaterialTheme.colorScheme.onSurface)
-                }
-
-                // Input Field
-                OutlinedTextField(
-                    value = valueText,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    textStyle = MaterialTheme.typography.titleMedium.copy(
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    trailingIcon = {
-                        Text(
-                            text = unit,
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = accentColor,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
+                Text(
+                    text = "Fiziksel Bilgileri Düzenle",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
-
-                // Stepper +
-                FilledIconButton(
-                    onClick = onIncrement,
-                    modifier = Modifier.size(44.dp).bounceClick(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Artır", tint = MaterialTheme.colorScheme.onSurface)
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Kapat", modifier = Modifier.size(18.dp))
                 }
             }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clearFocusOnTap()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Güncel kilonuz (${state.weightKg} kg) Kilo sekmesinden otomatik güncellenir.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Hedef Kilo
+                OutlinedTextField(
+                    value = targetWeightInput,
+                    onValueChange = { targetWeightInput = it },
+                    label = { Text("Hedef Kilo (kg)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Boy & Yaş Yan Yana
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = heightInput,
+                        onValueChange = { heightInput = it },
+                        label = { Text("Boy (cm)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    OutlinedTextField(
+                        value = ageInput,
+                        onValueChange = { ageInput = it },
+                        label = { Text("Yaş") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // Biyolojik Cinsiyet Seçimi
+                Text(
+                    text = "Biyolojik Cinsiyet",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    GenderOptionCard(
+                        title = "Erkek",
+                        icon = Icons.Rounded.Male,
+                        isSelected = selectedGender == "MALE",
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedGender = "MALE" }
+                    )
+
+                    GenderOptionCard(
+                        title = "Kadın",
+                        icon = Icons.Rounded.Female,
+                        isSelected = selectedGender == "FEMALE",
+                        accentColor = HealthColors.Secondary,
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedGender = "FEMALE" }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    targetWeightInput.replace(',', '.').toDoubleOrNull()?.let {
+                        onIntent(ProfileIntent.OnTargetWeightChanged(it))
+                    }
+                    heightInput.replace(',', '.').toDoubleOrNull()?.let {
+                        onIntent(ProfileIntent.OnHeightChanged(it))
+                    }
+                    ageInput.toIntOrNull()?.let {
+                        onIntent(ProfileIntent.OnAgeChanged(it))
+                    }
+                    if (selectedGender != state.gender) {
+                        onIntent(ProfileIntent.OnGenderChanged(selectedGender))
+                    }
+                    onDismiss()
+                },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Kaydet", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("İptal")
+            }
         }
-    }
+    )
 }
 
 @Composable
@@ -1141,22 +936,22 @@ private fun FitnessGoalOptionCard(
     ) {
         Column(
             modifier = Modifier
-                .padding(vertical = 12.dp, horizontal = 6.dp)
+                .padding(vertical = 10.dp, horizontal = 6.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 12.sp
+                    fontSize = 11.5.sp
                 ),
                 color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
@@ -1173,8 +968,6 @@ private fun FitnessGoalOptionCard(
         }
     }
 }
-
-
 
 @Composable
 private fun GenderOptionCard(
@@ -1193,13 +986,13 @@ private fun GenderOptionCard(
         modifier = modifier
             .bounceClick()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = bgColor,
         border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
-                .padding(vertical = 12.dp, horizontal = 14.dp)
+                .padding(vertical = 10.dp, horizontal = 12.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -1208,12 +1001,12 @@ private fun GenderOptionCard(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
+                style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                 ),
                 color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurface
@@ -1221,6 +1014,3 @@ private fun GenderOptionCard(
         }
     }
 }
-
-
-

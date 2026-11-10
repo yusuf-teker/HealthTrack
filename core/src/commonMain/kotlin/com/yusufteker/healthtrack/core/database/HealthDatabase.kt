@@ -29,6 +29,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     private val _customFoodsFlow = MutableStateFlow<List<CustomFoodItem>>(loadList(KEY_CUSTOM_FOODS))
     private val _favoriteFoodsFlow = MutableStateFlow<Map<Int, List<String>>>(loadMap(KEY_FAVORITE_FOODS))
     private val _reportsFlow = MutableStateFlow<List<HealthAiReport>>(loadList(KEY_AI_REPORTS))
+    private val _waterFlow = MutableStateFlow<List<WaterEntry>>(loadList(KEY_WATER))
 
     // ─────────────────────────────────────────────────────────────
     // FOOD OPERATIONS
@@ -759,6 +760,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         _customFoodsFlow.value = emptyList()
         _favoriteFoodsFlow.value = emptyMap()
         _reportsFlow.value = emptyList()
+        _waterFlow.value = emptyList()
         settings.remove(KEY_FOODS)
         settings.remove(KEY_GOALS)
         settings.remove(KEY_WORKOUTS)
@@ -766,6 +768,58 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         settings.remove(KEY_CUSTOM_FOODS)
         settings.remove(KEY_FAVORITE_FOODS)
         settings.remove(KEY_AI_REPORTS)
+        settings.remove(KEY_WATER)
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // WATER HYDRATION OPERATIONS
+    // ─────────────────────────────────────────────────────────────
+
+    fun observeWater(userId: Int, date: String): Flow<WaterEntry?> {
+        return _waterFlow.map { list ->
+            list.find { it.userId == userId && it.date == date }
+        }
+    }
+
+    suspend fun getWaterForDate(userId: Int, date: String): WaterEntry? {
+        return _waterFlow.value.find { it.userId == userId && it.date == date }
+    }
+
+    suspend fun addWater(userId: Int, date: String, deltaMl: Int, defaultTargetMl: Int = 2500): WaterEntry {
+        val current = _waterFlow.value.toMutableList()
+        val now = currentTimeMillis()
+        val index = current.indexOfFirst { it.userId == userId && it.date == date }
+        val updatedEntry = if (index >= 0) {
+            val existing = current[index]
+            val newAmount = (existing.amountMl + deltaMl).coerceAtLeast(0)
+            existing.copy(amountMl = newAmount, targetMl = defaultTargetMl, updatedAt = now)
+        } else {
+            WaterEntry(
+                date = date,
+                userId = userId,
+                amountMl = deltaMl.coerceAtLeast(0),
+                targetMl = defaultTargetMl,
+                updatedAt = now
+            )
+        }
+        if (index >= 0) {
+            current[index] = updatedEntry
+        } else {
+            current.add(updatedEntry)
+        }
+        _waterFlow.value = current
+        saveList(KEY_WATER, current)
+        return updatedEntry
+    }
+
+    suspend fun resetWater(userId: Int, date: String) {
+        val current = _waterFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.userId == userId && it.date == date }
+        if (index >= 0) {
+            current[index] = current[index].copy(amountMl = 0, updatedAt = currentTimeMillis())
+            _waterFlow.value = current
+            saveList(KEY_WATER, current)
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -812,5 +866,6 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         private const val KEY_CUSTOM_FOODS = "ht_db_custom_foods"
         private const val KEY_FAVORITE_FOODS = "ht_db_favorite_foods"
         private const val KEY_AI_REPORTS = "ht_db_ai_reports"
+        private const val KEY_WATER = "ht_db_water"
     }
 }

@@ -97,6 +97,64 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
             }
         }
     }
+
+    override fun sendToPlanoraTodo(title: String, items: List<String>): Boolean {
+        if (items.isEmpty()) return false
+        val formattedBody = buildString {
+            appendLine(title)
+            appendLine()
+            items.forEach { appendLine("• $it") }
+        }
+
+        // 1. Try Planora custom deep link
+        try {
+            val encodedTitle = Uri.encode(title)
+            val encodedItems = Uri.encode(items.joinToString(";") { it.trim() })
+            val planoraUri = Uri.parse("planora://todo/add?title=$encodedTitle&items=$encodedItems")
+            val viewIntent = Intent(Intent.ACTION_VIEW, planoraUri).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            if (isAppInstalled(ExternalApp.PLANORA) && viewIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(viewIntent)
+                return true
+            }
+        } catch (_: Exception) {}
+
+        // 2. Try explicit Intent targeted at Planora app package
+        try {
+            if (isAppInstalled(ExternalApp.PLANORA)) {
+                val directIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    `package` = ExternalApp.PLANORA.packageName
+                    putExtra(Intent.EXTRA_TITLE, title)
+                    putExtra(Intent.EXTRA_SUBJECT, title)
+                    putExtra(Intent.EXTRA_TEXT, formattedBody)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(directIntent)
+                return true
+            }
+        } catch (_: Exception) {}
+
+        // 3. Fallback: System share chooser for notes/to-do/messaging
+        return try {
+            val chooser = Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TITLE, title)
+                    putExtra(Intent.EXTRA_SUBJECT, title)
+                    putExtra(Intent.EXTRA_TEXT, formattedBody)
+                },
+                "Planora veya Başka Uygulamaya Gönder"
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 }
 
 @Composable

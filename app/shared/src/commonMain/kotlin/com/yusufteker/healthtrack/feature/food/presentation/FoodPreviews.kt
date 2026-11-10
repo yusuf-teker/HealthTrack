@@ -13,9 +13,12 @@ import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
+import com.yusufteker.healthtrack.core.model.NutrientSynergyTip
 import com.yusufteker.healthtrack.core.model.NutritionGoal
+import com.yusufteker.healthtrack.core.model.WaterEntry
 import com.yusufteker.healthtrack.feature.food.presentation.components.AddCustomFoodDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodBentoRow
+import com.yusufteker.healthtrack.feature.food.presentation.components.FoodHydrationAndSmartMealRow
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodIconSelector
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodTableCard
 import com.yusufteker.healthtrack.feature.food.presentation.components.InventoryMixStudioDialog
@@ -88,7 +91,17 @@ private val populatedFoodState = FoodState(
     latestWeightKg = 73.4,
     weightDifferenceKg = -0.3,
     recentWeights = listOf(74.0, 73.8, 73.7, 73.5, 73.4),
-    frequentFoods = sampleFoodItems
+    frequentFoods = sampleFoodItems,
+    waterEntry = WaterEntry(date = "2026-11-06", userId = 1, amountMl = 1750, targetMl = 2500),
+    dynamicWaterTargetMl = 2500,
+    synergyTips = listOf(
+        NutrientSynergyTip(
+            id = "tip_sample",
+            title = "🌱 Demir Emilimini 3 Kat Artırın",
+            description = "Öğününüzdeki bitkisel demiri en iyi şekilde emmek için limon ekleyin.",
+            highlightNutrient = "Demir + C Vitamini"
+        )
+    )
 )
 
 @Preview
@@ -193,6 +206,37 @@ fun QuickFoodPresetsViewPreview() {
         ) {
             QuickFoodPresetsView(
                 onAddFood = { _, _, _, _, _, _, _ -> }
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun FoodHydrationAndSmartMealRowPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp)
+        ) {
+            FoodHydrationAndSmartMealRow(
+                waterEntry = WaterEntry(date = "2026-11-06", userId = 1, amountMl = 1500, targetMl = 2500),
+                dynamicWaterTargetMl = 2500,
+                nutrientBars = sampleNutrientBars,
+                remainingCalories = 1200,
+                onAddWater = {},
+                onResetWater = {},
+                onOpenSmartMeal = {},
+                synergyTips = listOf(
+                    NutrientSynergyTip(
+                        id = "tip_sample",
+                        title = "🌱 Demir Emilimini 3 Kat Artırın",
+                        description = "Öğününüzdeki bitkisel demiri en iyi şekilde emmek için limon ekleyin.",
+                        highlightNutrient = "Demir + C Vitamini"
+                    )
+                ),
+                onDismissSynergyTip = {}
             )
         }
     }

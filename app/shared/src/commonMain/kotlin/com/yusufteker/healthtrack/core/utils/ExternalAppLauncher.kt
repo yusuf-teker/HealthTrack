@@ -41,6 +41,12 @@ interface ExternalAppLauncher {
      * with fallback to the system share sheet or wa.me link.
      */
     fun shareToWhatsApp(text: String, phoneNumber: String? = null): Boolean
+
+    /**
+     * Sends a list of grocery or task items to Planora as to-do items.
+     * Fallbacks to system sharing or clipboard if Planora is not installed.
+     */
+    fun sendToPlanoraTodo(title: String, items: List<String>): Boolean
 }
 
 /**

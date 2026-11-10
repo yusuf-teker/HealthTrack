@@ -7,9 +7,20 @@ import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.FoodLog
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
+import com.yusufteker.healthtrack.core.model.NutrientSynergyTip
 import com.yusufteker.healthtrack.core.model.NutritionGoal
+import com.yusufteker.healthtrack.core.model.SmartMealSuggestion
+import com.yusufteker.healthtrack.core.model.WaterEntry
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
+import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
 import com.yusufteker.healthtrack.core.utils.getTodayIso
+
+enum class SmartMealFilterType {
+    QUICK,
+    FEW_INGREDIENTS,
+    EXCLUDE_RECENT_3_DAYS,
+    HIGH_PROTEIN
+}
 
 data class FoodState(
     val selectedDate: String = getTodayIso(),
@@ -42,7 +53,34 @@ data class FoodState(
     val isAnalyzingCustomFoodAi: Boolean = false,
     val customFoodAiResult: FoodAiResultDto? = null,
     val customFoodAiPromptUsed: String = "",
-    val customFoodAiError: String? = null
+    val customFoodAiError: String? = null,
+
+    // ── 2.A: Su & Hidrasyon Telemetrisi ──
+    val waterEntry: WaterEntry? = null,
+    val dynamicWaterTargetMl: Int = 2500,
+
+    // ── 1: Akıllı Öğün & "Ne Yesem?" Önerisi ──
+    val isSmartMealSheetOpen: Boolean = false,
+    val smartMealSuggestions: List<SmartMealSuggestion> = emptyList(),
+    val isSmartMealOnlyQuick: Boolean = false,
+    val isSmartMealOnlyFewIngredients: Boolean = false,
+    val isSmartMealExcludeRecent3Days: Boolean = true,
+    val isSmartMealHighProtein: Boolean = false,
+    val isGeneratingAiCustomRecipe: Boolean = false,
+
+    // ── 2.B: Besin Sinerjisi & Emilim İpuçları ──
+    val synergyTips: List<NutrientSynergyTip> = emptyList(),
+    val dismissedTipIds: Set<String> = emptySet(),
+
+    // ── 2.D: Fotoğraftan / Barkoddan / Besin Etiketinden Ekleme ──
+    val isPhotoScanSheetOpen: Boolean = false,
+    val isPhotoScanAnalyzing: Boolean = false,
+
+    // ── Market Listesi & Planora Entegrasyonu ──
+    val isGroceryListSheetOpen: Boolean = false,
+    val groceryListTitle: String = "Market Alışveriş Listesi",
+    val groceryItems: List<String> = emptyList(),
+    val selectedGroceryItems: Set<String> = emptySet()
 )
 
 sealed interface FoodIntent {
@@ -99,6 +137,31 @@ sealed interface FoodIntent {
     data class OnAnalyzeCustomFoodAi(val prompt: String, val isMixMode: Boolean) : FoodIntent
     data object OnConsumeCustomFoodAiResult : FoodIntent
     data object OnDismissCustomFoodAiError : FoodIntent
+
+    // ── 2.A: Su & Hidrasyon Intent'leri ──
+    data class OnAddWater(val deltaMl: Int) : FoodIntent
+    data object OnResetWater : FoodIntent
+
+    // ── 1: Akıllı Öğün Intent'leri ──
+    data object OnOpenSmartMealSheet : FoodIntent
+    data object OnCloseSmartMealSheet : FoodIntent
+    data class OnToggleSmartMealFilter(val filterType: SmartMealFilterType) : FoodIntent
+    data class OnAddSuggestedMeal(val meal: SmartMealSuggestion) : FoodIntent
+    data object OnRequestCustomAiMealSuggestion : FoodIntent
+
+    // ── 2.B: Besin Sinerjisi Intent'i ──
+    data class OnDismissSynergyTip(val tipId: String) : FoodIntent
+
+    // ── 2.D: Fotoğraf / Etiket Tarama Intent'leri ──
+    data object OnOpenPhotoScanSheet : FoodIntent
+    data object OnClosePhotoScanSheet : FoodIntent
+    data class OnAnalyzePhotoOrLabel(val textOrPrompt: String) : FoodIntent
+
+    // ── Market Listesi & Planora Intent'leri ──
+    data class OnOpenGroceryListSheet(val title: String, val items: List<String>) : FoodIntent
+    data object OnCloseGroceryListSheet : FoodIntent
+    data class OnToggleGroceryItem(val item: String) : FoodIntent
+    data class OnSendGroceryToPlanora(val appLauncher: ExternalAppLauncher) : FoodIntent
 }
 
 sealed interface FoodEffect {

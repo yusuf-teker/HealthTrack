@@ -916,18 +916,22 @@ private fun WhatsAppAutomationCard(
     onSaveSettings: () -> Unit,
     onSendLatestWeeklyNow: () -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -938,8 +942,8 @@ private fun WhatsAppAutomationCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(WhatsAppGreen.copy(alpha = 0.16f)),
                         contentAlignment = Alignment.Center
                     ) {
@@ -947,138 +951,150 @@ private fun WhatsAppAutomationCard(
                             imageVector = Icons.Rounded.Chat,
                             contentDescription = null,
                             tint = WhatsAppGreen,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     Column {
                         Text(
-                            text = "WhatsApp & Push Bildirim Otomasyonu",
+                            text = "Haftalık WhatsApp Otomasyonu",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Haftalık AI raporun hazırlandığında kilit ekranında bildirim görünür; dokunulduğunda WhatsApp doğrudan açılır",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            text = if (autoWeeklyEnabled) {
+                                "Aktif (Pazar 21:00) • Ayarlar için dokunun"
+                            } else {
+                                "Kapalı • Ayarlar için dokunun"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                Switch(
-                    checked = autoWeeklyEnabled,
-                    onCheckedChange = onAutoToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = WhatsAppGreen
-                    )
-                )
-            }
-
-            // Notification permission banner / status
-            if (!hasNotificationPermission) {
-                Surface(
-                    onClick = onRequestNotificationPermission,
-                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth().bounceClick()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    IconButton(
+                        onClick = { isExpanded = !isExpanded },
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.NotificationsActive,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(22.dp)
+                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Rounded.Tune,
+                            contentDescription = "Otomasyon Ayarları",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Column(modifier = Modifier.weight(1f)) {
+                    }
+
+                    Switch(
+                        checked = autoWeeklyEnabled,
+                        onCheckedChange = onAutoToggle,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = WhatsAppGreen
+                        )
+                    )
+                }
+            }
+
+            // Collapsible Settings & Test Actions
+            AnimatedVisibility(visible = isExpanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+
+                    if (!hasNotificationPermission) {
+                        Surface(
+                            onClick = onRequestNotificationPermission,
+                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth().bounceClick()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Bildirim İznini Etkinleştir",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Rapor hazır olunca kilit ekranından tek dokunuşla WhatsApp açılsın.",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = whatsAppPhone,
+                        onValueChange = onPhoneChange,
+                        label = { Text("Hedef WhatsApp Numarası (Opsiyonel)") },
+                        placeholder = { Text("Örn: 05551234567") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = {
+                            TextButton(onClick = {
+                                onSaveSettings()
+                                isExpanded = false
+                            }) {
+                                Text("Kaydet", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onSendTestNotification,
+                            modifier = Modifier.weight(1f).bounceClick(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Rounded.NotificationsActive, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Bildirim İznini Etkinleştir",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = "Bildirim Testi",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
+                        }
+
+                        OutlinedButton(
+                            onClick = onSendLatestWeeklyNow,
+                            modifier = Modifier.weight(1f).bounceClick(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, WhatsAppGreen.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = WhatsAppGreen),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Haftalık rapor hazır olunca kilit ekranında gösterilsin ve tek dokunuşla WhatsApp açılsın.",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Şimdi Gönder",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                     }
                 }
-            } else {
-                Surface(
-                    color = WhatsAppGreen.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.CheckCircle,
-                            contentDescription = null,
-                            tint = WhatsAppGreen,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Haftalık bildirim aktif (Her Pazar 21:00). Bildirime dokunulduğunda WhatsApp raporla açılır.",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            OutlinedTextField(
-                value = whatsAppPhone,
-                onValueChange = onPhoneChange,
-                label = { Text("Hedef WhatsApp Numarası (Opsiyonel)") },
-                placeholder = { Text("Örn: 05551234567 (Kendi numaranızı veya boş bırakın)") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                trailingIcon = {
-                    TextButton(onClick = onSaveSettings) {
-                        Text("Kaydet", fontWeight = FontWeight.Bold)
-                    }
-                }
-            )
-
-            // Push Notification Test Button
-            OutlinedButton(
-                onClick = onSendTestNotification,
-                modifier = Modifier.fillMaxWidth().bounceClick(),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Icon(Icons.Rounded.NotificationsActive, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "🔔 Test Push Bildirimi Gönder (WhatsApp'a Tek Tık)",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-
-            OutlinedButton(
-                onClick = onSendLatestWeeklyNow,
-                modifier = Modifier.fillMaxWidth().bounceClick(),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, WhatsAppGreen.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = WhatsAppGreen)
-            ) {
-                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Son Haftalık Raporu Şimdi WhatsApp'a Gönder",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                )
             }
         }
     }

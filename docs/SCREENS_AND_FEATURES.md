@@ -91,22 +91,39 @@ Günlük alınan kaloriyi, makro besinleri (Protein, Karbonhidrat, Yağ) ve mikr
 * **Sol Kart (Mikro Besin Özeti):** Lif, Demir ve Magnezyum değerlerinin dairesel kapsül durumları. Tıklandığında `GeneralMicronutrientsBottomSheet` açılarak tüm vitamin ve minerallerin detayını listeler.
 * **Sağ Kart (Kilo & Dalga Grafiği):** Seçili günün veya en son tartı kaydının kilosu, fark telemetrisi (+/- kg) ve neon ışıltılı mini sparkline dalga çizgisi. Tıklandığında doğrudan Kilo sekmesine yönlendirir.
 
-#### D. Yapay Zeka Destekli Doğal Dil Girişi (`FoodAiReviewBottomSheet`)
+#### D. Hidrasyon, "Ne Yesem?" ve Besin Sinerjisi Satırı (`FoodHydrationAndSmartMealRow`)
+* **Su & Hidrasyon Bento Kartı (2.A):** 
+  * Günlük su tüketimini takip eder (`+250ml`, `+500ml` tek tık hızlı kayıt, sıfırlama desteği).
+  * Antrenman duyarlı hedef: Gün içinde yakılan kaloriye ve egzersiz süresine göre su hedefi dinamik olarak otomatik artırılır (örn. 2500ml + 350ml antrenman takviyesi).
+* **"Ne Yesem?" Akıllı Öğün Önerisi (1):**
+  * O günkü açıkta kalan kaloriyi, eksik proteini ve en düşük kalan mikro besinleri (Lif, Magnezyum vb.) analiz eder.
+  * `SmartMealMatcherBottomSheet` ile kullanıcının karşısına çıkar:
+    * `⚡ Kolay (<10 dk)`, `🥣 Az Malzemeli (≤4)`, `🔄 Son 3 Gün Yemediklerim` ve `💪 Yüksek Protein` filtreleme seçenekleri.
+    * Tek tıkla "Yedim Olarak Ekle" ve "Planora'ya Market Listesi Gönder (To-Do)".
+    * Gemini AI ile eksik hedeflere göre anında yeni özel tarif üretme.
+* **Besin Sinerjisi & Emilim İpuçları (2.B):**
+  * Gün içinde tüketilen gıdaların kimyasal etkileşimini mikro-koç olarak denetler (örneğin bitkisel demirin yanına C vitamini ekleme önerisi, yüksek lif alımında su uyarısı, kahve-mineral zamanlaması).
+
+#### E. Fotoğraftan & Besin Etiketinden AI Girişi (`FoodPhotoScanBottomSheet` - 2.D)
+* Kamera / tarama butonu ile açılır.
+* Ürün ambalaj arkasındaki 100g değerleri veya tabak içeriği girildiğinde yapay zeka porsiyona göre tam kalori, makro ve mikro kırılımı otomatik hesaplar.
+
+#### F. Yapay Zeka Destekli Doğal Dil Girişi (`FoodAiReviewBottomSheet`)
 * Kullanıcı `"200g ızgara tavuk, 1 kase yoğurt ve 1 adet elma yedim"` gibi serbest metin yazar.
 * AI Analiz butonu metni sunucuya iletir; porsiyonlar, gramajlar, kalori ve tüm makro/mikro kırılımlar otomatik ayrıştırılır.
 * Onay sayfası açılarak kullanıcıya son düzeltme imkanı tanınır ve tek tıkla kaydedilir.
 
-#### E. Günlük Besin Manifestosu Tablosu (`FoodTableCard`)
+#### G. Günlük Besin Manifestosu Tablosu (`FoodTableCard`)
 * O gün eklenmiş olan tüm besinleri liste kartı olarak gösterir:
   * Besin adı, porsiyon bilgisi, kalori değeri, makro rozetleri.
   * Tekil besin silme (`OnRemoveItem`) ve tüm günü sıfırlama (`OnClearFoodLog`).
 
-#### F. Hızlı Besin Çipleri & Özel Ürünler (`QuickFoodPresetsView`)
+#### H. Hızlı Besin Çipleri & Özel Ürünler (`QuickFoodPresetsView`)
 * Kategorilere göre filtrelenebilir (Tümü, Favoriler, Özel Ürünlerim, Protein, Kahvaltı, Karbonhidrat vb.).
 * Hazır porsiyon çarpanları (`1x`, `2x`, `3x`) ile tek tıkla anında öğün ekleme.
 * `AddCustomFoodDialog` ile barkodsuz/özel gıdaları kişisel veritabanına ekleme.
 
-#### G. Ayrıntılı Telemetri Besin Barları (`NutrientBarsView`)
+#### I. Ayrıntılı Telemetri Besin Barları (`NutrientBarsView`)
 * Tüm makro ve mikro elementlerin hedef yüzdelerini gösteren biyolüminesans dikey kapsül barları.
 
 ---

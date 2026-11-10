@@ -40,6 +40,18 @@ class IosExternalAppLauncher : ExternalAppLauncher {
         UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any>(), null)
         return true
     }
+
+    override fun sendToPlanoraTodo(title: String, items: List<String>): Boolean {
+        if (items.isEmpty()) return false
+        val formattedItems = items.joinToString(";") { it.trim() }
+        val urlStr = "planora://todo/add?title=${title.encodeURLParameter()}&items=${formattedItems.encodeURLParameter()}"
+        val url = NSURL.URLWithString(urlStr) ?: return false
+        if (UIApplication.sharedApplication.canOpenURL(url)) {
+            UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any>(), null)
+            return true
+        }
+        return false
+    }
 }
 
 @Composable

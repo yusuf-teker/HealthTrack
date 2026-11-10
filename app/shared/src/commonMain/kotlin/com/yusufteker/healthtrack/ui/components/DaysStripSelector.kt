@@ -49,7 +49,12 @@ fun DaysStripSelector(
     val weekDays = remember(selectedDate) { getWeekDaysForDate(selectedDate) }
 
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .onHorizontalSwipe(
+                onSwipeLeft = { onDateSelected(shiftDateIso(selectedDate, 1)) },
+                onSwipeRight = { onDateSelected(shiftDateIso(selectedDate, -1)) }
+            ),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // Month Header & Week Navigation Controls (Height ~28dp)
@@ -93,12 +98,11 @@ fun DaysStripSelector(
                 }
             }
 
-            // Compact Chevrons (Shift by 1 week)
+            // Compact Chevrons (Shift day-by-day)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(
                     onClick = {
-                        val prev = shiftDateIso(selectedDate, -7)
-                        onPrevWeek()
+                        val prev = shiftDateIso(selectedDate, -1)
                         onDateSelected(prev)
                     },
                     modifier = Modifier
@@ -109,15 +113,14 @@ fun DaysStripSelector(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "Önceki Hafta",
+                        contentDescription = "Önceki Gün",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 IconButton(
                     onClick = {
-                        val next = shiftDateIso(selectedDate, 7)
-                        onNextWeek()
+                        val next = shiftDateIso(selectedDate, 1)
                         onDateSelected(next)
                     },
                     modifier = Modifier
@@ -128,7 +131,7 @@ fun DaysStripSelector(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Sonraki Hafta",
+                        contentDescription = "Sonraki Gün",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )

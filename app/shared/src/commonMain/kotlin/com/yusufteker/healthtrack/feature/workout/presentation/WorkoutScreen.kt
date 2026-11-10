@@ -37,6 +37,7 @@ import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
+import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.CrossedBarbellPlusIcon
@@ -47,6 +48,7 @@ import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.onHorizontalSwipe
 import kotlinx.coroutines.launch
 
 @Composable
@@ -91,6 +93,10 @@ fun WorkoutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clearFocusOnTap()
+                .onHorizontalSwipe(
+                    onSwipeLeft = { onIntent(WorkoutIntent.OnDateChanged(shiftDateIso(state.selectedDate, 1))) },
+                    onSwipeRight = { onIntent(WorkoutIntent.OnDateChanged(shiftDateIso(state.selectedDate, -1))) }
+                )
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -114,17 +120,17 @@ fun WorkoutScreen(
                 }
             }
 
-        // ── AI Workout Telemetry Input Section ("AI Natural Log") ──
+        // ── AI & Manual Workout Telemetry Logger Card ──
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(22.dp),
             elevation = 8.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -137,7 +143,7 @@ fun WorkoutScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(30.dp)
                                 .clip(CircleShape)
                                 .background(HealthColors.TertiaryContainer.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
@@ -146,33 +152,49 @@ fun WorkoutScreen(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = HealthColors.TertiaryContainer,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                         Text(
-                            text = "AI Egzersiz Günlüğü",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "Egzersiz Ekle (AI)",
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(HealthColors.Primary.copy(alpha = 0.12f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    Surface(
+                        onClick = { showManualFields = !showManualFields },
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (showManualFields) {
+                            HealthColors.TertiaryContainer.copy(alpha = 0.22f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        },
+                        modifier = Modifier.bounceClick()
                     ) {
-                        Text(
-                            text = "Gemini",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = HealthColors.Primary
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (showManualFields) Icons.Default.Close else Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = if (showManualFields) HealthColors.TertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = if (showManualFields) "Manuel Gizle" else "Manuel Giriş",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (showManualFields) HealthColors.TertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                // Frosted Text Input Well
+                // Compact Expandable Text Input Well
                 OutlinedTextField(
                     value = state.rawText,
                     onValueChange = { onIntent(WorkoutIntent.OnRawTextChanged(it)) },
@@ -180,7 +202,7 @@ fun WorkoutScreen(
                         Text(
                             "Hangi sporu yaptınız? Örn: 45 dk koşu, ağırlık...",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.33f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                     },
                     trailingIcon = {
@@ -212,7 +234,7 @@ fun WorkoutScreen(
                                         }
                                     },
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(34.dp)
                                         .clip(CircleShape)
                                         .background(HealthColors.Primary.copy(alpha = 0.15f))
                                         .bounceClick()
@@ -221,41 +243,31 @@ fun WorkoutScreen(
                                         imageVector = Icons.Default.Mic,
                                         contentDescription = "Sesle Söyle",
                                         tint = HealthColors.Primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(96.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = HealthColors.TertiaryContainer,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                         focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
                     ),
+                    minLines = 1,
                     maxLines = 3
                 )
 
-                // Quick Logging Chips
+                // Quick Logging Chips (No duplicate mic chip)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (speechLauncher.isAvailable) {
-                        WorkoutQuickChip(label = "🎙️ Sesle Söyle") {
-                            speechLauncher.launch("Hangi antrenmanı yaptınız? Sesinizle söyleyin...") { spokenText ->
-                                val current = state.rawText.trim()
-                                val updated = if (current.isBlank()) spokenText else "$current, $spokenText"
-                                onIntent(WorkoutIntent.OnRawTextChanged(updated))
-                            }
-                        }
-                    }
                     WorkoutQuickChip(label = "+ 30 dk Koşu") {
                         val current = if (state.rawText.isNotBlank()) "${state.rawText}, 30 dk koşu" else "30 dk koşu"
                         onIntent(WorkoutIntent.OnRawTextChanged(current))
@@ -280,21 +292,20 @@ fun WorkoutScreen(
                     enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(44.dp)
                         .bounceClick(),
                     shape = RoundedCornerShape(999.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = Color.White,
-                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.70f),
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
                         disabledContentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                    )
                 ) {
                     if (state.isCalculatingAi) {
                         CircularProgressIndicator(
                             color = Color.White,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -308,45 +319,28 @@ fun WorkoutScreen(
                             Icons.Default.AutoAwesome,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             color = Color.White
                         )
                     }
                 }
 
-                // Manual Input Toggle Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    TextButton(
-                        onClick = { showManualFields = !showManualFields },
-                        modifier = Modifier.bounceClick()
-                    ) {
-                        Text(
-                            text = if (showManualFields) "Elle Girişi Gizle" else "veya Değerleri Elle Girin",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // Manual Fields Section
+                // Manual Fields Section (Expanded via Header Pill)
                 if (showManualFields) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
                                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(14.dp)
                             )
-                            .padding(14.dp),
+                            .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
@@ -359,7 +353,8 @@ fun WorkoutScreen(
                                 label = { Text("Kalori (kcal)") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
                             )
                             OutlinedTextField(
                                 value = state.manualDuration,
@@ -367,15 +362,19 @@ fun WorkoutScreen(
                                 label = { Text("Süre (dk)") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
                             )
                         }
 
                         Button(
-                            onClick = { onIntent(WorkoutIntent.OnSaveManualClicked) },
+                            onClick = {
+                                onIntent(WorkoutIntent.OnSaveManualClicked)
+                                showManualFields = false
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(46.dp)
+                                .height(42.dp)
                                 .bounceClick(),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -383,7 +382,7 @@ fun WorkoutScreen(
                                 contentColor = HealthColors.OnTertiary
                             )
                         ) {
-                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Elle Kaydet", fontWeight = FontWeight.SemiBold)
                         }
@@ -485,31 +484,23 @@ fun WorkoutScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 32.dp, horizontal = 16.dp),
+                        .padding(vertical = 24.dp, horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FitnessCenter,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                         Text(
                             text = if (isSelectedToday) "Bugün için henüz egzersiz kaydedilmedi." else "${formatDisplayDateTr(state.selectedDate)} için egzersiz kaydı yok.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = if (state.dailySteps != null && state.dailySteps.stepCount > 0)
-                                "Günün ${state.dailySteps.stepCount} adımlık hareketi yukarıdaki adım panelinde takip ediliyor. Yaptığınız sporu (tenis, fitness vb.) kutucuğa yazıp AI ile ekleyebilirsiniz."
-                            else
-                                "Yukarıdaki kutucuğa sporunuzu yazıp AI ile hesaplatabilir veya saatten çekebilirsiniz.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -525,33 +516,7 @@ fun WorkoutScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(76.dp))
-    }
-
-    // ── Floating Action Button: Clean '+' FAB ──
-    FloatingActionButton(
-        onClick = {
-            showManualFields = true
-            coroutineScope.launch {
-                scrollState.animateScrollTo(scrollState.maxValue)
-            }
-        },
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(bottom = 16.dp, end = 16.dp)
-            .size(56.dp)
-            .bounceClick(),
-        containerColor = HealthColors.TertiaryVariant,
-        contentColor = Color.White,
-        shape = CircleShape,
-        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "Ekle",
-            tint = Color.White,
-            modifier = Modifier.size(28.dp)
-        )
+        Spacer(modifier = Modifier.height(24.dp))
     }
 
     // ── Floating Toast Notifications (Auto-dismissing) ──

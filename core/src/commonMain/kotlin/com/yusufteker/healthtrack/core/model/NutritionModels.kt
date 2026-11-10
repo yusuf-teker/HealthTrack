@@ -82,3 +82,38 @@ data class NutrientProgress(
     val percentage: Float
         get() = if (target > 0) ((current / target) * 100).toFloat().coerceIn(0f, 100f) else 0f
 }
+
+@Serializable
+data class WaterEntry(
+    val date: String, // YYYY-MM-DD
+    val userId: Int,
+    val amountMl: Int,
+    val targetMl: Int = 2500,
+    val updatedAt: Long = 0L
+)
+
+@Serializable
+data class SmartMealSuggestion(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val tags: List<String> = emptyList(), // e.g. "Az Malzemeli", "Kolay (<10 dk)", "Lif Deposu", "Son 3 gündür yemediniz"
+    val prepTimeMinutes: Int = 10,
+    val ingredients: List<String> = emptyList(),
+    val calories: Int,
+    val proteinG: Double = 0.0,
+    val carbsG: Double = 0.0,
+    val fatG: Double = 0.0,
+    val fiberG: Double = 0.0,
+    val keyMicros: List<Micronutrient> = emptyList(),
+    val instructions: String? = null
+)
+
+@Serializable
+data class NutrientSynergyTip(
+    val id: String,
+    val title: String,
+    val description: String,
+    val iconKey: String = "synergy",
+    val highlightNutrient: String
+)

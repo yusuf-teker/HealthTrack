@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
@@ -77,6 +79,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
+import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
+import com.yusufteker.healthtrack.feature.food.presentation.components.FoodHydrationAndSmartMealRow
+import com.yusufteker.healthtrack.feature.food.presentation.components.FoodPhotoScanBottomSheet
+import com.yusufteker.healthtrack.feature.food.presentation.components.GroceryListBottomSheet
+import com.yusufteker.healthtrack.feature.food.presentation.components.SmartMealMatcherBottomSheet
+import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import com.yusufteker.healthtrack.feature.food.presentation.components.AddCustomFoodDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.EditGoalsDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodAiReviewBottomSheet
@@ -95,6 +103,7 @@ import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.onHorizontalSwipe
 import io.github.aakira.napier.Napier
 
 @Composable
@@ -105,6 +114,7 @@ fun FoodScreen(
     modifier: Modifier = Modifier
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
+    val appLauncher = rememberExternalAppLauncher()
     var showManualAddSheet by remember { mutableStateOf(false) }
     var showGeneralMicrosSheet by remember { mutableStateOf(false) }
     var showInventoryStudio by remember { mutableStateOf(false) }
@@ -127,7 +137,13 @@ fun FoodScreen(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().clearFocusOnTap()
+            modifier = Modifier
+                .fillMaxSize()
+                .clearFocusOnTap()
+                .onHorizontalSwipe(
+                    onSwipeLeft = { onIntent(FoodIntent.OnDateChanged(shiftDateIso(state.selectedDate, 1))) },
+                    onSwipeRight = { onIntent(FoodIntent.OnDateChanged(shiftDateIso(state.selectedDate, -1))) }
+                )
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -168,15 +184,28 @@ fun FoodScreen(
                 onWeightClick = onNavigateToWeight
             )
 
-            // ── AI Nutrition Telemetry Logger Card ──
+            // ── Hidrasyon (2.A) & "Ne Yesem?" Akıllı Öğün (1) & Besin Sinerjisi (2.B) ──
+            FoodHydrationAndSmartMealRow(
+                waterEntry = state.waterEntry,
+                dynamicWaterTargetMl = state.dynamicWaterTargetMl,
+                nutrientBars = state.nutrientBars,
+                remainingCalories = (state.nutritionGoal.calories - state.totalCalories).coerceAtLeast(0),
+                onAddWater = { onIntent(FoodIntent.OnAddWater(it)) },
+                onResetWater = { onIntent(FoodIntent.OnResetWater) },
+                onOpenSmartMeal = { onIntent(FoodIntent.OnOpenSmartMealSheet) },
+                synergyTips = state.synergyTips,
+                onDismissSynergyTip = { onIntent(FoodIntent.OnDismissSynergyTip(it)) }
+            )
+
+            // ── Unified AI & Quick Food Logger Card ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(22.dp),
                 elevation = 8.dp
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -188,7 +217,7 @@ fun FoodScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
-                                modifier = Modifier.size(32.dp).clip(CircleShape)
+                                modifier = Modifier.size(30.dp).clip(CircleShape)
                                     .background(HealthColors.Primary.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -196,32 +225,83 @@ fun FoodScreen(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
                                     tint = HealthColors.Primary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                             Text(
-                                text = "AI Besin Analizi",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Öğün Ekle (AI)",
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
-                        Box(
-                            modifier = Modifier.clip(RoundedCornerShape(999.dp))
-                                .background(HealthColors.Primary.copy(alpha = 0.12f))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(
-                                text = "Gemini AI",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = HealthColors.Primary
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = HealthColors.Secondary.copy(alpha = 0.15f),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .clickable {
+                                        initialStudioItem = null
+                                        showInventoryStudio = true
+                                    }
+                                    .bounceClick()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Inventory2,
+                                        contentDescription = null,
+                                        tint = HealthColors.Secondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Envanterim",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = HealthColors.Secondary
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = HealthColors.Primary.copy(alpha = 0.15f),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .clickable { showManualAddSheet = true }
+                                    .bounceClick()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.RestaurantMenu,
+                                        contentDescription = null,
+                                        tint = HealthColors.Primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Hazır / Manuel",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = HealthColors.Primary
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    // Frosted Text Input Well
+                    // Compact Expandable Text Input Well
                     OutlinedTextField(
                         value = state.rawText,
                         onValueChange = { onIntent(FoodIntent.OnRawTextChanged(it)) },
@@ -229,7 +309,7 @@ fun FoodScreen(
                             Text(
                                 "Ne yediniz? Örn: 2 yumurta, 100ml süt...",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.33f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             )
                         },
                         trailingIcon = {
@@ -253,6 +333,19 @@ fun FoodScreen(
                                         )
                                     }
                                 }
+                                IconButton(
+                                    onClick = { onIntent(FoodIntent.OnOpenPhotoScanSheet) },
+                                    modifier = Modifier.size(34.dp).clip(CircleShape)
+                                        .background(HealthColors.Primary.copy(alpha = 0.15f))
+                                        .bounceClick()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Fotoğraf / Etiket Tara",
+                                        tint = HealthColors.Primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                                 if (speechLauncher.isAvailable) {
                                     IconButton(
                                         onClick = {
@@ -263,7 +356,7 @@ fun FoodScreen(
                                                 onIntent(FoodIntent.OnRawTextChanged(updated))
                                             }
                                         },
-                                        modifier = Modifier.size(36.dp).clip(CircleShape)
+                                        modifier = Modifier.size(34.dp).clip(CircleShape)
                                             .background(HealthColors.Primary.copy(alpha = 0.15f))
                                             .bounceClick()
                                     ) {
@@ -271,14 +364,14 @@ fun FoodScreen(
                                             imageVector = Icons.Default.Mic,
                                             contentDescription = "Sesle Söyle",
                                             tint = HealthColors.Primary,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(98.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = HealthColors.Primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(
@@ -287,24 +380,15 @@ fun FoodScreen(
                             focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
                         ),
-                        maxLines = 4
+                        minLines = 1,
+                        maxLines = 3
                     )
 
-                    // Quick Suggestion Chips
+                    // Quick Suggestion Chips (No duplicate mic chip)
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (speechLauncher.isAvailable) {
-                            QuickChip(label = "🎙️ Sesle Söyle") {
-                                speechLauncher.launch("Ne yediniz? Sesinizle söyleyin...") { spokenText ->
-                                    val current = state.rawText.trim()
-                                    val updated =
-                                        if (current.isBlank()) spokenText else "$current, $spokenText"
-                                    onIntent(FoodIntent.OnRawTextChanged(updated))
-                                }
-                            }
-                        }
                         QuickChip(label = "+ 2 Yumurta") {
                             val current =
                                 if (state.rawText.isNotBlank()) "${state.rawText}, 2 yumurta" else "2 yumurta"
@@ -327,177 +411,71 @@ fun FoodScreen(
                         }
                     }
 
-                    // Calculate with AI Button (Luminous Primary CTA)
-                    Button(
-                        onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
-                        enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth().height(50.dp).bounceClick(),
-                        shape = RoundedCornerShape(999.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = Color.White,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.70f),
-                            disabledContentColor = Color.White
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-                    ) {
-                        if (state.isCalculatingAi) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                "Gemini Hesaplanıyor...",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "AI ile Hesapla",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    // Manual Save Action Row
+                    // Action Row: Calculate with AI + Optional Raw Save
                     Row(
-                        modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(
-                            onClick = { onIntent(FoodIntent.OnSaveManualClicked) },
-                            modifier = Modifier.bounceClick()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "Ham Metni Kaydet",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── Quick Add Food Action Card (Above Daily Meal Breakdown) ──
-            GlassCard(modifier = Modifier.fillMaxWidth().clickable { showManualAddSheet = true }
-                .bounceClick(), shape = RoundedCornerShape(20.dp), elevation = 4.dp) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(13.dp))
-                                .background(HealthColors.Primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.RestaurantMenu,
-                                contentDescription = null,
-                                tint = HealthColors.Primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Yiyecek Ekle",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = "Hazır besinler, arama veya manuel giriş",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
+                        Button(
+                            onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
+                            enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
+                            modifier = Modifier.weight(1f).height(44.dp).bounceClick(),
                             shape = RoundedCornerShape(999.dp),
-                            color = HealthColors.Secondary.copy(alpha = 0.15f),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .clickable {
-                                    initialStudioItem = null
-                                    showInventoryStudio = true
-                                }
-                                .bounceClick()
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = Color.White,
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                disabledContentColor = Color.White
+                            )
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Inventory2,
-                                    contentDescription = null,
-                                    tint = HealthColors.Secondary,
-                                    modifier = Modifier.size(15.dp)
+                            if (state.isCalculatingAi) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Envanterim",
-                                    style = MaterialTheme.typography.labelMedium,
+                                    "Hesaplanıyor...",
                                     fontWeight = FontWeight.Bold,
-                                    color = HealthColors.Secondary,
-                                    softWrap = false,
-                                    maxLines = 1
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "AI ile Hesapla",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White
                                 )
                             }
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = HealthColors.Primary.copy(alpha = 0.15f)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                        if (state.rawText.isNotBlank()) {
+                            OutlinedButton(
+                                onClick = { onIntent(FoodIntent.OnSaveManualClicked) },
+                                modifier = Modifier.height(44.dp).bounceClick(),
+                                shape = RoundedCornerShape(999.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
+                                    imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = HealthColors.Primary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp),
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Ekle",
+                                    "Ham Kaydet",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = HealthColors.Primary,
-                                    softWrap = false,
-                                    maxLines = 1
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -728,6 +706,48 @@ fun FoodScreen(
                         )
                     )
                 })
+        }
+
+        // ── "Ne Yesem?" Smart Meal Matcher Bottom Sheet (1) ──
+        if (state.isSmartMealSheetOpen) {
+            SmartMealMatcherBottomSheet(
+                suggestions = state.smartMealSuggestions,
+                nutrientBars = state.nutrientBars,
+                remainingCalories = (state.nutritionGoal.calories - state.totalCalories).coerceAtLeast(0),
+                isOnlyQuick = state.isSmartMealOnlyQuick,
+                isOnlyFewIngredients = state.isSmartMealOnlyFewIngredients,
+                isExcludeRecent3Days = state.isSmartMealExcludeRecent3Days,
+                isHighProtein = state.isSmartMealHighProtein,
+                isGeneratingAi = state.isGeneratingAiCustomRecipe,
+                onToggleFilter = { onIntent(FoodIntent.OnToggleSmartMealFilter(it)) },
+                onAddMeal = { onIntent(FoodIntent.OnAddSuggestedMeal(it)) },
+                onOpenGroceryForMeal = { title, ingredients ->
+                    onIntent(FoodIntent.OnOpenGroceryListSheet(title, ingredients))
+                },
+                onRequestAiRecipe = { onIntent(FoodIntent.OnRequestCustomAiMealSuggestion) },
+                onDismiss = { onIntent(FoodIntent.OnCloseSmartMealSheet) }
+            )
+        }
+
+        // ── Grocery / Market List -> Planora To-Do Bottom Sheet ──
+        if (state.isGroceryListSheetOpen) {
+            GroceryListBottomSheet(
+                title = state.groceryListTitle,
+                items = state.groceryItems,
+                selectedItems = state.selectedGroceryItems,
+                onToggleItem = { onIntent(FoodIntent.OnToggleGroceryItem(it)) },
+                onSendToPlanora = { onIntent(FoodIntent.OnSendGroceryToPlanora(appLauncher)) },
+                onDismiss = { onIntent(FoodIntent.OnCloseGroceryListSheet) }
+            )
+        }
+
+        // ── Food Photo & Nutrition Label Scan Bottom Sheet (2.D) ──
+        if (state.isPhotoScanSheetOpen) {
+            FoodPhotoScanBottomSheet(
+                isAnalyzing = state.isPhotoScanAnalyzing,
+                onAnalyze = { onIntent(FoodIntent.OnAnalyzePhotoOrLabel(it)) },
+                onDismiss = { onIntent(FoodIntent.OnClosePhotoScanSheet) }
+            )
         }
     }
 }

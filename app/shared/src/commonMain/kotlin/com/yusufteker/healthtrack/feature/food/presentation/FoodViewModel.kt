@@ -6,7 +6,10 @@ import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.SmartMealEngine
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
+import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -34,8 +37,11 @@ class FoodViewModel(
     private var customFoodsObservationJob: Job? = null
     private var favoriteFoodsObservationJob: Job? = null
     private var allFoodsObservationJob: Job? = null
+    private var waterObservationJob: Job? = null
+    private var workoutObservationJob: Job? = null
 
     private var cachedWeights: List<WeightEntry> = emptyList()
+    private var cachedRecent3DaysFoodNames: Set<String> = emptySet()
 
     private data class DayWeightInfo(
         val weightKg: Double?,
@@ -101,6 +107,7 @@ class FoodViewModel(
                     observeCustomFoods(session.userId)
                     observeFavoriteFoods(session.userId)
                     observeAllFoods(session.userId)
+                    observeWaterAndWorkouts(session.userId, _state.value.selectedDate)
                 }
             }
         }
@@ -130,6 +137,7 @@ class FoodViewModel(
                 val userId = tokenStorage.getUserId()
                 if (userId > 0) {
                     observeDataForCurrentDate(userId, intent.newDate)
+                    observeWaterAndWorkouts(userId, intent.newDate)
                 }
             }
             is FoodIntent.OnRawTextChanged -> _state.update { it.copy(rawText = intent.text) }
@@ -190,6 +198,67 @@ class FoodViewModel(
             is FoodIntent.OnAnalyzeCustomFoodAi -> analyzeCustomFoodWithAi(intent.prompt, intent.isMixMode)
             is FoodIntent.OnConsumeCustomFoodAiResult -> _state.update { it.copy(customFoodAiResult = null) }
             is FoodIntent.OnDismissCustomFoodAiError -> _state.update { it.copy(customFoodAiError = null) }
+
+            // ── 2.A: Su & Hidrasyon ──
+            is FoodIntent.OnAddWater -> addWater(intent.deltaMl)
+            is FoodIntent.OnResetWater -> resetWater()
+
+            // ── 1: Akıllı Öğün & "Ne Yesem?" ──
+            is FoodIntent.OnOpenSmartMealSheet -> {
+                _state.update { it.copy(isSmartMealSheetOpen = true) }
+                updateSmartMealsAndSynergy()
+            }
+            is FoodIntent.OnCloseSmartMealSheet -> _state.update { it.copy(isSmartMealSheetOpen = false) }
+            is FoodIntent.OnToggleSmartMealFilter -> {
+                _state.update { current ->
+                    when (intent.filterType) {
+                        SmartMealFilterType.QUICK -> current.copy(isSmartMealOnlyQuick = !current.isSmartMealOnlyQuick)
+                        SmartMealFilterType.FEW_INGREDIENTS -> current.copy(isSmartMealOnlyFewIngredients = !current.isSmartMealOnlyFewIngredients)
+                        SmartMealFilterType.EXCLUDE_RECENT_3_DAYS -> current.copy(isSmartMealExcludeRecent3Days = !current.isSmartMealExcludeRecent3Days)
+                        SmartMealFilterType.HIGH_PROTEIN -> current.copy(isSmartMealHighProtein = !current.isSmartMealHighProtein)
+                    }
+                }
+                updateSmartMealsAndSynergy()
+            }
+            is FoodIntent.OnAddSuggestedMeal -> addSuggestedMeal(intent.meal)
+            is FoodIntent.OnRequestCustomAiMealSuggestion -> requestCustomAiMealSuggestion()
+
+            // ── 2.B: Besin Sinerjisi & Emilim ──
+            is FoodIntent.OnDismissSynergyTip -> {
+                _state.update { current ->
+                    val updatedDismissed = current.dismissedTipIds + intent.tipId
+                    current.copy(
+                        dismissedTipIds = updatedDismissed,
+                        synergyTips = current.synergyTips.filterNot { it.id == intent.tipId }
+                    )
+                }
+            }
+
+            // ── 2.D: Fotoğraf / Etiket Tarama ──
+            is FoodIntent.OnOpenPhotoScanSheet -> _state.update { it.copy(isPhotoScanSheetOpen = true) }
+            is FoodIntent.OnClosePhotoScanSheet -> _state.update { it.copy(isPhotoScanSheetOpen = false) }
+            is FoodIntent.OnAnalyzePhotoOrLabel -> analyzePhotoOrLabel(intent.textOrPrompt)
+
+            // ── Market Listesi & Planora ──
+            is FoodIntent.OnOpenGroceryListSheet -> {
+                _state.update {
+                    it.copy(
+                        isGroceryListSheetOpen = true,
+                        groceryListTitle = intent.title,
+                        groceryItems = intent.items,
+                        selectedGroceryItems = intent.items.toSet()
+                    )
+                }
+            }
+            is FoodIntent.OnCloseGroceryListSheet -> _state.update { it.copy(isGroceryListSheetOpen = false) }
+            is FoodIntent.OnToggleGroceryItem -> {
+                _state.update { current ->
+                    val updated = current.selectedGroceryItems.toMutableSet()
+                    if (updated.contains(intent.item)) updated.remove(intent.item) else updated.add(intent.item)
+                    current.copy(selectedGroceryItems = updated)
+                }
+            }
+            is FoodIntent.OnSendGroceryToPlanora -> sendGroceryToPlanora(intent.appLauncher)
         }
     }
 
@@ -222,7 +291,16 @@ class FoodViewModel(
                     .sortedByDescending { it.size }
                     .map { it.first() }
                     .take(25)
+
+                val cutoffDate = shiftDateIso(_state.value.selectedDate, -3)
+                cachedRecent3DaysFoodNames = allLogs
+                    .filter { it.date in cutoffDate..<_state.value.selectedDate }
+                    .flatMap { it.items }
+                    .map { it.name.trim().lowercase() }
+                    .toSet()
+
                 _state.update { it.copy(frequentFoods = frequent) }
+                updateSmartMealsAndSynergy()
             }
         }
     }
@@ -360,6 +438,7 @@ class FoodViewModel(
                         nutrientBars = calculateBars(items, current.nutritionGoal, dayWeightInfo.targetProtein)
                     )
                 }
+                updateSmartMealsAndSynergy()
             }
         }
     }
@@ -860,4 +939,236 @@ class FoodViewModel(
     }
 
     private fun currentTime(): Long = com.yusufteker.healthtrack.core.utils.currentTimeMillis()
+
+    // ─────────────────────────────────────────────────────────────
+    // 2.A: WATER HYDRATION & WORKOUT-RESPONSIVE TARGET
+    // ─────────────────────────────────────────────────────────────
+
+    private fun observeWaterAndWorkouts(userId: Int, date: String) {
+        waterObservationJob?.cancel()
+        waterObservationJob = viewModelScope.launch {
+            database.observeWater(userId, date).collect { entry ->
+                _state.update { current ->
+                    current.copy(waterEntry = entry)
+                }
+                updateSmartMealsAndSynergy()
+            }
+        }
+
+        workoutObservationJob?.cancel()
+        workoutObservationJob = viewModelScope.launch {
+            database.observeWorkouts(userId, date).collect { workouts ->
+                val totalBurned = workouts.filter { !it.isDeleted }.sumOf { it.caloriesBurned }
+                val extraWater = (totalBurned / 200) * 350
+                val dynamicTarget = (2500 + extraWater).coerceIn(2000, 4500)
+                _state.update { it.copy(dynamicWaterTargetMl = dynamicTarget) }
+            }
+        }
+    }
+
+    private fun addWater(deltaMl: Int) {
+        val userId = tokenStorage.getUserId()
+        if (userId <= 0) return
+        val date = _state.value.selectedDate
+        val target = _state.value.dynamicWaterTargetMl
+        viewModelScope.launch {
+            val updated = database.addWater(userId, date, deltaMl, target)
+            _state.update { it.copy(waterEntry = updated) }
+            updateSmartMealsAndSynergy()
+            if (deltaMl > 0) {
+                _effects.send(FoodEffect.ShowToast("+${deltaMl}ml su eklendi (${updated.amountMl}/${target}ml)"))
+            }
+        }
+    }
+
+    private fun resetWater() {
+        val userId = tokenStorage.getUserId()
+        if (userId <= 0) return
+        val date = _state.value.selectedDate
+        viewModelScope.launch {
+            database.resetWater(userId, date)
+            _state.update { it.copy(waterEntry = it.waterEntry?.copy(amountMl = 0)) }
+            updateSmartMealsAndSynergy()
+            _effects.send(FoodEffect.ShowToast("Günlük su kaydı sıfırlandı."))
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 1 & 2.B: SMART MEAL MATCHER & SYNERGY TIPS ENGINE
+    // ─────────────────────────────────────────────────────────────
+
+    private fun updateSmartMealsAndSynergy() {
+        val current = _state.value
+        val remainingCals = (current.nutritionGoal.calories - current.totalCalories).coerceAtLeast(0)
+        val missingProtein = (current.effectiveProteinTarget - (current.nutrientBars.firstOrNull { it.key == "protein" }?.current ?: 0.0)).coerceAtLeast(0.0)
+
+        val suggestions = SmartMealEngine.matchSmartMeals(
+            remainingCalories = remainingCals,
+            missingProteinG = missingProtein,
+            nutrientBars = current.nutrientBars,
+            recent3DaysFoodNames = cachedRecent3DaysFoodNames,
+            onlyQuick = current.isSmartMealOnlyQuick,
+            onlyFewIngredients = current.isSmartMealOnlyFewIngredients,
+            excludeRecent3Days = current.isSmartMealExcludeRecent3Days,
+            highProteinOnly = current.isSmartMealHighProtein
+        )
+
+        val tips = SmartMealEngine.detectSynergyTips(
+            todayItems = current.items,
+            nutrientBars = current.nutrientBars,
+            waterCurrentMl = current.waterEntry?.amountMl ?: 0
+        ).filterNot { current.dismissedTipIds.contains(it.id) }
+
+        _state.update {
+            it.copy(
+                smartMealSuggestions = suggestions,
+                synergyTips = tips
+            )
+        }
+    }
+
+    private fun addSuggestedMeal(meal: SmartMealSuggestion) {
+        val foodItem = FoodItem(
+            id = Uuid.random().toString(),
+            name = meal.title,
+            formattedPortion = "1 porsiyon (${meal.ingredients.joinToString(", ")})",
+            calories = meal.calories,
+            proteinG = meal.proteinG,
+            carbsG = meal.carbsG,
+            fatG = meal.fatG,
+            fiberG = meal.fiberG,
+            micronutrients = meal.keyMicros,
+            iconKey = "meal"
+        )
+        addItem(
+            name = foodItem.name,
+            portion = foodItem.formattedPortion,
+            calories = foodItem.calories,
+            proteinG = foodItem.proteinG,
+            carbsG = foodItem.carbsG,
+            fatG = foodItem.fatG,
+            fiberG = foodItem.fiberG,
+            micronutrients = foodItem.micronutrients,
+            iconKey = foodItem.iconKey
+        )
+        _state.update { it.copy(isSmartMealSheetOpen = false) }
+        viewModelScope.launch {
+            _effects.send(FoodEffect.ShowToast("\"${meal.title}\" günlüğe eklendi."))
+        }
+    }
+
+    private fun requestCustomAiMealSuggestion() {
+        val current = _state.value
+        val date = current.selectedDate
+        val remainingCals = (current.nutritionGoal.calories - current.totalCalories).coerceAtLeast(0)
+        val missingProtein = (current.effectiveProteinTarget - (current.nutrientBars.firstOrNull { it.key == "protein" }?.current ?: 0.0)).coerceAtLeast(0.0)
+
+        val prompt = buildString {
+            append("Bana kalan kalori ($remainingCals kcal) ve eksik protein (${missingProtein.toInt()}g) için ")
+            if (current.isSmartMealOnlyQuick) append("10 dakikadan kısa sürede hazırlanan, ")
+            if (current.isSmartMealOnlyFewIngredients) append("en fazla 4 malzemeli, ")
+            if (current.isSmartMealExcludeRecent3Days && cachedRecent3DaysFoodNames.isNotEmpty()) {
+                append("son 3 günde yediğim (${cachedRecent3DaysFoodNames.take(4).joinToString(", ")}) dışındaki malzemelerle ")
+            }
+            append("lif ve magnezyum zengini pratik bir sağlıklı öğün öner ve tam porsiyon besin değerlerini (kalori, protein, karbonhidrat, yağ, lif, vitamin/mineral) hesapla.")
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(isGeneratingAiCustomRecipe = true) }
+            val result = apiClient.analyzeFood(prompt, date)
+            result.onSuccess { aiResult ->
+                val firstItem = aiResult.items.firstOrNull()
+                if (firstItem != null) {
+                    val customSuggestion = SmartMealSuggestion(
+                        id = "ai_${Uuid.random()}",
+                        title = firstItem.name,
+                        subtitle = aiResult.summary,
+                        tags = listOf("AI Özel Tarif", "Tam Uyumlu"),
+                        prepTimeMinutes = if (current.isSmartMealOnlyQuick) 8 else 15,
+                        ingredients = aiResult.items.map { "${it.name} (${it.formattedPortion})" },
+                        calories = aiResult.totalCalories,
+                        proteinG = aiResult.items.sumOf { it.proteinG },
+                        carbsG = aiResult.items.sumOf { it.carbsG },
+                        fatG = aiResult.items.sumOf { it.fatG },
+                        fiberG = aiResult.items.sumOf { it.fiberG },
+                        keyMicros = aiResult.items.flatMap { it.micronutrients },
+                        instructions = aiResult.summary
+                    )
+                    _state.update { st ->
+                        st.copy(
+                            isGeneratingAiCustomRecipe = false,
+                            smartMealSuggestions = listOf(customSuggestion) + st.smartMealSuggestions
+                        )
+                    }
+                    _effects.send(FoodEffect.ShowToast("Yapay zeka eksiklerinize göre yeni bir tarif üretti!"))
+                } else {
+                    _state.update { it.copy(isGeneratingAiCustomRecipe = false) }
+                }
+            }.onFailure { err ->
+                _state.update {
+                    it.copy(
+                        isGeneratingAiCustomRecipe = false,
+                        errorMessage = "AI önerisi oluşturulamadı: ${err.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2.D: PHOTO / LABEL SCANNER
+    // ─────────────────────────────────────────────────────────────
+
+    private fun analyzePhotoOrLabel(textOrPrompt: String) {
+        val date = _state.value.selectedDate
+        val structuredPrompt = "Besin Değerleri Etiketi veya Tabak Fotoğrafı Analizi: $textOrPrompt. " +
+            "Lütfen ürünün veya tabağın porsiyonunu, kalori, protein, karbonhidrat, yağ, lif ve varsa etiket üzerindeki vitamin ve mineral değerlerini tam olarak çıkar."
+
+        viewModelScope.launch {
+            _state.update { it.copy(isPhotoScanAnalyzing = true, isPhotoScanSheetOpen = false, isCalculatingAi = true) }
+            val result = apiClient.analyzeFood(structuredPrompt, date)
+            result.onSuccess { aiResult ->
+                _state.update {
+                    it.copy(
+                        isCalculatingAi = false,
+                        isPhotoScanAnalyzing = false,
+                        pendingAiResult = aiResult,
+                        isAiReviewSheetOpen = true
+                    )
+                }
+            }.onFailure { err ->
+                _state.update {
+                    it.copy(
+                        isCalculatingAi = false,
+                        isPhotoScanAnalyzing = false,
+                        errorMessage = "Fotoğraf/Etiket analizi başarısız: ${err.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // GROCERY LIST -> PLANORA TO-DO INTEGRATION
+    // ─────────────────────────────────────────────────────────────
+
+    private fun sendGroceryToPlanora(appLauncher: ExternalAppLauncher) {
+        val itemsToSend = _state.value.selectedGroceryItems.toList()
+        if (itemsToSend.isEmpty()) {
+            viewModelScope.launch {
+                _effects.send(FoodEffect.ShowToast("Lütfen göndermek için en az bir malzeme seçin."))
+            }
+            return
+        }
+        val title = _state.value.groceryListTitle
+        val success = appLauncher.sendToPlanoraTodo(title, itemsToSend)
+        _state.update { it.copy(isGroceryListSheetOpen = false) }
+        viewModelScope.launch {
+            if (success) {
+                _effects.send(FoodEffect.ShowToast("${itemsToSend.size} malzeme Planora to-do listesine aktarıldı!"))
+            } else {
+                _effects.send(FoodEffect.ShowToast("Planora açılamadı. Liste panoya kopyalandı."))
+            }
+        }
+    }
 }
