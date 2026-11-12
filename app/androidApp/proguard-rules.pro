@@ -1,21 +1,60 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 / ProGuard rules for HealthTrack
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Preserve line numbers and source file names for crash reporting
+-keepattributes SourceFile,LineNumberTable,EnclosingMethod,InnerClasses
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve annotations for serialization and framework reflection
+-keepattributes *Annotation*,Signature,Exception
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Kotlin Coroutines
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
+-dontwarn kotlinx.coroutines.**
+
+# Kotlinx Serialization
+-dontnote kotlinx.serialization.SerializationKt
+-keepclassmembers class * {
+    @kotlinx.serialization.SerialName <fields>;
+}
+-keepclassmembers class * {
+    *** Companion;
+}
+-keepclasseswithmembers class * {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keepclassmembers class * implements kotlinx.serialization.KSerializer {
+    *** INSTANCE;
+}
+-keepclassmembers class **$serializer {
+    *;
+}
+-keep class com.yusufteker.healthtrack.core.model.** { *; }
+-keep class com.yusufteker.healthtrack.core.network.** { *; }
+
+# Ktor Client & OkHttp
+-dontwarn io.ktor.**
+-dontwarn okio.**
+-dontwarn okhttp3.**
+
+# Koin Dependency Injection
+-keep class org.koin.** { *; }
+-keep interface org.koin.** { *; }
+-dontwarn org.koin.**
+
+# Napier Logging
+-keep class io.github.aakira.napier.** { *; }
+
+# Multiplatform Settings
+-dontwarn com.russhwolf.settings.**
+
+# Compose & Compose Multiplatform
+-dontwarn androidx.compose.**
+-dontwarn org.jetbrains.compose.**
+
+# ML Kit Text Recognition
+-dontwarn com.google.mlkit.**
+
+# Health Connect
+-dontwarn androidx.health.connect.**
