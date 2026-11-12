@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
@@ -61,6 +62,13 @@ fun WeightScreen(
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
     var showAddWeightDialog by remember { mutableStateOf(false) }
 
+    // Auto-sync smart scale & weight silently on screen entry if permissions are already authorized
+    LaunchedEffect(Unit) {
+        deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
+            onIntent(WeightIntent.OnScaleSnapshotReceived(result = result, isSilent = true))
+        }
+    }
+
     if (showDeviceGuideDialog) {
         DeviceConnectionGuideDialog(
             platformName = deviceHealthBridge.platformName,
@@ -97,6 +105,14 @@ fun WeightScreen(
         )
     }
 
+    if (state.isReminderDialogOpen) {
+        com.yusufteker.healthtrack.feature.weight.presentation.components.WeightReminderDialog(
+            currentFrequency = state.reminderFrequency,
+            onDismiss = { onIntent(WeightIntent.OnSetReminderDialogOpen(false)) },
+            onSave = { onIntent(WeightIntent.OnReminderFrequencyChanged(it)) }
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -116,6 +132,7 @@ fun WeightScreen(
                 showScaleSync = deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED,
                 onEditTarget = { onIntent(WeightIntent.OnSetEditingTarget(true)) },
                 onOpenAddWeight = { showAddWeightDialog = true },
+                onOpenReminder = { onIntent(WeightIntent.OnSetReminderDialogOpen(true)) },
                 onSyncScale = {
                     if (!state.isSyncingScale) {
                         onIntent(WeightIntent.OnScaleSyncStarted)
@@ -432,6 +449,7 @@ private fun CurrentBioMassHeroCard(
     showScaleSync: Boolean,
     onEditTarget: () -> Unit,
     onOpenAddWeight: () -> Unit,
+    onOpenReminder: () -> Unit,
     onSyncScale: () -> Unit,
     onOpenGuide: () -> Unit
 ) {
@@ -467,7 +485,7 @@ private fun CurrentBioMassHeroCard(
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Header: Title & Trend Badge
+            // Header: Title & Trend Badge & Reminder Pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -491,30 +509,69 @@ private fun CurrentBioMassHeroCard(
                     )
                 }
 
-                if (changeRounded != null) {
-                    val isLoss = changeRounded <= 0
-                    Box(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Reminder Pill
+                    val isReminderOff = state.reminderFrequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF
+
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (isReminderOff) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else HealthColors.Primary.copy(alpha = 0.15f),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isReminderOff) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f) else HealthColors.Primary.copy(alpha = 0.35f)
+                        ),
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(
-                                if (isLoss) Color(0xFF4CAF50).copy(alpha = 0.15f) else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .clickable { onOpenReminder() }
+                            .bounceClick()
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Icon(
-                                imageVector = if (isLoss) Icons.Default.TrendingDown else Icons.Default.TrendingUp,
-                                contentDescription = null,
-                                tint = if (isLoss) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(14.dp)
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Tartı Hatırlatıcısı",
+                                tint = if (isReminderOff) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                } else {
+                                    HealthColors.Primary
+                                },
+                                modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "${if (changeRounded > 0) "+" else ""}$changeRounded kg",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isLoss) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                            )
+
+                        }
+                    }
+
+                    if (changeRounded != null) {
+                        val isLoss = changeRounded <= 0
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(
+                                    if (isLoss) Color(0xFF4CAF50).copy(alpha = 0.15f) else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isLoss) Icons.Default.TrendingDown else Icons.Default.TrendingUp,
+                                    contentDescription = null,
+                                    tint = if (isLoss) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "${if (changeRounded > 0) "+" else ""}$changeRounded kg",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isLoss) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }

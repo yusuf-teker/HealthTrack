@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,8 +31,10 @@ import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalApp
+import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
 import com.yusufteker.healthtrack.di.appModules
 import com.yusufteker.healthtrack.feature.analytics.presentation.AnalyticsScreenRoot
@@ -62,7 +66,7 @@ enum class HealthTab(val title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalUuidApi::class)
 @Composable
-fun App() {
+fun App(initialTab: HealthTab = HealthTab.FOOD) {
     KoinApplication(application = {
         modules(appModules)
     }) {
@@ -78,13 +82,24 @@ fun App() {
             val tokenStorage: TokenStorage = koinInject()
             val database: HealthDatabase = koinInject()
             val syncEngine: SyncEngine = koinInject()
+            val deviceHealthSyncManager: DeviceHealthSyncManager = koinInject()
+            val deviceHealthBridge = rememberDeviceHealthBridge()
             val session by tokenStorage.sessionFlow.collectAsState()
 
             var isProfileScreenOpen by remember(session.isLoggedIn) {
                 mutableStateOf(session.isLoggedIn && !tokenStorage.isProfileConfigured() && database.getWeights(session.userId).isEmpty())
             }
 
-            var selectedTab by remember { mutableStateOf(HealthTab.FOOD) }
+            val pagerState = rememberPagerState(initialPage = initialTab.ordinal) { HealthTab.entries.size }
+            val selectedTab = HealthTab.entries[pagerState.currentPage]
+            val dailyReminderNotifier = com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier()
+
+            LaunchedEffect(session.isLoggedIn) {
+                if (session.isLoggedIn) {
+                    dailyReminderNotifier.scheduleEveningWorkoutReminder(hour = 18, minute = 0)
+                    dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+                }
+            }
 
             val appLauncher = rememberExternalAppLauncher()
             var isEcoSwitcherOpen by remember { mutableStateOf(false) }
@@ -101,6 +116,16 @@ fun App() {
                 if (session.isLoggedIn && session.userId > 0) {
                     Napier.d("SYNC: Oturum açık, uygulama açılışında otomatik sync tetikleniyor (userId=${session.userId})...")
                     syncEngine.sync()
+                    deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
+                        result.onSuccess { snapshot ->
+                            coroutineScope.launch {
+                                val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                                if (summary.totalChanges > 0) {
+                                    snackbarHostState.showSnackbar(summary.toUserMessage())
+                                }
+                            }
+                        }
+                    }
                     if (database.getWeights(session.userId).isNotEmpty()) {
                         isProfileScreenOpen = false
                     }
@@ -281,7 +306,11 @@ fun App() {
                                     ) {
                                         NavigationBarItem(
                                             selected = selectedTab == HealthTab.FOOD,
-                                            onClick = { selectedTab = HealthTab.FOOD },
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(HealthTab.FOOD.ordinal)
+                                                }
+                                            },
                                             icon = { Icon(Icons.Default.Restaurant, contentDescription = "Yemek") },
                                             label = { Text(HealthTab.FOOD.title) },
                                             colors = NavigationBarItemDefaults.colors(
@@ -292,7 +321,11 @@ fun App() {
                                         )
                                         NavigationBarItem(
                                             selected = selectedTab == HealthTab.WORKOUT,
-                                            onClick = { selectedTab = HealthTab.WORKOUT },
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(HealthTab.WORKOUT.ordinal)
+                                                }
+                                            },
                                             icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Spor") },
                                             label = { Text(HealthTab.WORKOUT.title) },
                                             colors = NavigationBarItemDefaults.colors(
@@ -303,7 +336,11 @@ fun App() {
                                         )
                                         NavigationBarItem(
                                             selected = selectedTab == HealthTab.WEIGHT,
-                                            onClick = { selectedTab = HealthTab.WEIGHT },
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(HealthTab.WEIGHT.ordinal)
+                                                }
+                                            },
                                             icon = { Icon(Icons.Default.MonitorWeight, contentDescription = "Kilo") },
                                             label = { Text(HealthTab.WEIGHT.title) },
                                             colors = NavigationBarItemDefaults.colors(
@@ -314,7 +351,11 @@ fun App() {
                                         )
                                         NavigationBarItem(
                                             selected = selectedTab == HealthTab.ANALYTICS,
-                                            onClick = { selectedTab = HealthTab.ANALYTICS },
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(HealthTab.ANALYTICS.ordinal)
+                                                }
+                                            },
                                             icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Analiz & Rapor") },
                                             label = { Text(HealthTab.ANALYTICS.title) },
                                             colors = NavigationBarItemDefaults.colors(
@@ -336,13 +377,23 @@ fun App() {
                                 .imePadding()
                                 .clearFocusOnTap()
                         ) {
-                            when (selectedTab) {
-                                HealthTab.FOOD -> FoodScreenRoot(
-                                    onNavigateToWeight = { selectedTab = HealthTab.WEIGHT }
-                                )
-                                HealthTab.WORKOUT -> WorkoutScreenRoot()
-                                HealthTab.WEIGHT -> WeightScreenRoot()
-                                HealthTab.ANALYTICS -> AnalyticsScreenRoot()
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxSize(),
+                                beyondViewportPageCount = 1
+                            ) { page ->
+                                when (HealthTab.entries[page]) {
+                                    HealthTab.FOOD -> FoodScreenRoot(
+                                        onNavigateToWeight = {
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(HealthTab.WEIGHT.ordinal)
+                                            }
+                                        }
+                                    )
+                                    HealthTab.WORKOUT -> WorkoutScreenRoot()
+                                    HealthTab.WEIGHT -> WeightScreenRoot()
+                                    HealthTab.ANALYTICS -> AnalyticsScreenRoot()
+                                }
                             }
                         }
                     }

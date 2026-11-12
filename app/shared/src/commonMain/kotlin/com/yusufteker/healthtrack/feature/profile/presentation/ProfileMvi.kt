@@ -3,6 +3,8 @@ package com.yusufteker.healthtrack.feature.profile.presentation
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
+import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
+import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
 import com.yusufteker.healthtrack.theme.AppThemeColor
 
@@ -17,6 +19,8 @@ data class ProfileState(
     val gender: String = "MALE", // "MALE" or "FEMALE"
     val fitnessGoal: FitnessGoal = FitnessGoal.MAINTAIN,
     val nutritionGoal: NutritionGoal = NutritionGoal(id = "default", userId = 0),
+    val workoutReminderFrequency: WorkoutReminderFrequency = WorkoutReminderFrequency.SMART_CADENCE,
+    val weightReminderFrequency: WeightReminderFrequency = WeightReminderFrequency.EVERY_3_DAYS,
     val isDarkMode: Boolean = true,
     val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
     val latestWeightDate: String? = null,
@@ -56,6 +60,8 @@ sealed interface ProfileIntent {
     data class OnGenderChanged(val gender: String) : ProfileIntent
     data class OnFitnessGoalChanged(val goal: FitnessGoal) : ProfileIntent
     data class OnSaveNutritionGoal(val goal: NutritionGoal, val fitnessGoal: FitnessGoal) : ProfileIntent
+    data class OnWorkoutReminderFrequencyChanged(val frequency: WorkoutReminderFrequency) : ProfileIntent
+    data class OnWeightReminderFrequencyChanged(val frequency: WeightReminderFrequency) : ProfileIntent
     data class OnThemeModeChanged(val isDark: Boolean) : ProfileIntent
     data class OnThemeAccentChanged(val accent: AppThemeColor) : ProfileIntent
     data object OnSyncClicked : ProfileIntent

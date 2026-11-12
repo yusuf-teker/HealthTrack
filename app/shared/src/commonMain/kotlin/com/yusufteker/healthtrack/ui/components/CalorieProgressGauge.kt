@@ -27,11 +27,58 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+
+/**
+ * Dynamic metabolic telemetry color palette for daily calorie tracking:
+ * - Blue (Mavi): Initial baseline intake (< 50% of target)
+ * - Yellow (Sarı): Balanced intake approaching target (50% - 75%)
+ * - Orange (Turuncu): Near upper limit (75% - 100%)
+ * - Red (Kırmızı): Target exceeded (> 100%)
+ */
+object CalorieTelemetryColors {
+    val Blue = Color(0xFF0284C7)         // Sky / Ocean Blue
+    val BlueGlow = Color(0xFF38BDF8)
+    val BlueBg = Color(0xFF0284C7).copy(alpha = 0.16f)
+
+    val Yellow = Color(0xFFEAB308)       // Amber Yellow
+    val YellowGlow = Color(0xFFFDE047)
+    val YellowBg = Color(0xFFEAB308).copy(alpha = 0.18f)
+
+    val Orange = Color(0xFFF97316)       // Vibrant Coral Orange
+    val OrangeGlow = Color(0xFFFB923C)
+    val OrangeBg = Color(0xFFF97316).copy(alpha = 0.18f)
+
+    val Red = Color(0xFFEF4444)          // Warning Red
+    val RedGlow = Color(0xFFF87171)
+    val RedBg = Color(0xFFEF4444).copy(alpha = 0.20f)
+
+    fun getColorForRatio(ratio: Float): Color = when {
+        ratio > 1.0f -> Red
+        ratio >= 0.75f -> Orange
+        ratio >= 0.50f -> Yellow
+        else -> Blue
+    }
+
+    fun getGlowForRatio(ratio: Float): Color = when {
+        ratio > 1.0f -> RedGlow
+        ratio >= 0.75f -> OrangeGlow
+        ratio >= 0.50f -> YellowGlow
+        else -> BlueGlow
+    }
+
+    fun getBgForRatio(ratio: Float): Color = when {
+        ratio > 1.0f -> RedBg
+        ratio >= 0.75f -> OrangeBg
+        ratio >= 0.50f -> YellowBg
+        else -> BlueBg
+    }
+}
 
 /**
  * Concentric Circular Calorie Telemetry Hero Card.
@@ -56,14 +103,19 @@ fun CalorieProgressGauge(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
-    val progress = if (targetCalories > 0) (consumedCalories.toFloat() / targetCalories).coerceIn(0f, 1f) else 0f
+    val rawRatio = if (targetCalories > 0) consumedCalories.toFloat() / targetCalories else 0f
+    val isExceeded = rawRatio > 1.0f
+    val progress = rawRatio.coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(durationMillis = 800)
     )
 
     val remaining = (targetCalories - consumedCalories).coerceAtLeast(0)
-    val percentage = (progress * 100).toInt()
+    val percentage = (rawRatio * 100).toInt()
+
+    val activeColor = CalorieTelemetryColors.getColorForRatio(rawRatio)
+    val activeBg = CalorieTelemetryColors.getBgForRatio(rawRatio)
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -90,7 +142,7 @@ fun CalorieProgressGauge(
                     Icon(
                         imageVector = Icons.Default.Bolt,
                         contentDescription = null,
-                        tint = HealthColors.Primary,
+                        tint = activeColor,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
@@ -112,14 +164,18 @@ fun CalorieProgressGauge(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(HealthColors.Primary.copy(alpha = 0.15f))
+                        .background(activeBg)
                         .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = if (remaining > 0) "$remaining kcal kaldı" else "%$percentage tamamlandı",
+                        text = when {
+                            isExceeded -> "+${consumedCalories - targetCalories} kcal aşıldı"
+                            remaining > 0 -> "$remaining kcal kaldı"
+                            else -> "%$percentage tamamlandı"
+                        },
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
-                        color = HealthColors.Primary
+                        color = activeColor
                     )
                 }
             }
@@ -131,8 +187,6 @@ fun CalorieProgressGauge(
             ) {
                 val trackColor = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.35f)
                 else HealthColors.SurfaceVariantLight
-                val primaryColor = HealthColors.Primary
-                val glowColor = HealthColors.PrimaryGlow
 
                 Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
                     val strokeWidth = 9.dp.toPx()
@@ -151,21 +205,56 @@ fun CalorieProgressGauge(
                         style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                     )
 
-                    // Active Progress Ring
-                    if (animatedProgress > 0f) {
+                    // Over-limit Warning Halo
+                    if (isExceeded) {
                         drawArc(
-                            brush = Brush.sweepGradient(
-                                0.0f to primaryColor,
-                                0.6f to glowColor,
-                                1.0f to primaryColor
-                            ),
+                            color = CalorieTelemetryColors.Red.copy(alpha = 0.22f),
                             startAngle = -90f,
-                            sweepAngle = animatedProgress * 360f,
+                            sweepAngle = 360f,
                             useCenter = false,
                             topLeft = topLeft,
                             size = arcSize,
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            style = Stroke(width = strokeWidth + 4.dp.toPx(), cap = StrokeCap.Round)
                         )
+                    }
+
+                    // Active Progress Ring: Starts from Blue (0%) -> Yellow (50%) -> Orange (80%) -> Red (100%+)
+                    // Note: Wrap points at 0.0f and 1.0f match to prevent StrokeCap.Round backward bleed
+                    if (animatedProgress > 0f) {
+                        rotate(degrees = -90f, pivot = center) {
+                            val sweepBrush = when {
+                                isExceeded -> Brush.sweepGradient(
+                                    0.0f to CalorieTelemetryColors.Orange,
+                                    0.5f to CalorieTelemetryColors.Red,
+                                    1.0f to CalorieTelemetryColors.Orange
+                                )
+                                rawRatio >= 0.75f -> Brush.sweepGradient(
+                                    0.0f to CalorieTelemetryColors.Blue,
+                                    0.4f to CalorieTelemetryColors.Yellow,
+                                    0.85f to CalorieTelemetryColors.Orange,
+                                    1.0f to CalorieTelemetryColors.Blue
+                                )
+                                rawRatio >= 0.50f -> Brush.sweepGradient(
+                                    0.0f to CalorieTelemetryColors.Blue,
+                                    0.6f to CalorieTelemetryColors.Yellow,
+                                    1.0f to CalorieTelemetryColors.Blue
+                                )
+                                else -> Brush.sweepGradient(
+                                    0.0f to CalorieTelemetryColors.Blue,
+                                    0.5f to CalorieTelemetryColors.BlueGlow,
+                                    1.0f to CalorieTelemetryColors.Blue
+                                )
+                            }
+                            drawArc(
+                                brush = sweepBrush,
+                                startAngle = 0f,
+                                sweepAngle = animatedProgress * 360f,
+                                useCenter = false,
+                                topLeft = topLeft,
+                                size = arcSize,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                        }
                     }
                 }
 
@@ -175,10 +264,10 @@ fun CalorieProgressGauge(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "ALINAN",
+                        text = if (isExceeded) "AŞILDI" else "ALINAN",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isExceeded) CalorieTelemetryColors.Red else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row(
                         verticalAlignment = Alignment.Bottom,
@@ -188,12 +277,12 @@ fun CalorieProgressGauge(
                             text = "$consumedCalories",
                             style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp),
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (isExceeded) CalorieTelemetryColors.Red else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "kcal",
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isExceeded) CalorieTelemetryColors.Red.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 3.dp)
                         )
                     }
@@ -204,14 +293,20 @@ fun CalorieProgressGauge(
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = null,
-                            tint = HealthColors.Tertiary,
+                            tint = if (isExceeded) CalorieTelemetryColors.Red else HealthColors.Tertiary,
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
-                            text = if (burnedCalories > 0) "$burnedCalories kcal yakıldı" else "/ $targetCalories kcal",
+                            text = if (isExceeded) {
+                                "/ $targetCalories kcal aşıldı"
+                            } else if (burnedCalories > 0) {
+                                "$burnedCalories kcal yakıldı"
+                            } else {
+                                "/ $targetCalories kcal"
+                            },
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                             fontWeight = FontWeight.SemiBold,
-                            color = HealthColors.Tertiary
+                            color = if (isExceeded) CalorieTelemetryColors.Red else HealthColors.Tertiary
                         )
                     }
                 }

@@ -3,6 +3,9 @@ package com.yusufteker.healthtrack.feature.food.presentation
 import com.yusufteker.healthtrack.core.model.CustomFoodIngredient
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.FitnessGoal
+import com.yusufteker.healthtrack.core.model.DailyMealPlan
+import com.yusufteker.healthtrack.core.model.MealSlotSuggestion
+import com.yusufteker.healthtrack.core.model.MealSlotType
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.FoodLog
 import com.yusufteker.healthtrack.core.model.Micronutrient
@@ -84,7 +87,14 @@ data class FoodState(
     val isGroceryListSheetOpen: Boolean = false,
     val groceryListTitle: String = "Market Alışveriş Listesi",
     val groceryItems: List<String> = emptyList(),
-    val selectedGroceryItems: Set<String> = emptySet()
+    val selectedGroceryItems: Set<String> = emptySet(),
+
+    // ── Günün Öğün Önerisi (Daily AI Meal Plan) ──
+    val isDailyMealSuggestionBannerVisible: Boolean = false,
+    val isDailyMealPlanSheetOpen: Boolean = false,
+    val isGeneratingDailyMealPlan: Boolean = false,
+    val dailyMealPlan: DailyMealPlan? = null,
+    val addedMealSlotTypes: Set<MealSlotType> = emptySet()
 )
 
 enum class FoodScanTarget {
@@ -179,6 +189,14 @@ sealed interface FoodIntent {
     data object OnCloseGroceryListSheet : FoodIntent
     data class OnToggleGroceryItem(val item: String) : FoodIntent
     data class OnSendGroceryToPlanora(val appLauncher: ExternalAppLauncher) : FoodIntent
+
+    // ── Günün Öğün Önerisi Intent'leri ──
+    data object OnOpenDailyMealPlan : FoodIntent
+    data object OnCloseDailyMealPlanSheet : FoodIntent
+    data object OnDismissDailyMealPlanBanner : FoodIntent
+    data object OnRegenerateDailyMealPlan : FoodIntent
+    data class OnAddSuggestedMealSlot(val slot: MealSlotSuggestion) : FoodIntent
+    data object OnAddEntireDailyMealPlan : FoodIntent
 }
 
 sealed interface FoodEffect {

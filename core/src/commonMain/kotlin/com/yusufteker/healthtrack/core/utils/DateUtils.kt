@@ -204,4 +204,18 @@ fun formatWeekRangeTr(mondayIso: String, sundayIso: String): String {
     }
 }
 
+/**
+ * Returns difference in days between [earlierDateIso] and [laterDateIso] (later - earlier).
+ * Example: calculateDaysBetween("2026-11-09", "2026-11-12") -> 3.
+ */
+fun calculateDaysBetween(earlierDateIso: String, laterDateIso: String): Int {
+    return try {
+        val d1 = LocalDate.parse(earlierDateIso.trim())
+        val d2 = LocalDate.parse(laterDateIso.trim())
+        (d2.toEpochDays() - d1.toEpochDays()).toInt()
+    } catch (_: Exception) {
+        0
+    }
+}
+
 

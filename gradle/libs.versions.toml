@@ -26,6 +26,8 @@ androidx-room = "2.7.2"
 androidx-sqlite = "2.5.2"
 androidx-healthConnect = "1.1.0-alpha11"
 napier = "2.7.1"
+googleServices = "4.4.2"
+firebaseBom = "33.10.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -90,6 +92,12 @@ androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.r
 # Health Connect
 androidx-health-connect = { module = "androidx.health.connect:connect-client", version.ref = "androidx-healthConnect" }
 
+# Firebase
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
@@ -99,3 +107,4 @@ kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }

@@ -17,7 +17,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,9 +46,12 @@ fun FoodAiReviewBottomSheet(
     onSaveToInventory: (() -> Unit)? = null,
     onSaveSingleItemToInventory: ((FoodItem) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isDark = LocalIsDarkTheme.current
     val scrollState = rememberScrollState()
+
+    var isConfirming by remember { mutableStateOf(false) }
+    var isSavingInventory by remember { mutableStateOf(false) }
 
     val totalProtein = aiResult.items.sumOf { it.proteinG }
     val totalCarbs = aiResult.items.sumOf { it.carbsG }
@@ -62,306 +65,391 @@ fun FoodAiReviewBottomSheet(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .imePadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .clearFocusOnTap()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 20.dp)
         ) {
-            // Sheet Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(HealthColors.Primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (target == FoodScanTarget.INVENTORY) Icons.Default.Inventory2 else Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = HealthColors.Primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = if (target == FoodScanTarget.INVENTORY) "AI Envanter & Ürün Analizi 🏷️" else "AI Besin Analizi ✨",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (target == FoodScanTarget.INVENTORY) "Tespit edilen ürünleri inceleyip envanterinize kaydedin" else "Tespit edilen besinleri inceleyip onaylayın",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(32.dp).bounceClick()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // AI Summary Banner
-            if (aiResult.summary.isNotBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = HealthColors.Primary.copy(alpha = 0.08f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.2f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = HealthColors.Primary,
-                            modifier = Modifier.size(16.dp).padding(top = 2.dp)
-                        )
-                        Text(
-                            text = aiResult.summary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontStyle = FontStyle.Italic,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-
-            // Total Calories & Macros Overview Card
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Toplam Kalori",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "${aiResult.totalCalories} kcal",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MacroBadge(label = "P", value = "${totalProtein.toInt()}g", color = Color(0xFF38BDF8))
-                            MacroBadge(label = "K", value = "${totalCarbs.toInt()}g", color = Color(0xFFFBBF24))
-                            MacroBadge(label = "Y", value = "${totalFat.toInt()}g", color = Color(0xFFF87171))
-                        }
-                    }
-                }
-            }
-
-            // Items Section Title
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Ayrıştırılan Öğeler (${aiResult.items.size})",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // Food Items List
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                aiResult.items.forEach { item ->
-                    ReviewFoodItemCard(
-                        item = item,
-                        onSaveToInventory = onSaveSingleItemToInventory?.let { action ->
-                            { action(item) }
-                        }
-                    )
-                }
-            }
-
-            // Disclaimer
-            if (aiResult.disclaimer.isNotBlank()) {
-                Text(
-                    text = "ℹ️ ${aiResult.disclaimer}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    fontSize = 11.sp
-                )
-            }
-
-            // ── Action Buttons ──
+            // Scrollable Content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .weight(1f, fill = false)
+                    .verticalScroll(scrollState)
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (target == FoodScanTarget.INVENTORY) {
-                    // Primary: Envanterime Kaydet
-                    Button(
-                        onClick = {
-                            if (onSaveToInventory != null) onSaveToInventory() else onConfirm()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .bounceClick(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BookmarkAdd,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (aiResult.items.size > 1) "Tümünü Envanterime Kaydet (${aiResult.items.size})" else "Ürünü Envanterime Kaydet",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Secondary: Günlüğe de Ekle & Vazgeç
+                // Sheet Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = onDismiss,
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .bounceClick(),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Text("Vazgeç", color = MaterialTheme.colorScheme.onSurface)
-                        }
-
-                        OutlinedButton(
-                            onClick = onConfirm,
-                            modifier = Modifier
-                                .weight(1.3f)
-                                .height(46.dp)
-                                .bounceClick(),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.5f))
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(HealthColors.Primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Restaurant,
+                                imageVector = if (target == FoodScanTarget.INVENTORY) Icons.Default.Inventory2 else Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = HealthColors.Primary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(22.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Günlüğe de Ekle", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column {
+                            Text(
+                                text = if (target == FoodScanTarget.INVENTORY) "AI Envanter & Ürün Analizi 🏷️" else "AI Besin Analizi ✨",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (target == FoodScanTarget.INVENTORY) "Tespit edilen ürünleri inceleyip envanterinize kaydedin" else "Tespit edilen besinleri inceleyip onaylayın",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                } else {
-                    // Primary: Günlüğe Ekle
-                    Button(
-                        onClick = onConfirm,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .bounceClick(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp).bounceClick()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Onayla ve Günlüğe Ekle",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
 
-                    // Secondary: Envanterime de Ekle & Vazgeç
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // AI Summary Banner
+                if (aiResult.summary.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = HealthColors.Primary.copy(alpha = 0.08f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        OutlinedButton(
-                            onClick = onDismiss,
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = HealthColors.Primary,
+                                modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                            )
+                            Text(
+                                text = aiResult.summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontStyle = FontStyle.Italic,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                // Total Calories & Macros Overview Card
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Toplam Kalori",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${aiResult.totalCalories} kcal",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                MacroBadge(label = "P", value = "${totalProtein.toInt()}g", color = Color(0xFF38BDF8))
+                                MacroBadge(label = "K", value = "${totalCarbs.toInt()}g", color = Color(0xFFFBBF24))
+                                MacroBadge(label = "Y", value = "${totalFat.toInt()}g", color = Color(0xFFF87171))
+                            }
+                        }
+                    }
+                }
+
+                // Items Section Title
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Ayrıştırılan Öğeler (${aiResult.items.size})",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // Food Items List
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    aiResult.items.forEach { item ->
+                        ReviewFoodItemCard(
+                            item = item,
+                            onSaveToInventory = onSaveSingleItemToInventory?.let { action ->
+                                { action(item) }
+                            }
+                        )
+                    }
+                }
+
+                // Disclaimer
+                if (aiResult.disclaimer.isNotBlank()) {
+                    Text(
+                        text = "ℹ️ ${aiResult.disclaimer}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        fontSize = 11.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            // Fixed Sticky Footer for Action Buttons (always visible & easily clickable)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.Transparent
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (target == FoodScanTarget.INVENTORY) {
+                        // Primary: Envanterime Kaydet
+                        Button(
+                            onClick = {
+                                if (!isSavingInventory && !isConfirming) {
+                                    isSavingInventory = true
+                                    if (onSaveToInventory != null) onSaveToInventory() else onConfirm()
+                                }
+                            },
+                            enabled = !isSavingInventory && !isConfirming,
                             modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
+                                .fillMaxWidth()
+                                .height(50.dp)
                                 .bounceClick(),
                             shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
                         ) {
-                            Text("Vazgeç", color = MaterialTheme.colorScheme.onSurface)
+                            if (isSavingInventory) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Kaydediliyor...",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.BookmarkAdd,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (aiResult.items.size > 1) "Tümünü Envanterime Kaydet (${aiResult.items.size})" else "Ürünü Envanterime Kaydet",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
 
-                        if (onSaveToInventory != null) {
+                        // Secondary: Günlüğe de Ekle & Vazgeç
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             OutlinedButton(
-                                onClick = onSaveToInventory,
+                                onClick = onDismiss,
+                                enabled = !isSavingInventory && !isConfirming,
                                 modifier = Modifier
-                                    .weight(1.4f)
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .bounceClick(),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Text("Vazgeç", color = MaterialTheme.colorScheme.onSurface)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    if (!isConfirming && !isSavingInventory) {
+                                        isConfirming = true
+                                        onConfirm()
+                                    }
+                                },
+                                enabled = !isConfirming && !isSavingInventory,
+                                modifier = Modifier
+                                    .weight(1.3f)
                                     .height(46.dp)
                                     .bounceClick(),
                                 shape = RoundedCornerShape(14.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.5f))
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.BookmarkAdd,
-                                    contentDescription = null,
-                                    tint = HealthColors.Primary,
-                                    modifier = Modifier.size(16.dp)
+                                if (isConfirming) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = HealthColors.Primary,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Ekleniyor...", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Restaurant,
+                                        contentDescription = null,
+                                        tint = HealthColors.Primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Günlüğe de Ekle", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    } else {
+                        // Primary: Onayla ve Günlüğe Ekle
+                        Button(
+                            onClick = {
+                                if (!isConfirming && !isSavingInventory) {
+                                    isConfirming = true
+                                    onConfirm()
+                                }
+                            },
+                            enabled = !isConfirming && !isSavingInventory,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .bounceClick(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
+                        ) {
+                            if (isConfirming) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Envantere de Ekle", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Günlüğe Ekleniyor...",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Onayla ve Günlüğe Ekle",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Secondary: Vazgeç & Envantere de Ekle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                enabled = !isConfirming && !isSavingInventory,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .bounceClick(),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Text("Vazgeç", color = MaterialTheme.colorScheme.onSurface)
+                            }
+
+                            if (onSaveToInventory != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        if (!isSavingInventory && !isConfirming) {
+                                            isSavingInventory = true
+                                            onSaveToInventory()
+                                        }
+                                    },
+                                    enabled = !isSavingInventory && !isConfirming,
+                                    modifier = Modifier
+                                        .weight(1.4f)
+                                        .height(46.dp)
+                                        .bounceClick(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.5f))
+                                ) {
+                                    if (isSavingInventory) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = HealthColors.Primary,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Kaydediliyor...", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.BookmarkAdd,
+                                            contentDescription = null,
+                                            tint = HealthColors.Primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Envantere de Ekle", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -386,6 +474,8 @@ private fun ReviewFoodItemCard(
     item: FoodItem,
     onSaveToInventory: (() -> Unit)? = null
 ) {
+    var isSaved by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -465,10 +555,13 @@ private fun ReviewFoodItemCard(
                 if (onSaveToInventory != null) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = HealthColors.Primary.copy(alpha = 0.12f),
+                        color = if (isSaved) HealthColors.Primary.copy(alpha = 0.25f) else HealthColors.Primary.copy(alpha = 0.12f),
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable(onClick = onSaveToInventory)
+                            .clickable(enabled = !isSaved, onClick = {
+                                isSaved = true
+                                onSaveToInventory()
+                            })
                             .bounceClick()
                     ) {
                         Row(
@@ -477,13 +570,13 @@ private fun ReviewFoodItemCard(
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.BookmarkAdd,
+                                imageVector = if (isSaved) Icons.Default.Check else Icons.Default.BookmarkAdd,
                                 contentDescription = null,
                                 tint = HealthColors.Primary,
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
-                                text = "Envantere Ekle",
+                                text = if (isSaved) "Eklendi ✓" else "Envantere Ekle",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = HealthColors.Primary

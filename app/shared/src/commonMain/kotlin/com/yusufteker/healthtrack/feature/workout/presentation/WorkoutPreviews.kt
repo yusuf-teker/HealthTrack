@@ -94,3 +94,15 @@ fun WorkoutScreenEmptyPreview() {
         )
     }
 }
+
+@Preview
+@Composable
+fun WorkoutReminderDialogPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        com.yusufteker.healthtrack.feature.workout.presentation.components.WorkoutReminderDialog(
+            currentFrequency = com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE,
+            onDismiss = {},
+            onSave = {}
+        )
+    }
+}

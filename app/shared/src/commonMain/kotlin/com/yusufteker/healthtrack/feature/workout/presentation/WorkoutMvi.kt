@@ -22,6 +22,8 @@ data class WorkoutState(
     val isCalculatingAi: Boolean = false,
     val isSyncingWatch: Boolean = false,
     val userWeightKg: Double = 75.0,
+    val reminderFrequency: com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency = com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE,
+    val isReminderDialogOpen: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null
 ) {
@@ -41,8 +43,13 @@ sealed interface WorkoutIntent {
     data object OnCalculateAiClicked : WorkoutIntent
     data object OnSaveManualClicked : WorkoutIntent
     data object OnWatchSyncStarted : WorkoutIntent
-    data class OnWatchSnapshotReceived(val result: Result<DeviceHealthSnapshot>) : WorkoutIntent
+    data class OnWatchSnapshotReceived(
+        val result: Result<DeviceHealthSnapshot>,
+        val isSilent: Boolean = false
+    ) : WorkoutIntent
     data class OnDeleteWorkout(val id: String) : WorkoutIntent
+    data class OnReminderFrequencyChanged(val frequency: com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency) : WorkoutIntent
+    data class OnSetReminderDialogOpen(val isOpen: Boolean) : WorkoutIntent
     data object OnDismissErrorMessage : WorkoutIntent
     data object OnDismissInfoMessage : WorkoutIntent
 }

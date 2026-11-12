@@ -109,6 +109,18 @@ fun WeightScreenEmptyPreview() {
 
 @Preview
 @Composable
+fun WeightReminderDialogPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        com.yusufteker.healthtrack.feature.weight.presentation.components.WeightReminderDialog(
+            currentFrequency = com.yusufteker.healthtrack.core.model.WeightReminderFrequency.EVERY_3_DAYS,
+            onDismiss = {},
+            onSave = {}
+        )
+    }
+}
+
+@Preview
+@Composable
 fun WeightLineChartPreview() {
     HealthTrackTheme(darkTheme = true) {
         Box(

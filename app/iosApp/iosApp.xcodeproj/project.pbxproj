@@ -6,12 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		1C81D6F669B7BB6D2FFCCEB3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */; };
+		2ECACC695940F13A4EDFB2D7 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F7F4335A9FA704A52EB0C58D /* GoogleService-Info.plist */; };
+		445C052442747365B7CB2124 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 617043448F4869026C2F0BB4 /* FirebaseAuth */; };
+		B7C4F6137AC8345E71E92063 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 84FCD721953CC33D9035BCCD /* FirebaseFirestore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		D98B053C208B133390F29BFC /* HealthTrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HealthTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F7F4335A9FA704A52EB0C58D /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = text.plist; lastKnownFileType = text.plist; name = "GoogleService-Info.plist"; path = "iosApp/GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CA99A60142764238C0F870B9 /* Exceptions for "iosApp" folder in "iosApp" target */ = {
+		CA99A60142764238C0F870B9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -24,7 +32,7 @@
 		04F73BCF9E6927C0618CC63B /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				CA99A60142764238C0F870B9 /* Exceptions for "iosApp" folder in "iosApp" target */,
+				CA99A60142764238C0F870B9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -41,6 +49,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1C81D6F669B7BB6D2FFCCEB3 /* FirebaseAnalytics in Frameworks */,
+				445C052442747365B7CB2124 /* FirebaseAuth in Frameworks */,
+				B7C4F6137AC8345E71E92063 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +72,7 @@
 				10EC2F6ABB329089318D720A /* Configuration */,
 				04F73BCF9E6927C0618CC63B /* iosApp */,
 				24DE4B1A2CB47A2BD94DBF23 /* Products */,
+				F7F4335A9FA704A52EB0C58D /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -85,6 +97,9 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */,
+				617043448F4869026C2F0BB4 /* FirebaseAuth */,
+				84FCD721953CC33D9035BCCD /* FirebaseFirestore */,
 			);
 			productName = iosApp;
 			productReference = D98B053C208B133390F29BFC /* HealthTrack.app */;
@@ -114,6 +129,9 @@
 			);
 			mainGroup = 6005A39156263146F69C8997;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 24DE4B1A2CB47A2BD94DBF23 /* Products */;
 			projectDirPath = "";
@@ -129,6 +147,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2ECACC695940F13A4EDFB2D7 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -169,8 +188,6 @@
 /* Begin XCBuildConfiguration section */
 		0EA884BD9355067FFC227FDD /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = 10EC2F6ABB329089318D720A /* Configuration */;
-			baseConfigurationReferenceRelativePath = Config.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -236,8 +253,6 @@
 		};
 		490467C19932656ADCECCC0F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = 10EC2F6ABB329089318D720A /* Configuration */;
-			baseConfigurationReferenceRelativePath = Config.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -314,6 +329,9 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"-ObjC",
+				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -339,6 +357,9 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"-ObjC",
 				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -368,6 +389,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.15.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		617043448F4869026C2F0BB4 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		84FCD721953CC33D9035BCCD /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1C2557F93A602B14592CF08C /* Project object */;
 }

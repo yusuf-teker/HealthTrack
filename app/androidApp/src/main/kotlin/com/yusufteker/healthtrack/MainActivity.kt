@@ -20,8 +20,16 @@ class MainActivity : ComponentActivity() {
             Napier.base(DebugAntilog())
         }
 
+        val targetTabStr = intent?.getStringExtra("open_tab")
+        val initialTab = when (targetTabStr) {
+            "WORKOUT" -> HealthTab.WORKOUT
+            "WEIGHT" -> HealthTab.WEIGHT
+            "ANALYTICS" -> HealthTab.ANALYTICS
+            else -> HealthTab.FOOD
+        }
+
         setContent {
-            App()
+            App(initialTab = initialTab)
         }
     }
 }

@@ -43,6 +43,81 @@ fun CalorieProgressGaugePreview() {
 
 @Preview
 @Composable
+fun CalorieProgressGaugeBlueInitialPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CalorieProgressGauge(
+                consumedCalories = 650,
+                targetCalories = 2200,
+                burnedCalories = 150,
+                proteinCurrent = 42.0,
+                proteinTarget = 145.0,
+                carbsCurrent = 70.0,
+                carbsTarget = 240.0,
+                fatCurrent = 18.0,
+                fatTarget = 70.0
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun CalorieProgressGaugeYellowApproachingPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CalorieProgressGauge(
+                consumedCalories = 1350,
+                targetCalories = 2200,
+                burnedCalories = 280,
+                proteinCurrent = 90.0,
+                proteinTarget = 145.0,
+                carbsCurrent = 140.0,
+                carbsTarget = 240.0,
+                fatCurrent = 42.0,
+                fatTarget = 70.0
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun CalorieProgressGaugeExceededRedPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CalorieProgressGauge(
+                consumedCalories = 2480,
+                targetCalories = 2200,
+                burnedCalories = 500,
+                proteinCurrent = 165.0,
+                proteinTarget = 145.0,
+                carbsCurrent = 270.0,
+                carbsTarget = 240.0,
+                fatCurrent = 82.0,
+                fatTarget = 70.0
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
 fun DaysStripSelectorPreview() {
     HealthTrackTheme(darkTheme = true) {
         Box(

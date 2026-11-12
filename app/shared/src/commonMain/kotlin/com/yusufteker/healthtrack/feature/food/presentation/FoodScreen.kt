@@ -1,6 +1,5 @@
 package com.yusufteker.healthtrack.feature.food.presentation
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -81,6 +80,8 @@ import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
+import com.yusufteker.healthtrack.feature.food.presentation.components.DailyMealPlanBottomSheet
+import com.yusufteker.healthtrack.feature.food.presentation.components.DailyMealSuggestionBanner
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodHydrationAndSmartMealRow
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodPhotoScanBottomSheet
 import com.yusufteker.healthtrack.feature.food.presentation.components.GroceryListBottomSheet
@@ -98,6 +99,7 @@ import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.ui.components.CalorieProgressGauge
+import com.yusufteker.healthtrack.ui.components.CalorieTelemetryColors
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.ForkSpoonPlusIcon
 import com.yusufteker.healthtrack.ui.components.GlassCard
@@ -105,7 +107,6 @@ import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
-import com.yusufteker.healthtrack.ui.components.onHorizontalSwipe
 import io.github.aakira.napier.Napier
 
 @Composable
@@ -117,7 +118,6 @@ fun FoodScreen(
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
     val appLauncher = rememberExternalAppLauncher()
-    val isDark = LocalIsDarkTheme.current
     var showManualAddSheet by remember { mutableStateOf(false) }
     var showGeneralMicrosSheet by remember { mutableStateOf(false) }
     var showInventoryStudio by remember { mutableStateOf(false) }
@@ -155,10 +155,6 @@ fun FoodScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clearFocusOnTap()
-                .onHorizontalSwipe(
-                    onSwipeLeft = { onIntent(FoodIntent.OnDateChanged(shiftDateIso(state.selectedDate, 1))) },
-                    onSwipeRight = { onIntent(FoodIntent.OnDateChanged(shiftDateIso(state.selectedDate, -1))) }
-                )
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -198,6 +194,14 @@ fun FoodScreen(
                 onMicrosClick = { showGeneralMicrosSheet = true },
                 onWeightClick = onNavigateToWeight
             )
+
+            // ── Günün 4 Öğünlük AI Yemek Önerisi Banner'ı (Günde 1 Defa) ──
+            if (state.isDailyMealSuggestionBannerVisible) {
+                DailyMealSuggestionBanner(
+                    onOpenPlan = { onIntent(FoodIntent.OnOpenDailyMealPlan) },
+                    onDismiss = { onIntent(FoodIntent.OnDismissDailyMealPlanBanner) }
+                )
+            }
 
             // ── Hidrasyon (2.A) & "Ne Yesem?" Akıllı Öğün (1) & Besin Sinerjisi (2.B) ──
             FoodHydrationAndSmartMealRow(
@@ -257,8 +261,7 @@ fun FoodScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
-                                color = (if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant).copy(alpha = if (isDark) 0.16f else 0.12f),
-                                border = if (isDark) null else BorderStroke(1.dp, HealthColors.SecondaryVariant.copy(alpha = 0.35f)),
+                                color = HealthColors.Secondary.copy(alpha = 0.15f),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
                                     .clickable {
@@ -275,14 +278,14 @@ fun FoodScreen(
                                     Icon(
                                         imageVector = Icons.Default.Inventory2,
                                         contentDescription = null,
-                                        tint = if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant,
+                                        tint = HealthColors.Secondary,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "Envanterim",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant
+                                        color = HealthColors.Secondary
                                     )
                                 }
                             }
@@ -349,7 +352,19 @@ fun FoodScreen(
                                         )
                                     }
                                 }
-
+                                IconButton(
+                                    onClick = { onIntent(FoodIntent.OnOpenPhotoScanSheet) },
+                                    modifier = Modifier.size(34.dp).clip(CircleShape)
+                                        .background(HealthColors.Primary.copy(alpha = 0.15f))
+                                        .bounceClick()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = "Besin Etiketi Tara",
+                                        tint = HealthColors.Primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                                 if (speechLauncher.isAvailable) {
                                     IconButton(
                                         onClick = {
@@ -461,6 +476,28 @@ fun FoodScreen(
                                 )
                             }
                         }
+
+                        if (state.rawText.isNotBlank()) {
+                            OutlinedButton(
+                                onClick = { onIntent(FoodIntent.OnSaveManualClicked) },
+                                modifier = Modifier.height(44.dp).bounceClick(),
+                                shape = RoundedCornerShape(999.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Ham Kaydet",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -470,6 +507,7 @@ fun FoodScreen(
                 items = state.items,
                 totalCalories = state.totalCalories,
                 summary = state.summary,
+                targetCalories = state.nutritionGoal.calories,
                 onRemoveItem = { onIntent(FoodIntent.OnRemoveItem(it)) },
                 onClearAll = { onIntent(FoodIntent.OnClearFoodLog) },
                 onAddClick = { showManualAddSheet = true })
@@ -616,6 +654,8 @@ fun FoodScreen(
                 customFoods = state.customFoods,
                 favoriteFoodIds = state.favoriteFoodIds,
                 frequentFoods = state.frequentFoods,
+                currentDailyCalories = state.totalCalories,
+                dailyTargetCalories = state.nutritionGoal.calories,
                 onToggleFavorite = { onIntent(FoodIntent.OnToggleFavoriteFood(it)) },
                 onOpenAddCustomFood = { onIntent(FoodIntent.OnOpenAddCustomFoodDialog) },
                 onDeleteCustomFood = { onIntent(FoodIntent.OnDeleteCustomFood(it)) },
@@ -696,6 +736,22 @@ fun FoodScreen(
                         )
                     )
                 })
+        }
+
+        // ── Günün 4 Öğünlük AI Planı Bottom Sheet ──
+        if (state.isDailyMealPlanSheetOpen && !state.isGroceryListSheetOpen) {
+            DailyMealPlanBottomSheet(
+                plan = state.dailyMealPlan,
+                isLoading = state.isGeneratingDailyMealPlan,
+                addedMealSlotTypes = state.addedMealSlotTypes,
+                onAddSlot = { onIntent(FoodIntent.OnAddSuggestedMealSlot(it)) },
+                onAddEntirePlan = { onIntent(FoodIntent.OnAddEntireDailyMealPlan) },
+                onRegenerate = { onIntent(FoodIntent.OnRegenerateDailyMealPlan) },
+                onOpenGroceryForMeal = { title, ingredients ->
+                    onIntent(FoodIntent.OnOpenGroceryListSheet(title, ingredients))
+                },
+                onDismiss = { onIntent(FoodIntent.OnCloseDailyMealPlanSheet) }
+            )
         }
 
         // ── "Ne Yesem?" Smart Meal Matcher Bottom Sheet (1) ──
@@ -782,6 +838,8 @@ private fun ManualAddBottomSheet(
     customFoods: List<com.yusufteker.healthtrack.core.model.CustomFoodItem> = emptyList(),
     favoriteFoodIds: Set<String> = emptySet(),
     frequentFoods: List<com.yusufteker.healthtrack.core.model.FoodItem> = emptyList(),
+    currentDailyCalories: Int = 0,
+    dailyTargetCalories: Int = 2000,
     onToggleFavorite: ((String) -> Unit)? = null,
     onOpenAddCustomFood: (() -> Unit)? = null,
     onDeleteCustomFood: ((String) -> Unit)? = null,
@@ -810,7 +868,6 @@ private fun ManualAddBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        scrimColor = Color.Black.copy(alpha = 0.65f),
         containerColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
         dragHandle = {
             Box(
@@ -940,11 +997,9 @@ private fun ManualAddBottomSheet(
 
                 // ── "Envanterim" Card (Right above "Aradığınızı bulamadınız mı?") ──
                 if (onOpenInventoryStudio != null) {
-                    val invAccent = if (isDark) HealthColors.Secondary else HealthColors.SecondaryVariant
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = invAccent.copy(alpha = if (isDark) 0.12f else 0.10f),
-                        border = BorderStroke(1.dp, invAccent.copy(alpha = if (isDark) 0.25f else 0.40f)),
+                        color = HealthColors.Secondary.copy(alpha = 0.12f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onOpenInventoryStudio(null) }
@@ -966,13 +1021,13 @@ private fun ManualAddBottomSheet(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(invAccent.copy(alpha = 0.18f)),
+                                        .background(HealthColors.Secondary.copy(alpha = 0.18f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Inventory2,
                                         contentDescription = null,
-                                        tint = invAccent,
+                                        tint = HealthColors.Secondary,
                                         modifier = Modifier.size(17.dp)
                                     )
                                 }
@@ -993,7 +1048,7 @@ private fun ManualAddBottomSheet(
                             if (onOpenAddCustomFood != null) {
                                 Surface(
                                     shape = RoundedCornerShape(999.dp),
-                                    color = invAccent.copy(alpha = 0.18f),
+                                    color = HealthColors.Secondary.copy(alpha = 0.18f),
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(999.dp))
                                         .clickable { onOpenAddCustomFood() }
@@ -1007,14 +1062,14 @@ private fun ManualAddBottomSheet(
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = null,
-                                            tint = invAccent,
+                                            tint = HealthColors.Secondary,
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Text(
                                             text = "Yeni",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             fontWeight = FontWeight.Bold,
-                                            color = invAccent
+                                            color = HealthColors.Secondary
                                         )
                                     }
                                 }
@@ -1023,7 +1078,7 @@ private fun ManualAddBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = null,
-                                tint = invAccent,
+                                tint = HealthColors.Secondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1167,14 +1222,55 @@ private fun ManualAddBottomSheet(
                     }
                 }
 
-                // 3. Calorie Input
+                // 3. Calorie Input with Dynamic Telemetry Feedback (Blue -> Yellow -> Orange -> Red)
+                val enteredCal = calories.toIntOrNull() ?: 0
+                val projectedTotal = if (enteredCal > 0) currentDailyCalories + enteredCal else currentDailyCalories
+                val projectedRatio = if (dailyTargetCalories > 0) projectedTotal.toFloat() / dailyTargetCalories else 0f
+                val calorieFeedbackColor = if (enteredCal > 0) {
+                    CalorieTelemetryColors.getColorForRatio(projectedRatio)
+                } else {
+                    HealthColors.Tertiary
+                }
+                val calorieFeedbackBg = if (enteredCal > 0) {
+                    CalorieTelemetryColors.getBgForRatio(projectedRatio)
+                } else {
+                    Color.Transparent
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "Kalori (kcal) *",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Kalori (kcal) *",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        if (enteredCal > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = calorieFeedbackBg
+                            ) {
+                                Text(
+                                    text = when {
+                                        projectedRatio > 1.0f -> "+${projectedTotal - dailyTargetCalories} kcal aşılacak"
+                                        projectedRatio >= 0.75f -> "Sınıra Yakın (%${(projectedRatio * 100).toInt()})"
+                                        projectedRatio >= 0.50f -> "Dengeli (%${(projectedRatio * 100).toInt()})"
+                                        else -> "Başlangıç (%${(projectedRatio * 100).toInt()})"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = calorieFeedbackColor,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = calories,
                         onValueChange = { calories = it },
@@ -1188,7 +1284,7 @@ private fun ManualAddBottomSheet(
                             Icon(
                                 Icons.Default.LocalFireDepartment,
                                 contentDescription = null,
-                                tint = HealthColors.Tertiary,
+                                tint = calorieFeedbackColor,
                                 modifier = Modifier.size(18.dp)
                             )
                         },
@@ -1196,7 +1292,8 @@ private fun ManualAddBottomSheet(
                             Text(
                                 "kcal",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = HealthColors.Tertiary,
+                                fontWeight = FontWeight.Bold,
+                                color = calorieFeedbackColor,
                                 modifier = Modifier.padding(end = 12.dp)
                             )
                         },
@@ -1206,6 +1303,20 @@ private fun ManualAddBottomSheet(
                         colors = calmFieldColors,
                         singleLine = true
                     )
+
+                    if (enteredCal > 0) {
+                        Text(
+                            text = if (projectedRatio > 1.0f) {
+                                "⚠️ Bu öğünle birlikte günlük limit ${projectedTotal - dailyTargetCalories} kcal aşılacak ($projectedTotal / $dailyTargetCalories kcal)"
+                            } else {
+                                "Günlük toplam: $projectedTotal / $dailyTargetCalories kcal • Kalan: ${(dailyTargetCalories - projectedTotal).coerceAtLeast(0)} kcal"
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            fontWeight = FontWeight.Medium,
+                            color = calorieFeedbackColor,
+                            modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                        )
+                    }
                 }
 
                 // 4. Optional Macros (Protein, Carbs, Fat)

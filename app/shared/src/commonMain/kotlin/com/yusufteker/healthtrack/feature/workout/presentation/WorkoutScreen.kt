@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -48,7 +53,6 @@ import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
-import com.yusufteker.healthtrack.ui.components.onHorizontalSwipe
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,6 +74,13 @@ fun WorkoutScreen(
         state.allWorkouts.map { it.date }.toSet()
     }
 
+    // Auto-sync watch & workouts silently on screen entry if permissions are already authorized
+    LaunchedEffect(Unit) {
+        deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
+            onIntent(WorkoutIntent.OnWatchSnapshotReceived(result = result, isSilent = true))
+        }
+    }
+
     if (showDeviceGuideDialog) {
         DeviceConnectionGuideDialog(
             platformName = deviceHealthBridge.platformName,
@@ -84,6 +95,14 @@ fun WorkoutScreen(
         )
     }
 
+    if (state.isReminderDialogOpen) {
+        com.yusufteker.healthtrack.feature.workout.presentation.components.WorkoutReminderDialog(
+            currentFrequency = state.reminderFrequency,
+            onDismiss = { onIntent(WorkoutIntent.OnSetReminderDialogOpen(false)) },
+            onSave = { onIntent(WorkoutIntent.OnReminderFrequencyChanged(it)) }
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -93,10 +112,6 @@ fun WorkoutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clearFocusOnTap()
-                .onHorizontalSwipe(
-                    onSwipeLeft = { onIntent(WorkoutIntent.OnDateChanged(shiftDateIso(state.selectedDate, 1))) },
-                    onSwipeRight = { onIntent(WorkoutIntent.OnDateChanged(shiftDateIso(state.selectedDate, -1))) }
-                )
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -111,7 +126,10 @@ fun WorkoutScreen(
             )
 
             // ── Radial Strain & Calorie Burn Gauge (Hero Card) ──
-            WorkoutStrainHeroCard(state = state)
+            WorkoutStrainHeroCard(
+                state = state,
+                onOpenReminderSettings = { onIntent(WorkoutIntent.OnSetReminderDialogOpen(true)) }
+            )
 
             // ── Ambient Daily Steps & Movement Telemetry Widget (Option 1) ──
             state.dailySteps?.let { steps ->
@@ -537,7 +555,10 @@ fun WorkoutScreen(
  * Concentric Circular Radial Strain & Burn Gauge with Quick Metrics Ribbon matching Stitch.
  */
 @Composable
-private fun WorkoutStrainHeroCard(state: WorkoutState) {
+private fun WorkoutStrainHeroCard(
+    state: WorkoutState,
+    onOpenReminderSettings: () -> Unit
+) {
     val isDark = LocalIsDarkTheme.current
     val progress = state.calorieProgress
     val animatedProgress by animateFloatAsState(
@@ -574,25 +595,80 @@ private fun WorkoutStrainHeroCard(state: WorkoutState) {
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Egzersiz Kalori & Efor Göstergesi",
+                        text = "Egzersiz & Efor",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(HealthColors.TertiaryContainer.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "%$percentage Hedef",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = HealthColors.TertiaryContainer
-                    )
+                    // Reminder Frequency Pill Button
+                    val isReminderOff = state.reminderFrequency == com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF
+                    val reminderLabel = when (state.reminderFrequency) {
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF -> "Hatırlatıcı: Kapalı"
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE -> "Hatırlatıcı: Akıllı"
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.EVERY_2_DAYS -> "Hatırlatıcı: 2 Günde 1"
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.THREE_DAYS_WEEK -> "Hatırlatıcı: Haftada 3"
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.EVERY_DAY -> "Hatırlatıcı: Her Gün"
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (isReminderOff) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else HealthColors.Primary.copy(alpha = 0.15f),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isReminderOff) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f) else HealthColors.Primary.copy(alpha = 0.35f)
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .clickable { onOpenReminderSettings() }
+                            .bounceClick()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Hatırlatıcı Ayarları",
+                                tint = if (isReminderOff) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                } else {
+                                    HealthColors.Primary
+                                },
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = reminderLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isReminderOff) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                } else {
+                                    HealthColors.Primary
+                                }
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(HealthColors.TertiaryContainer.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "%$percentage Hedef",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = HealthColors.TertiaryContainer
+                        )
+                    }
                 }
             }
 
@@ -774,6 +850,101 @@ private fun WorkoutStrainHeroCard(state: WorkoutState) {
     }
 }
 
+private data class WorkoutVisual(
+    val icon: ImageVector,
+    val color: Color
+)
+
+private fun resolveWorkoutVisual(workout: WorkoutLog): WorkoutVisual {
+    if (workout.isDailySteps) {
+        return WorkoutVisual(
+            icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+            color = HealthColors.NutrientFiber
+        )
+    }
+
+    val text = workout.rawText.lowercase()
+    return when {
+        text.contains("eliptik") || text.contains("elliptical") ||
+            text.contains("bisiklet") || text.contains("cycling") ||
+            text.contains("pedal") || text.contains("spin") -> {
+            WorkoutVisual(
+                icon = Icons.AutoMirrored.Filled.DirectionsBike,
+                color = HealthColors.Primary
+            )
+        }
+        text.contains("kürek") || text.contains("kurek") || text.contains("rowing") -> {
+            WorkoutVisual(
+                icon = Icons.Default.Rowing,
+                color = HealthColors.Secondary
+            )
+        }
+        text.contains("yürüyüş") || text.contains("yuruyus") || text.contains("walking") ||
+            text.contains("yürü") || text.contains("adım") -> {
+            WorkoutVisual(
+                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                color = HealthColors.NutrientFiber
+            )
+        }
+        text.contains("yüzme") || text.contains("yuzme") || text.contains("swimming") || text.contains("havuz") -> {
+            WorkoutVisual(
+                icon = Icons.Default.Pool,
+                color = HealthColors.NutrientVitD
+            )
+        }
+        text.contains("ağırlık") || text.contains("agirlik") || text.contains("fitness") ||
+            text.contains("bodybuilding") || text.contains("gym") || text.contains("dumbell") ||
+            text.contains("dambıl") || text.contains("bench") || text.contains("squat") || text.contains("deadlift") -> {
+            WorkoutVisual(
+                icon = Icons.Default.FitnessCenter,
+                color = HealthColors.NutrientCarbs
+            )
+        }
+        text.contains("yoga") || text.contains("pilates") || text.contains("esneme") || text.contains("stretching") -> {
+            WorkoutVisual(
+                icon = Icons.Default.SelfImprovement,
+                color = HealthColors.SecondaryAccent
+            )
+        }
+        text.contains("basketbol") || text.contains("basketball") -> {
+            WorkoutVisual(
+                icon = Icons.Default.SportsBasketball,
+                color = HealthColors.NutrientCarbs
+            )
+        }
+        text.contains("futbol") || text.contains("football") || text.contains("soccer") -> {
+            WorkoutVisual(
+                icon = Icons.Default.SportsSoccer,
+                color = HealthColors.NutrientFiber
+            )
+        }
+        text.contains("tenis") || text.contains("tennis") -> {
+            WorkoutVisual(
+                icon = Icons.Default.SportsTennis,
+                color = HealthColors.Secondary
+            )
+        }
+        text.contains("boks") || text.contains("boxing") || text.contains("mma") || text.contains("kickboks") || text.contains("dövüş") -> {
+            WorkoutVisual(
+                icon = Icons.Default.SportsMma,
+                color = HealthColors.NutrientIron
+            )
+        }
+        text.contains("hiking") || text.contains("tırmanış") || text.contains("dağ") -> {
+            WorkoutVisual(
+                icon = Icons.Default.Hiking,
+                color = HealthColors.Tertiary
+            )
+        }
+        else -> {
+            WorkoutVisual(
+                icon = Icons.AutoMirrored.Filled.DirectionsRun,
+                color = HealthColors.Tertiary
+            )
+        }
+    }
+}
+
 /**
  * Luxury Workout Activity Item Card with glowing circular icon container and burned kcal badge.
  */
@@ -782,6 +953,8 @@ private fun LuxuryWorkoutItem(
     workout: WorkoutLog,
     onDelete: () -> Unit
 ) {
+    val visual = resolveWorkoutVisual(workout)
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -804,13 +977,13 @@ private fun LuxuryWorkoutItem(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(HealthColors.TertiaryContainer.copy(alpha = 0.18f)),
+                        .background(visual.color.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DirectionsRun,
+                        imageVector = visual.icon,
                         contentDescription = null,
-                        tint = HealthColors.TertiaryContainer,
+                        tint = visual.color,
                         modifier = Modifier.size(22.dp)
                     )
                 }

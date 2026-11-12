@@ -85,6 +85,38 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 }
             }
 
+            override fun syncSilentlyIfAuthorized(
+                days: Int,
+                onResult: (Result<DeviceHealthSnapshot>) -> Unit
+            ) {
+                val store = healthStore ?: return
+                if (status != HealthPlatformStatus.AVAILABLE) return
+
+                val bodyMassType = HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierBodyMass)
+                val bodyFatType = HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierBodyFatPercentage)
+                val leanMassType = HKObjectType.quantityTypeForIdentifier(HKQuantityTypeIdentifierLeanBodyMass)
+                val workoutType = HKObjectType.workoutType()
+
+                val nowDate = NSDate()
+                val secondsBack = -(days.coerceIn(1, 90).toDouble() * 86_400.0)
+                val startDate = nowDate.dateByAddingTimeInterval(secondsBack)
+                val predicate = HKQuery.predicateForSamplesWithStartDate(
+                    startDate = startDate,
+                    endDate = nowDate,
+                    options = HKQueryOptionNone
+                )
+
+                queryHealthKitSamples(
+                    store = store,
+                    predicate = predicate,
+                    bodyMassType = bodyMassType,
+                    bodyFatType = bodyFatType,
+                    leanMassType = leanMassType,
+                    workoutType = workoutType,
+                    onResult = onResult
+                )
+            }
+
             override fun openHealthSettings() {
                 val url = NSURL.URLWithString("x-apple-health://")
                 if (url != null && UIApplication.sharedApplication.canOpenURL(url)) {

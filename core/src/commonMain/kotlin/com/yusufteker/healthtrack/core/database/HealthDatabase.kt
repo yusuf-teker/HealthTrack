@@ -30,6 +30,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     private val _favoriteFoodsFlow = MutableStateFlow<Map<Int, List<String>>>(loadMap(KEY_FAVORITE_FOODS))
     private val _reportsFlow = MutableStateFlow<List<HealthAiReport>>(loadList(KEY_AI_REPORTS))
     private val _waterFlow = MutableStateFlow<List<WaterEntry>>(loadList(KEY_WATER))
+    private val _dailyMealPlansFlow = MutableStateFlow<List<DailyMealPlan>>(loadList(KEY_DAILY_MEAL_PLANS))
 
     // ─────────────────────────────────────────────────────────────
     // FOOD OPERATIONS
@@ -47,6 +48,14 @@ class HealthDatabase(private val settings: Settings = Settings()) {
             list.filter { it.userId == userId && !it.isDeleted }
                 .sortedByDescending { it.updatedAt }
         }
+    }
+
+    fun getFoods(userId: Int, date: String): List<FoodLog> {
+        return _foodsFlow.value.filter { it.userId == userId && it.date == date && !it.isDeleted }
+    }
+
+    fun getAllFoods(userId: Int): List<FoodLog> {
+        return _foodsFlow.value.filter { it.userId == userId && !it.isDeleted }
     }
 
     suspend fun getFoodById(id: String): FoodLog? {
@@ -752,6 +761,32 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_AI_REPORTS, current)
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // DAILY AI MEAL PLAN OPERATIONS
+    // ─────────────────────────────────────────────────────────────
+
+    fun observeDailyMealPlan(userId: Int, dateIso: String): Flow<DailyMealPlan?> {
+        return _dailyMealPlansFlow.map { list ->
+            list.firstOrNull { it.userId == userId && it.dateIso == dateIso }
+        }
+    }
+
+    fun getDailyMealPlan(userId: Int, dateIso: String): DailyMealPlan? {
+        return _dailyMealPlansFlow.value.firstOrNull { it.userId == userId && it.dateIso == dateIso }
+    }
+
+    suspend fun upsertDailyMealPlan(plan: DailyMealPlan) {
+        val current = _dailyMealPlansFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.userId == plan.userId && it.dateIso == plan.dateIso }
+        if (index >= 0) {
+            current[index] = plan
+        } else {
+            current.add(0, plan)
+        }
+        _dailyMealPlansFlow.value = current
+        saveList(KEY_DAILY_MEAL_PLANS, current)
+    }
+
     suspend fun clearAll() {
         _foodsFlow.value = emptyList()
         _goalsFlow.value = emptyMap()
@@ -761,6 +796,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         _favoriteFoodsFlow.value = emptyMap()
         _reportsFlow.value = emptyList()
         _waterFlow.value = emptyList()
+        _dailyMealPlansFlow.value = emptyList()
         settings.remove(KEY_FOODS)
         settings.remove(KEY_GOALS)
         settings.remove(KEY_WORKOUTS)
@@ -769,6 +805,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         settings.remove(KEY_FAVORITE_FOODS)
         settings.remove(KEY_AI_REPORTS)
         settings.remove(KEY_WATER)
+        settings.remove(KEY_DAILY_MEAL_PLANS)
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -867,5 +904,6 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         private const val KEY_FAVORITE_FOODS = "ht_db_favorite_foods"
         private const val KEY_AI_REPORTS = "ht_db_ai_reports"
         private const val KEY_WATER = "ht_db_water"
+        private const val KEY_DAILY_MEAL_PLANS = "ht_db_daily_meal_plans"
     }
 }

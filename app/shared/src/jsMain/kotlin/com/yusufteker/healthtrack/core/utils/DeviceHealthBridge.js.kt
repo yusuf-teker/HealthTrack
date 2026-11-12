@@ -23,6 +23,11 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 )
             }
 
+            override fun syncSilentlyIfAuthorized(
+                days: Int,
+                onResult: (Result<DeviceHealthSnapshot>) -> Unit
+            ) {}
+
             override fun openHealthSettings() {}
         }
     }

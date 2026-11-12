@@ -11,8 +11,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yusufteker.healthtrack.core.model.CustomFoodIngredient
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
+import com.yusufteker.healthtrack.core.model.DailyMealPlan
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.FoodItem
+import com.yusufteker.healthtrack.core.model.MealSlotSuggestion
+import com.yusufteker.healthtrack.core.model.MealSlotType
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.model.NutrientSynergyTip
@@ -20,6 +23,8 @@ import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.WaterEntry
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
 import com.yusufteker.healthtrack.feature.food.presentation.components.AddCustomFoodDialog
+import com.yusufteker.healthtrack.feature.food.presentation.components.DailyMealPlanBottomSheet
+import com.yusufteker.healthtrack.feature.food.presentation.components.DailyMealSuggestionBanner
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodAiReviewBottomSheet
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodBentoRow
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodHydrationAndSmartMealRow
@@ -467,6 +472,119 @@ fun FoodAiReviewBottomSheetPreviewLight() {
             onDismiss = {},
             onConfirm = {},
             onSaveToInventory = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun DailyMealSuggestionBannerPreviewDark() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(modifier = Modifier.padding(16.dp)) {
+            DailyMealSuggestionBanner(
+                onOpenPlan = {},
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun DailyMealSuggestionBannerPreviewLight() {
+    HealthTrackTheme(darkTheme = false) {
+        Box(modifier = Modifier.padding(16.dp)) {
+            DailyMealSuggestionBanner(
+                onOpenPlan = {},
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+private val sampleDailyMealPlan = DailyMealPlan(
+    id = "sample_plan",
+    userId = 1,
+    dateIso = "2026-11-11",
+    headline = "Günün 4 Öğünlük Beslenme Planı 🥗",
+    deficiencySummary = "Son 3 gündeki beslenmeniz incelendi: Protein hedefin 24g gerisinde kaldı, lif ve demir alımı düşük. Bu eksikleri kapatacak pratik market tarifleri:",
+    detectedDeficiencies = listOf("Protein Açığı: 24g", "Lif İhtiyacı: 12g", "Demir & C Vitamini"),
+    breakfast = MealSlotSuggestion(
+        slot = MealSlotType.BREAKFAST,
+        title = "Ispanaklı Lorlu Omlet",
+        subtitle = "Demir, C Vitamini & Yüksek Protein",
+        prepTimeMinutes = 7,
+        ingredients = listOf("2 Adet Yumurta", "50g Lor Peyniri", "1 Avuç Ispanak"),
+        instructions = "Ispanağı tavada çevirip yumurta ve lorla pişirin.",
+        calories = 310,
+        proteinG = 26.0,
+        carbsG = 4.0,
+        fatG = 16.0,
+        fiberG = 3.0,
+        keyBenefits = "Güne yüksek protein ve demirle başlatır."
+    ),
+    lunch = MealSlotSuggestion(
+        slot = MealSlotType.LUNCH,
+        title = "Izgara Tavuk Göğsü & Brokoli",
+        subtitle = "Ultra Saf Kas Proteini & C Vitamini",
+        prepTimeMinutes = 12,
+        ingredients = listOf("180g Tavuk Göğsü", "150g Brokoli", "Yarım Limon"),
+        instructions = "Tavuğu ızgara yapın, brokoliyi buharda haşlayıp limon sıkın.",
+        calories = 320,
+        proteinG = 42.0,
+        carbsG = 8.0,
+        fatG = 7.0,
+        fiberG = 4.5,
+        keyBenefits = "Kas onarımı ve bağışıklık."
+    ),
+    dinner = MealSlotSuggestion(
+        slot = MealSlotType.DINNER,
+        title = "Kıymalı Yeşil Mercimek & Yoğurt",
+        subtitle = "Bitkisel Lif, Çinko & Kalsiyum",
+        prepTimeMinutes = 15,
+        ingredients = listOf("1 Porsiyon Yeşil Mercimek", "70g Yağsız Kıyma", "4 Yk Yoğurt"),
+        instructions = "Mercimeği kıymayla pişirip yoğurtla tüketin.",
+        calories = 410,
+        proteinG = 32.0,
+        carbsG = 40.0,
+        fatG = 12.0,
+        fiberG = 12.0,
+        keyBenefits = "Yüksek lif ve gece boyu kas doygunluğu."
+    ),
+    snack = MealSlotSuggestion(
+        slot = MealSlotType.SNACK,
+        title = "Kabak Çekirdekli Süzme Yoğurt",
+        subtitle = "Magnezyum & Kazein Proteini",
+        prepTimeMinutes = 0,
+        ingredients = listOf("150g Süzme Yoğurt", "1 Yk Kabak Çekirdeği"),
+        instructions = "Yoğurdun üzerine çekirdek serpip tüketin.",
+        calories = 210,
+        proteinG = 19.5,
+        carbsG = 6.0,
+        fatG = 10.0,
+        fiberG = 4.0,
+        keyBenefits = "Magnezyum ve kaliteli uyku desteği."
+    ),
+    totalCalories = 1250,
+    totalProteinG = 119.5,
+    totalCarbsG = 58.0,
+    totalFatG = 45.0,
+    totalFiberG = 23.5
+)
+
+@Preview
+@Composable
+fun DailyMealPlanBottomSheetPreviewDark() {
+    HealthTrackTheme(darkTheme = true) {
+        DailyMealPlanBottomSheet(
+            plan = sampleDailyMealPlan,
+            isLoading = false,
+            addedMealSlotTypes = setOf(MealSlotType.BREAKFAST),
+            onAddSlot = {},
+            onAddEntirePlan = {},
+            onRegenerate = {},
+            onOpenGroceryForMeal = { _, _ -> },
+            onDismiss = {}
         )
     }
 }

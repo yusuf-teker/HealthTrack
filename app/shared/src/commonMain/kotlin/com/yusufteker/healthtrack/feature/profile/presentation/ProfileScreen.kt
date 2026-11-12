@@ -36,6 +36,8 @@ import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.feature.food.presentation.components.EditGoalsDialog
+import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightReminderDialog
+import com.yusufteker.healthtrack.feature.workout.presentation.components.WorkoutReminderDialog
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
@@ -44,6 +46,12 @@ import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+
+private enum class ProfileTab(val title: String, val icon: ImageVector) {
+    PROFILE_GOALS("Profil & Hedefler", Icons.Rounded.Person),
+    NOTIFICATIONS_THEME("Bildirim & Tema", Icons.Rounded.Notifications),
+    DEVICES_ACCOUNT("Cihaz & Hesap", Icons.Rounded.Watch)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,9 +64,13 @@ fun ProfileScreen(
 ) {
     val scrollState = rememberScrollState()
     val deviceHealthBridge = rememberDeviceHealthBridge()
+    val isDark = LocalIsDarkTheme.current
 
+    var selectedTab by remember { mutableStateOf(ProfileTab.PROFILE_GOALS) }
     var showEditBodyDialog by remember { mutableStateOf(false) }
     var showEditGoalsDialog by remember { mutableStateOf(false) }
+    var showWorkoutReminderDialog by remember { mutableStateOf(false) }
+    var showWeightReminderDialog by remember { mutableStateOf(false) }
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -174,7 +186,65 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Section 1: Kimlik & Fiziksel Profil Özeti (Tek Kompakt Kart) ──
+            // ── Segmented Tab Selector ──
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.35f else 0.5f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ProfileTab.entries.forEach { tab ->
+                        val isSelected = tab == selectedTab
+                        Surface(
+                            onClick = { selectedTab = tab },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.15f)
+                            } else {
+                                Color.Transparent
+                            },
+                            border = if (isSelected) {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                            } else null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .bounceClick()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = tab.title,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 11.sp
+                                    ),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (selectedTab == ProfileTab.PROFILE_GOALS) {
+                // ── Section 1: Kimlik & Fiziksel Profil Özeti (Tek Kompakt Kart) ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
@@ -423,8 +493,184 @@ fun ProfileScreen(
                     }
                 }
             }
+            } else if (selectedTab == ProfileTab.NOTIFICATIONS_THEME) {
+                // ── Section: Hatırlatıcılar & Bildirim Sıklıkları (Özel Kontrol Kartı) ──
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(HealthColors.Primary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = HealthColors.Primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Hatırlatıcılar & Bildirim Sıklıkları",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Akıllı teşvik ve tartılma ritmi ayarları",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
-            // ── Section 3: Görünüm & Tema (Tek Birleşik Kart) ──
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+
+                        // 1. Antrenman / Spora Teşvik Bildirimi Satırı
+                        Surface(
+                            onClick = { showWorkoutReminderDialog = true },
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(HealthColors.Primary.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.FitnessCenter,
+                                            contentDescription = null,
+                                            tint = HealthColors.Primary,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = "Spora Teşvik Bildirimi",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = state.workoutReminderFrequency.title,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = HealthColors.Primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = state.workoutReminderFrequency.description,
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            lineHeight = 14.sp
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = "Düzenle",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // 2. Kilo / Tartılma Bildirimi Satırı
+                        Surface(
+                            onClick = { showWeightReminderDialog = true },
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(HealthColors.NutrientProtein.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Scale,
+                                            contentDescription = null,
+                                            tint = HealthColors.NutrientProtein,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = "Tartılma Hatırlatıcısı",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = state.weightReminderFrequency.title,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = HealthColors.NutrientProtein,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Her sabah 08:30'da güncel vücut ağırlığını kaydetmen için uyarır.",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            lineHeight = 14.sp
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = "Düzenle",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Section 3: Görünüm & Tema (Tek Birleşik Kart) ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp)
@@ -533,8 +779,8 @@ fun ProfileScreen(
                     }
                 }
             }
-
-            // ── Section 4: Akıllı Saat & Tartı Köprüsü ──
+            } else if (selectedTab == ProfileTab.DEVICES_ACCOUNT) {
+                // ── Section 4: Akıllı Saat & Tartı Köprüsü ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp)
@@ -686,9 +932,33 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    // ── Hatırlatıcı Düzenleme Diyalogları ──
+    if (showWorkoutReminderDialog) {
+        WorkoutReminderDialog(
+            currentFrequency = state.workoutReminderFrequency,
+            onDismiss = { showWorkoutReminderDialog = false },
+            onSave = {
+                onIntent(ProfileIntent.OnWorkoutReminderFrequencyChanged(it))
+                showWorkoutReminderDialog = false
+            }
+        )
+    }
+
+    if (showWeightReminderDialog) {
+        WeightReminderDialog(
+            currentFrequency = state.weightReminderFrequency,
+            onDismiss = { showWeightReminderDialog = false },
+            onSave = {
+                onIntent(ProfileIntent.OnWeightReminderFrequencyChanged(it))
+                showWeightReminderDialog = false
+            }
+        )
     }
 
     // ── Fiziksel Profil Düzenleme Diyaloğu (Güncel Kilo Hariç: Hedef Kilo, Boy, Yaş, Cinsiyet) ──

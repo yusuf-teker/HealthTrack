@@ -77,6 +77,8 @@ class ProfileViewModel(
         val age = tokenStorage.getUserAge().takeIf { it > 0 } ?: 26
         val gender = tokenStorage.getUserGender().takeIf { it.isNotBlank() } ?: "MALE"
         val fitnessGoal = tokenStorage.getUserFitnessGoal()
+        val workoutReminder = tokenStorage.getWorkoutReminderFrequency()
+        val weightReminder = tokenStorage.getWeightReminderFrequency()
         val isDark = settings.getBoolean("dark_mode", true)
         val accent = AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id))
 
@@ -90,6 +92,8 @@ class ProfileViewModel(
             age = age,
             gender = gender,
             fitnessGoal = fitnessGoal,
+            workoutReminderFrequency = workoutReminder,
+            weightReminderFrequency = weightReminder,
             isDarkMode = isDark,
             themeAccent = accent
         )
@@ -172,6 +176,30 @@ class ProfileViewModel(
                     _state.update { it.copy(nutritionGoal = updated, fitnessGoal = intent.fitnessGoal) }
                     _effects.send(ProfileEffect.ShowToast("${intent.fitnessGoal.title} ve besin hedefleri güncellendi."))
                     launch { syncEngine.sync() }
+                }
+            }
+            is ProfileIntent.OnWorkoutReminderFrequencyChanged -> {
+                tokenStorage.setWorkoutReminderFrequency(intent.frequency)
+                _state.update { it.copy(workoutReminderFrequency = intent.frequency) }
+                val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF) {
+                    "Spora teşvik bildirimi kapatıldı."
+                } else {
+                    "Spora teşvik sıklığı: ${intent.frequency.title} olarak ayarlandı."
+                }
+                viewModelScope.launch {
+                    _effects.send(ProfileEffect.ShowToast(msg))
+                }
+            }
+            is ProfileIntent.OnWeightReminderFrequencyChanged -> {
+                tokenStorage.setWeightReminderFrequency(intent.frequency)
+                _state.update { it.copy(weightReminderFrequency = intent.frequency) }
+                val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
+                    "Tartılma hatırlatıcısı kapatıldı."
+                } else {
+                    "Tartılma hatırlatıcısı: ${intent.frequency.title} olarak ayarlandı."
+                }
+                viewModelScope.launch {
+                    _effects.send(ProfileEffect.ShowToast(msg))
                 }
             }
             is ProfileIntent.OnThemeModeChanged -> {

@@ -29,7 +29,10 @@ class WorkoutViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        WorkoutState(userWeightKg = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 75.0)
+        WorkoutState(
+            userWeightKg = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 75.0,
+            reminderFrequency = tokenStorage.getWorkoutReminderFrequency()
+        )
     )
     val state: StateFlow<WorkoutState> = _state.asStateFlow()
 
@@ -76,19 +79,38 @@ class WorkoutViewModel(
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
                         val msg = summary.toUserMessage()
-                        _state.update { it.copy(isSyncingWatch = false, infoMessage = msg) }
-                        _effects.send(WorkoutEffect.ShowToast(msg))
+                        if (!intent.isSilent || summary.totalChanges > 0) {
+                            _state.update { it.copy(isSyncingWatch = false, infoMessage = msg) }
+                            _effects.send(WorkoutEffect.ShowToast(msg))
+                        } else {
+                            _state.update { it.copy(isSyncingWatch = false) }
+                        }
                     }.onFailure { err ->
-                        _state.update {
-                            it.copy(
-                                isSyncingWatch = false,
-                                errorMessage = err.message ?: "Saat antrenman verileri alınamadı."
-                            )
+                        if (!intent.isSilent) {
+                            _state.update {
+                                it.copy(
+                                    isSyncingWatch = false,
+                                    errorMessage = err.message ?: "Saat antrenman verileri alınamadı."
+                                )
+                            }
+                        } else {
+                            _state.update { it.copy(isSyncingWatch = false) }
                         }
                     }
                 }
             }
             is WorkoutIntent.OnDeleteWorkout -> deleteWorkout(intent.id)
+            is WorkoutIntent.OnReminderFrequencyChanged -> {
+                tokenStorage.setWorkoutReminderFrequency(intent.frequency)
+                _state.update { it.copy(reminderFrequency = intent.frequency, isReminderDialogOpen = false) }
+                val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF) {
+                    "Spora teşvik bildirimleri kapatıldı."
+                } else {
+                    "Spor hatırlatıcısı güncellendi: ${intent.frequency.title}"
+                }
+                _state.update { it.copy(infoMessage = msg) }
+            }
+            is WorkoutIntent.OnSetReminderDialogOpen -> _state.update { it.copy(isReminderDialogOpen = intent.isOpen) }
             is WorkoutIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
             is WorkoutIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
         }

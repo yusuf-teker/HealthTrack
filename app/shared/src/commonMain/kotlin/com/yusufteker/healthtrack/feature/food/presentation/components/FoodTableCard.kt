@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.ui.components.CalorieTelemetryColors
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 
@@ -34,6 +35,7 @@ fun FoodTableCard(
     items: List<FoodItem>,
     totalCalories: Int,
     summary: String?,
+    targetCalories: Int = 2000,
     onRemoveItem: (String) -> Unit,
     onClearAll: (() -> Unit)? = null,
     onAddClick: (() -> Unit)? = null,
@@ -219,6 +221,9 @@ fun FoodTableCard(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Total Calories Row
+                    val calRatio = if (targetCalories > 0) totalCalories.toFloat() / targetCalories else 0f
+                    val calColor = CalorieTelemetryColors.getColorForRatio(calRatio)
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,7 +239,7 @@ fun FoodTableCard(
                             text = "$totalCalories kcal",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
-                            color = HealthColors.Primary
+                            color = calColor
                         )
                     }
                 }

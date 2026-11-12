@@ -60,6 +60,7 @@ fun SmartMealMatcherBottomSheet(
     onOpenGroceryForMeal: (title: String, ingredients: List<String>) -> Unit,
     onRequestAiRecipe: () -> Unit,
     onDismissAiRecipe: () -> Unit = {},
+    onOpenDailyMealPlan: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

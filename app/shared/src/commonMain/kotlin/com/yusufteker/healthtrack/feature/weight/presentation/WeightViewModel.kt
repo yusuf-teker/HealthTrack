@@ -26,7 +26,11 @@ class WeightViewModel(
     private val deviceHealthSyncManager: DeviceHealthSyncManager
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(WeightState())
+    private val _state = MutableStateFlow(
+        WeightState(
+            reminderFrequency = tokenStorage.getWeightReminderFrequency()
+        )
+    )
     val state: StateFlow<WeightState> = _state.asStateFlow()
 
     private val _effects = Channel<WeightEffect>(Channel.BUFFERED)
@@ -66,19 +70,38 @@ class WeightViewModel(
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
                         val msg = summary.toUserMessage()
-                        _state.update { it.copy(isSyncingScale = false, infoMessage = msg) }
-                        _effects.send(WeightEffect.ShowToast(msg))
+                        if (!intent.isSilent || summary.totalChanges > 0) {
+                            _state.update { it.copy(isSyncingScale = false, infoMessage = msg) }
+                            _effects.send(WeightEffect.ShowToast(msg))
+                        } else {
+                            _state.update { it.copy(isSyncingScale = false) }
+                        }
                     }.onFailure { err ->
-                        _state.update {
-                            it.copy(
-                                isSyncingScale = false,
-                                errorMessage = err.message ?: "Tartı verileri alınamadı."
-                            )
+                        if (!intent.isSilent) {
+                            _state.update {
+                                it.copy(
+                                    isSyncingScale = false,
+                                    errorMessage = err.message ?: "Tartı verileri alınamadı."
+                                )
+                            }
+                        } else {
+                            _state.update { it.copy(isSyncingScale = false) }
                         }
                     }
                 }
             }
             is WeightIntent.OnDeleteWeight -> deleteWeight(intent.id)
+            is WeightIntent.OnReminderFrequencyChanged -> {
+                tokenStorage.setWeightReminderFrequency(intent.frequency)
+                _state.update { it.copy(reminderFrequency = intent.frequency, isReminderDialogOpen = false) }
+                val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
+                    "Tartı hatırlatıcısı kapatıldı."
+                } else {
+                    "Tartı hatırlatıcısı güncellendi: ${intent.frequency.title}"
+                }
+                _state.update { it.copy(infoMessage = msg) }
+            }
+            is WeightIntent.OnSetReminderDialogOpen -> _state.update { it.copy(isReminderDialogOpen = intent.isOpen) }
             is WeightIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
             is WeightIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
         }

@@ -6,9 +6,11 @@ import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.DailyMealPlanEngine
 import com.yusufteker.healthtrack.core.sync.SmartMealEngine
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
+import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -22,10 +24,16 @@ class FoodViewModel(
     private val database: HealthDatabase,
     private val apiClient: HealthApiClient,
     private val tokenStorage: TokenStorage,
-    private val syncEngine: SyncEngine
+    private val syncEngine: SyncEngine,
+    private val dailyMealPlanEngine: DailyMealPlanEngine
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(FoodState(fitnessGoal = tokenStorage.getUserFitnessGoal()))
+    private val _state = MutableStateFlow(
+        FoodState(
+            fitnessGoal = tokenStorage.getUserFitnessGoal(),
+            isDailyMealSuggestionBannerVisible = tokenStorage.getDailyMealPlanDismissedDate() != getTodayIso()
+        )
+    )
     val state: StateFlow<FoodState> = _state.asStateFlow()
 
     private val _effects = Channel<FoodEffect>(Channel.BUFFERED)
@@ -39,6 +47,7 @@ class FoodViewModel(
     private var allFoodsObservationJob: Job? = null
     private var waterObservationJob: Job? = null
     private var workoutObservationJob: Job? = null
+    private var dailyMealPlanObservationJob: Job? = null
 
     private var cachedWeights: List<WeightEntry> = emptyList()
     private var cachedRecent3DaysFoodNames: Set<String> = emptySet()
@@ -108,6 +117,7 @@ class FoodViewModel(
                     observeFavoriteFoods(session.userId)
                     observeAllFoods(session.userId)
                     observeWaterAndWorkouts(session.userId, _state.value.selectedDate)
+                    observeDailyMealPlan(session.userId, _state.value.selectedDate)
                 }
             }
         }
@@ -118,6 +128,9 @@ class FoodViewModel(
             is FoodIntent.OnDateChanged -> {
                 val dayWeightInfo = resolveDayWeightAndProtein(intent.newDate)
                 val fitnessGoal = tokenStorage.getUserFitnessGoal()
+                val today = getTodayIso()
+                val isToday = intent.newDate == today
+                val isBannerVisible = isToday && tokenStorage.getDailyMealPlanDismissedDate() != today
                 _state.update { current ->
                     current.copy(
                         selectedDate = intent.newDate,
@@ -131,13 +144,15 @@ class FoodViewModel(
                         items = emptyList(),
                         totalCalories = 0,
                         summary = null,
-                        nutrientBars = calculateBars(emptyList(), current.nutritionGoal, dayWeightInfo.targetProtein)
+                        nutrientBars = calculateBars(emptyList(), current.nutritionGoal, dayWeightInfo.targetProtein),
+                        isDailyMealSuggestionBannerVisible = isBannerVisible
                     )
                 }
                 val userId = tokenStorage.getUserId()
                 if (userId > 0) {
                     observeDataForCurrentDate(userId, intent.newDate)
                     observeWaterAndWorkouts(userId, intent.newDate)
+                    observeDailyMealPlan(userId, intent.newDate)
                 }
             }
             is FoodIntent.OnRawTextChanged -> _state.update { it.copy(rawText = intent.text) }
@@ -267,6 +282,99 @@ class FoodViewModel(
                 }
             }
             is FoodIntent.OnSendGroceryToPlanora -> sendGroceryToPlanora(intent.appLauncher)
+
+            // ── Günün Öğün Önerisi (Daily AI Meal Plan) ──
+            is FoodIntent.OnOpenDailyMealPlan -> {
+                val today = getTodayIso()
+                tokenStorage.setDailyMealPlanDismissedDate(today)
+                _state.update { it.copy(isDailyMealSuggestionBannerVisible = false, isDailyMealPlanSheetOpen = true) }
+                if (_state.value.dailyMealPlan == null || _state.value.dailyMealPlan?.dateIso != _state.value.selectedDate) {
+                    generateDailyMealPlan(force = false)
+                }
+            }
+            is FoodIntent.OnCloseDailyMealPlanSheet -> _state.update { it.copy(isDailyMealPlanSheetOpen = false) }
+            is FoodIntent.OnDismissDailyMealPlanBanner -> {
+                val today = getTodayIso()
+                tokenStorage.setDailyMealPlanDismissedDate(today)
+                _state.update { it.copy(isDailyMealSuggestionBannerVisible = false) }
+            }
+            is FoodIntent.OnRegenerateDailyMealPlan -> generateDailyMealPlan(force = true)
+            is FoodIntent.OnAddSuggestedMealSlot -> addSuggestedMealSlot(intent.slot)
+            is FoodIntent.OnAddEntireDailyMealPlan -> addEntireDailyMealPlan()
+        }
+    }
+
+    private fun observeDailyMealPlan(userId: Int, date: String) {
+        dailyMealPlanObservationJob?.cancel()
+        dailyMealPlanObservationJob = viewModelScope.launch {
+            database.observeDailyMealPlan(userId, date).collect { plan ->
+                _state.update { it.copy(dailyMealPlan = plan) }
+            }
+        }
+    }
+
+    private fun generateDailyMealPlan(force: Boolean = false) {
+        val userId = tokenStorage.getUserId()
+        if (userId <= 0) return
+        val currentDate = _state.value.selectedDate
+
+        if (!force) {
+            val existing = database.getDailyMealPlan(userId, currentDate)
+            if (existing != null) {
+                _state.update { it.copy(dailyMealPlan = existing, isGeneratingDailyMealPlan = false) }
+                return
+            }
+        }
+
+        _state.update { it.copy(isGeneratingDailyMealPlan = true) }
+
+        viewModelScope.launch {
+            try {
+                val allPastLogs = database.getAllFoodsForSync(userId)
+                val dayWeightInfo = resolveDayWeightAndProtein(currentDate)
+                val effectiveWeight = dayWeightInfo.weightKg ?: 70.0
+                val goal = _state.value.nutritionGoal
+                val fitnessGoal = tokenStorage.getUserFitnessGoal()
+
+                val plan = dailyMealPlanEngine.generateDailyPlan(
+                    userId = userId,
+                    dateIso = currentDate,
+                    recentDaysFoodLogs = allPastLogs,
+                    goal = goal,
+                    fitnessGoal = fitnessGoal,
+                    userWeightKg = effectiveWeight
+                )
+
+                database.upsertDailyMealPlan(plan)
+                _state.update { it.copy(dailyMealPlan = plan, isGeneratingDailyMealPlan = false) }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isGeneratingDailyMealPlan = false,
+                        errorMessage = "Günün öğün önerisi oluşturulurken bir hata oluştu: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun addSuggestedMealSlot(slot: MealSlotSuggestion) {
+        if (slot.itemsToAdd.isEmpty()) return
+        addMultipleItems(slot.itemsToAdd, "${slot.slotTitle} eklendi: ${slot.title}")
+        _state.update { it.copy(addedMealSlotTypes = it.addedMealSlotTypes + slot.slot) }
+        viewModelScope.launch {
+            _effects.send(FoodEffect.ShowToast("${slot.slotTitle} başarıyla günlüğe eklendi!"))
+        }
+    }
+
+    private fun addEntireDailyMealPlan() {
+        val plan = _state.value.dailyMealPlan ?: return
+        val allItems = plan.allSlots.map { it.itemsToAdd }.flatten()
+        if (allItems.isEmpty()) return
+        addMultipleItems(allItems, "Günün 4 öğünlük planı günlüğe eklendi!")
+        _state.update { it.copy(addedMealSlotTypes = MealSlotType.entries.toSet()) }
+        viewModelScope.launch {
+            _effects.send(FoodEffect.ShowToast("Günün 4 öğünü günlüğe eklendi!"))
         }
     }
 
@@ -582,35 +690,54 @@ class FoodViewModel(
         val logId = existingLog?.id ?: "food_${userId}_${date}"
 
         viewModelScope.launch {
-            val combinedItems = mergeDuplicateFoodItems(
-                ((existingLog?.items ?: emptyList()) + aiResult.items).map { item ->
-                    if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
-                }
-            )
-            val totalCals = combinedItems.sumOf { it.calories }
-            val newLog = FoodLog(
-                id = logId,
-                userId = userId,
-                date = date,
-                rawText = combinedItems.joinToString(", ") { "${it.name} (${it.formattedPortion})" },
-                summary = aiResult.summary,
-                totalCalories = totalCals,
-                items = combinedItems,
-                createdAt = existingLog?.createdAt ?: now,
-                updatedAt = now,
-                syncStatus = SyncStatus.PENDING
-            )
-
-            database.upsertFood(newLog)
-            _state.update {
-                it.copy(
-                    isAiReviewSheetOpen = false,
-                    pendingAiResult = null,
-                    rawText = "",
-                    infoMessage = "AI ile besin analizi onaylandı ve kaydedildi."
+            try {
+                val baseItems = existingLog?.items?.takeIf { it.isNotEmpty() } ?: _state.value.items
+                val combinedItems = mergeDuplicateFoodItems(
+                    (baseItems + aiResult.items).map { item ->
+                        if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
+                    }
                 )
+                val totalCals = combinedItems.sumOf { it.calories }
+                val newLog = FoodLog(
+                    id = logId,
+                    userId = userId,
+                    date = date,
+                    rawText = combinedItems.joinToString(", ") { "${it.name} (${it.formattedPortion})" },
+                    summary = aiResult.summary,
+                    totalCalories = totalCals,
+                    items = combinedItems,
+                    createdAt = existingLog?.createdAt ?: now,
+                    updatedAt = now,
+                    syncStatus = SyncStatus.PENDING
+                )
+
+                database.upsertFood(newLog)
+
+                val dayWeightInfo = resolveDayWeightAndProtein(date)
+                _state.update {
+                    it.copy(
+                        currentFoodLog = newLog,
+                        items = combinedItems,
+                        totalCalories = totalCals,
+                        summary = aiResult.summary,
+                        nutrientBars = calculateBars(combinedItems, it.nutritionGoal, dayWeightInfo.targetProtein),
+                        isAiReviewSheetOpen = false,
+                        pendingAiResult = null,
+                        rawText = "",
+                        infoMessage = "AI ile besin analizi onaylandı ve kaydedildi."
+                    )
+                }
+                updateSmartMealsAndSynergy()
+                launch { syncEngine.sync() }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isAiReviewSheetOpen = false,
+                        pendingAiResult = null,
+                        errorMessage = "Besin kaydedilirken bir sorun oluştu: ${e.message}"
+                    )
+                }
             }
-            launch { syncEngine.sync() }
         }
     }
 
@@ -1256,7 +1383,52 @@ class FoodViewModel(
         val userId = tokenStorage.getUserId()
         val now = currentTime()
         viewModelScope.launch {
-            items.forEach { item ->
+            try {
+                items.forEach { item ->
+                    val customId = "custom_" + Uuid.random().toString().take(12)
+                    val customItem = CustomFoodItem(
+                        id = customId,
+                        userId = userId,
+                        name = item.name.trim(),
+                        brand = null,
+                        portionUnit = item.formattedPortion.ifBlank { "1 Porsiyon" },
+                        unitStep = 1,
+                        calories = item.calories,
+                        proteinG = item.proteinG,
+                        carbsG = item.carbsG,
+                        fatG = item.fatG,
+                        fiberG = item.fiberG,
+                        micronutrients = item.micronutrients,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    database.upsertCustomFood(customItem)
+                }
+                _state.update {
+                    it.copy(
+                        isAiReviewSheetOpen = false,
+                        pendingAiResult = null,
+                        infoMessage = "${items.size} ürün envanterinize kaydedildi! 🏷️"
+                    )
+                }
+                _effects.send(FoodEffect.ShowToast("${items.size} ürün envanterinize başarıyla eklendi!"))
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isAiReviewSheetOpen = false,
+                        pendingAiResult = null,
+                        errorMessage = "Ürünler envantere kaydedilirken hata oluştu: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun saveSingleAiItemToInventory(item: FoodItem) {
+        val userId = tokenStorage.getUserId()
+        val now = currentTime()
+        viewModelScope.launch {
+            try {
                 val customId = "custom_" + Uuid.random().toString().take(12)
                 val customItem = CustomFoodItem(
                     id = customId,
@@ -1275,41 +1447,12 @@ class FoodViewModel(
                     updatedAt = now
                 )
                 database.upsertCustomFood(customItem)
+                _effects.send(FoodEffect.ShowToast("${item.name} envanterinize eklendi! 🏷️"))
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(errorMessage = "Ürün eklenirken hata: ${e.message}")
+                }
             }
-            _state.update {
-                it.copy(
-                    isAiReviewSheetOpen = false,
-                    pendingAiResult = null,
-                    infoMessage = "${items.size} ürün envanterinize kaydedildi! 🏷️"
-                )
-            }
-            _effects.send(FoodEffect.ShowToast("${items.size} ürün envanterinize başarıyla eklendi!"))
-        }
-    }
-
-    private fun saveSingleAiItemToInventory(item: FoodItem) {
-        val userId = tokenStorage.getUserId()
-        val now = currentTime()
-        viewModelScope.launch {
-            val customId = "custom_" + Uuid.random().toString().take(12)
-            val customItem = CustomFoodItem(
-                id = customId,
-                userId = userId,
-                name = item.name.trim(),
-                brand = null,
-                portionUnit = item.formattedPortion.ifBlank { "1 Porsiyon" },
-                unitStep = 1,
-                calories = item.calories,
-                proteinG = item.proteinG,
-                carbsG = item.carbsG,
-                fatG = item.fatG,
-                fiberG = item.fiberG,
-                micronutrients = item.micronutrients,
-                createdAt = now,
-                updatedAt = now
-            )
-            database.upsertCustomFood(customItem)
-            _effects.send(FoodEffect.ShowToast("${item.name} envanterinize eklendi! 🏷️"))
         }
     }
 

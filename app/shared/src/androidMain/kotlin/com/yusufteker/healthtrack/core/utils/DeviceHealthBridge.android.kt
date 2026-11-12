@@ -137,6 +137,26 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 }
             }
 
+            override fun syncSilentlyIfAuthorized(
+                days: Int,
+                onResult: (Result<DeviceHealthSnapshot>) -> Unit
+            ) {
+                if (status != HealthPlatformStatus.AVAILABLE) return
+                coroutineScope.launch {
+                    try {
+                        val client = HealthConnectClient.getOrCreate(context)
+                        val granted = client.permissionController.getGrantedPermissions()
+                        val hasAnyCore = granted.any { it in CORE_READ_PERMISSIONS }
+                        if (hasAnyCore) {
+                            val result = readHealthConnectData(context, days, granted)
+                            onResult(result)
+                        }
+                    } catch (e: Exception) {
+                        Napier.w("Silent Health Connect sync skipped: ${e.message}", e, tag = "DEVICE_SYNC")
+                    }
+                }
+            }
+
             override fun openHealthSettings() {
                 try {
                     val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {

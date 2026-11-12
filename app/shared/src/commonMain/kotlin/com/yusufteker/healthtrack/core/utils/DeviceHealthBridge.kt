@@ -23,6 +23,15 @@ interface DeviceHealthBridge {
     )
 
     /**
+     * Silently fetches health data if read permissions are already granted.
+     * Does NOT launch permission request prompts or show UI if permissions are missing.
+     */
+    fun syncSilentlyIfAuthorized(
+        days: Int = 30,
+        onResult: (Result<DeviceHealthSnapshot>) -> Unit
+    )
+
+    /**
      * Opens system Health Connect / Apple Health settings or Play Store installation page.
      */
     fun openHealthSettings()

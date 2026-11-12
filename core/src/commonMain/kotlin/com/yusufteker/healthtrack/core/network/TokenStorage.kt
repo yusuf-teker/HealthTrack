@@ -3,6 +3,7 @@ package com.yusufteker.healthtrack.core.network
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.UserSession
+import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,6 +71,65 @@ class TokenStorage(private val settings: Settings = Settings()) {
     fun getLastAutoWeeklyReportMonday(): String = settings.getString(KEY_LAST_AUTO_WEEK_MONDAY, "")
     fun setLastAutoWeeklyReportMonday(mondayIso: String) {
         settings.putString(KEY_LAST_AUTO_WEEK_MONDAY, mondayIso)
+    }
+
+    fun getDailyMealPlanDismissedDate(): String? = settings.getStringOrNull(KEY_DAILY_MEAL_PLAN_DISMISSED_DATE)
+    fun setDailyMealPlanDismissedDate(dateIso: String) {
+        settings.putString(KEY_DAILY_MEAL_PLAN_DISMISSED_DATE, dateIso)
+    }
+
+    fun getWeightReminderFrequency(): WeightReminderFrequency {
+        val raw = settings.getStringOrNull(KEY_WEIGHT_REMINDER_FREQ)
+        return WeightReminderFrequency.fromId(raw)
+    }
+
+    fun setWeightReminderFrequency(freq: WeightReminderFrequency) {
+        settings.putString(KEY_WEIGHT_REMINDER_FREQ, freq.id)
+    }
+
+    fun getWorkoutReminderFrequency(): com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency {
+        val raw = settings.getStringOrNull(KEY_WORKOUT_REMINDER_FREQ)
+        return com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.fromId(raw)
+    }
+
+    fun setWorkoutReminderFrequency(freq: com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency) {
+        settings.putString(KEY_WORKOUT_REMINDER_FREQ, freq.id)
+    }
+
+    fun getWorkoutReminderHour(): Int = settings.getInt(KEY_WORKOUT_REMINDER_HOUR, 18)
+    fun setWorkoutReminderHour(hour: Int) {
+        settings.putInt(KEY_WORKOUT_REMINDER_HOUR, hour)
+    }
+
+    fun getWorkoutReminderMinute(): Int = settings.getInt(KEY_WORKOUT_REMINDER_MINUTE, 0)
+    fun setWorkoutReminderMinute(minute: Int) {
+        settings.putInt(KEY_WORKOUT_REMINDER_MINUTE, minute)
+    }
+
+    fun getLastWorkoutReminderDate(): String? = settings.getStringOrNull(KEY_LAST_WORKOUT_REMINDER_DATE)
+    fun setLastWorkoutReminderDate(dateIso: String) {
+        settings.putString(KEY_LAST_WORKOUT_REMINDER_DATE, dateIso)
+    }
+
+    fun getIgnoredWorkoutNotificationCount(): Int = settings.getInt(KEY_IGNORED_WORKOUT_NOTIF_COUNT, 0)
+    fun setIgnoredWorkoutNotificationCount(count: Int) {
+        settings.putInt(KEY_IGNORED_WORKOUT_NOTIF_COUNT, count)
+    }
+
+    fun isFoodReminderEnabled(): Boolean = settings.getBoolean(KEY_FOOD_REMINDER_ENABLED, true)
+
+    fun setFoodReminderEnabled(enabled: Boolean) {
+        settings.putBoolean(KEY_FOOD_REMINDER_ENABLED, enabled)
+    }
+
+    fun getLastWeightReminderDate(): String? = settings.getStringOrNull(KEY_LAST_WEIGHT_REMINDER_DATE)
+    fun setLastWeightReminderDate(dateIso: String) {
+        settings.putString(KEY_LAST_WEIGHT_REMINDER_DATE, dateIso)
+    }
+
+    fun getLastFoodReminderDate(): String? = settings.getStringOrNull(KEY_LAST_FOOD_REMINDER_DATE)
+    fun setLastFoodReminderDate(dateIso: String) {
+        settings.putString(KEY_LAST_FOOD_REMINDER_DATE, dateIso)
     }
 
     fun isProfileConfigured(): Boolean {
@@ -184,5 +244,15 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_WHATSAPP_NUMBER = "ht_whatsapp_number"
         private const val KEY_AUTO_WEEKLY_WHATSAPP = "ht_auto_weekly_whatsapp"
         private const val KEY_LAST_AUTO_WEEK_MONDAY = "ht_last_auto_week_monday"
+        private const val KEY_DAILY_MEAL_PLAN_DISMISSED_DATE = "ht_daily_meal_plan_dismissed_date"
+        private const val KEY_WEIGHT_REMINDER_FREQ = "ht_weight_reminder_frequency"
+        private const val KEY_WORKOUT_REMINDER_FREQ = "ht_workout_reminder_frequency"
+        private const val KEY_WORKOUT_REMINDER_HOUR = "ht_workout_reminder_hour"
+        private const val KEY_WORKOUT_REMINDER_MINUTE = "ht_workout_reminder_minute"
+        private const val KEY_LAST_WORKOUT_REMINDER_DATE = "ht_last_workout_reminder_date"
+        private const val KEY_IGNORED_WORKOUT_NOTIF_COUNT = "ht_ignored_workout_notif_count"
+        private const val KEY_FOOD_REMINDER_ENABLED = "ht_food_reminder_enabled"
+        private const val KEY_LAST_WEIGHT_REMINDER_DATE = "ht_last_weight_reminder_date"
+        private const val KEY_LAST_FOOD_REMINDER_DATE = "ht_last_food_reminder_date"
     }
 }
