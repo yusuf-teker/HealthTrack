@@ -598,18 +598,24 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                 enter = fadeIn(),
                                 exit = fadeOut()
                             ) {
-                                Column {
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                                        thickness = 0.5.dp
-                                    )
-                                    val bottomInsetPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                                    NavigationBar(
-                                        containerColor = MaterialTheme.colorScheme.surface,
-                                        tonalElevation = 4.dp,
-                                        windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
-                                        modifier = Modifier.height(56.dp + bottomInsetPadding)
-                                    ) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 4.dp
+                                ) {
+                                    Column {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                            thickness = 0.5.dp
+                                        )
+                                        // Breathing room above indicator pill/icons without adding extra bottom space
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        val bottomInsetPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                                        NavigationBar(
+                                            containerColor = Color.Transparent,
+                                            tonalElevation = 0.dp,
+                                            windowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
+                                            modifier = Modifier.height(58.dp + bottomInsetPadding)
+                                        ) {
                                         NavigationBarItem(
                                             selected = selectedTab == HealthTab.FOOD,
                                             onClick = {
@@ -670,6 +676,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                 selectedTextColor = MaterialTheme.colorScheme.primary
                                             )
                                         )
+                                        }
                                     }
                                 }
                             }
