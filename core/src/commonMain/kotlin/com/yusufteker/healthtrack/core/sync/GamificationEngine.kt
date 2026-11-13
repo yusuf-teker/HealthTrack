@@ -5,6 +5,8 @@ import com.yusufteker.healthtrack.core.utils.calculateDaysBetween
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.getWeekBoundsIso
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -63,6 +65,8 @@ object GamificationEngine {
 
         val (currentStreak, longestStreak) = calculateStreaks(todayIso, activeDates)
 
+        val fiberTarget = nutritionGoal.fiberG.coerceAtLeast(20.0)
+
         // Nutrition & hydration milestone counts across days
         val proteinHitDays = foodByDate.count { (_, logs) ->
             val dayProtein = logs.sumOf { log -> log.items.sumOf { it.proteinG } }
@@ -73,28 +77,60 @@ object GamificationEngine {
             val ratio = dayCal.toDouble() / calTarget.toDouble()
             ratio in 0.85..1.15
         }
+        val fiberHitDays = foodByDate.count { (_, logs) ->
+            val dayFiber = logs.sumOf { log -> log.items.sumOf { it.fiberG } }
+            dayFiber >= fiberTarget
+        }
         val hydrationHitDays = activeWaters.count { entry ->
             val target = entry.targetMl.coerceAtLeast(1500)
             entry.amountMl >= target
         }
 
+        // Daily Bio-Score >= 85 days across active history
+        val bioScore85Days = activeDates.count { dateIso ->
+            val dayFoods = foodByDate[dateIso].orEmpty()
+            val dayWorkouts = workoutByDate[dateIso].orEmpty()
+            val dayWater = waterByDate[dateIso]
+            val prevIso = shiftDateIso(dateIso, -1)
+            val prevBurned = workoutByDate[prevIso].orEmpty().sumOf { it.caloriesBurned }
+            val restProtected = prevBurned >= WorkoutIncentiveEngine.REST_DAY_CALORIE_THRESHOLD
+            val score = computeDailyBioScore(
+                todayCalories = dayFoods.sumOf { it.totalCalories },
+                todayProtein = dayFoods.sumOf { log -> log.items.sumOf { it.proteinG } },
+                hasFoodToday = dayFoods.isNotEmpty(),
+                hasWorkoutOrRestToday = dayWorkouts.isNotEmpty() || restProtected,
+                todayWaterMl = dayWater?.amountMl ?: 0,
+                todayWaterTarget = (dayWater?.targetMl ?: 2500).coerceAtLeast(1500),
+                calTarget = calTarget,
+                proteinTarget = proteinTarget
+            )
+            score >= 85
+        }
+
+        // Weekends (Saturday + Sunday both active)
+        val weekendWarriorCount = activeDates.count { dateIso ->
+            isSaturdayIso(dateIso) && activeDates.contains(shiftDateIso(dateIso, 1))
+        }
+
         val totalWorkoutSessions = nonStepWorkouts.size
         val totalCaloriesBurned = nonStepWorkouts.sumOf { it.caloriesBurned.coerceAtLeast(0) }
+        val totalWorkoutMinutes = nonStepWorkouts.sumOf { it.durationMinutes.coerceAtLeast(0) }
         val totalLogsCount = activeFoods.size + nonStepWorkouts.size + activeWeights.size
+        val bestStreak = longestStreak.coerceAtLeast(currentStreak)
 
-        // Achievements
+        // Tiered Achievements (12 badge families x 1..5 stages)
         val achievements = listOf(
             achievement(BadgeId.FIRST_LOG, totalLogsCount),
-            achievement(BadgeId.STREAK_3, longestStreak.coerceAtLeast(currentStreak)),
-            achievement(BadgeId.STREAK_7, longestStreak.coerceAtLeast(currentStreak)),
-            achievement(BadgeId.STREAK_14, longestStreak.coerceAtLeast(currentStreak)),
-            achievement(BadgeId.STREAK_30, longestStreak.coerceAtLeast(currentStreak)),
+            achievement(BadgeId.STREAK_MASTER, bestStreak),
+            achievement(BadgeId.BIO_SCORE_ELITE, bioScore85Days),
+            achievement(BadgeId.WEEKEND_WARRIOR, weekendWarriorCount),
             achievement(BadgeId.PROTEIN_PRO, proteinHitDays),
             achievement(BadgeId.CALORIE_SNIPER, calorieBandDays),
+            achievement(BadgeId.FIBER_CHAMPION, fiberHitDays),
             achievement(BadgeId.HYDRATION_HERO, hydrationHitDays),
-            achievement(BadgeId.WORKOUT_10, totalWorkoutSessions),
-            achievement(BadgeId.BURN_1000, totalCaloriesBurned),
-            achievement(BadgeId.BURN_5000, totalCaloriesBurned),
+            achievement(BadgeId.WORKOUT_DISCIPLINE, totalWorkoutSessions),
+            achievement(BadgeId.CALORIE_ENGINE, totalCaloriesBurned),
+            achievement(BadgeId.ENDURANCE_MINUTES, totalWorkoutMinutes),
             achievement(BadgeId.SCALE_TRACKER, activeWeights.size)
         )
 
@@ -110,15 +146,16 @@ object GamificationEngine {
         val hasWorkoutToday = todayWorkouts.isNotEmpty()
         val hasWaterTargetToday = todayWaterMl >= todayWaterTarget
 
-        val foodLoggedPts = if (hasFoodToday) 25 else 0
-        val calBandPts = if (hasFoodToday) {
-            val ratio = todayCalories.toDouble() / calTarget.toDouble()
-            if (ratio in 0.85..1.15) 20 else (20.0 - abs(1.0 - ratio) * 35.0).roundToInt().coerceIn(5, 20)
-        } else 0
-        val proteinPts = ((todayProtein / proteinTarget).coerceIn(0.0, 1.0) * 25.0).roundToInt()
-        val waterPts = ((todayWaterMl.toDouble() / todayWaterTarget.toDouble()).coerceIn(0.0, 1.0) * 15.0).roundToInt()
-        val workoutPts = if (hasWorkoutToday || isRestDayProtected) 15 else 0
-        val todayScore = (foodLoggedPts + calBandPts + proteinPts + waterPts + workoutPts).coerceIn(0, 100)
+        val todayScore = computeDailyBioScore(
+            todayCalories = todayCalories,
+            todayProtein = todayProtein,
+            hasFoodToday = hasFoodToday,
+            hasWorkoutOrRestToday = hasWorkoutToday || isRestDayProtected,
+            todayWaterMl = todayWaterMl,
+            todayWaterTarget = todayWaterTarget,
+            calTarget = calTarget,
+            proteinTarget = proteinTarget
+        )
 
         // Daily Quests
         val dailyQuests = listOf(
@@ -214,7 +251,7 @@ object GamificationEngine {
                 (workoutByDate.size * 30) +
                 (weightDates.size * 10)
 
-        val achievementXp = achievements.filter { it.isUnlocked }.sumOf { it.badgeId.xpReward }
+        val achievementXp = achievements.sumOf { it.earnedXp }
         val weeklyQuestXp = weeklyQuests.filter { it.isCompleted }.sumOf { it.xpReward }
         val totalXp = baseActionXp + achievementXp + weeklyQuestXp
 
@@ -244,6 +281,8 @@ object GamificationEngine {
             todayEarnedXp = todayEarnedXp,
             unlockedBadgesCount = achievements.count { it.isUnlocked },
             totalBadgesCount = achievements.size,
+            unlockedTiersCount = achievements.sumOf { it.currentLevel },
+            totalTiersCount = achievements.sumOf { it.maxLevel },
             achievements = achievements,
             dailyQuests = dailyQuests,
             weeklyQuests = weeklyQuests
@@ -273,13 +312,51 @@ object GamificationEngine {
         return 150 + (level - 1) * 50
     }
 
+    private fun computeDailyBioScore(
+        todayCalories: Int,
+        todayProtein: Double,
+        hasFoodToday: Boolean,
+        hasWorkoutOrRestToday: Boolean,
+        todayWaterMl: Int,
+        todayWaterTarget: Int,
+        calTarget: Int,
+        proteinTarget: Double
+    ): Int {
+        val foodLoggedPts = if (hasFoodToday) 25 else 0
+        val calBandPts = if (hasFoodToday) {
+            val ratio = todayCalories.toDouble() / calTarget.toDouble()
+            if (ratio in 0.85..1.15) 20 else (20.0 - abs(1.0 - ratio) * 35.0).roundToInt().coerceIn(5, 20)
+        } else 0
+        val proteinPts = ((todayProtein / proteinTarget).coerceIn(0.0, 1.0) * 25.0).roundToInt()
+        val waterPts = ((todayWaterMl.toDouble() / todayWaterTarget.toDouble()).coerceIn(0.0, 1.0) * 15.0).roundToInt()
+        val workoutPts = if (hasWorkoutOrRestToday) 15 else 0
+        return (foodLoggedPts + calBandPts + proteinPts + waterPts + workoutPts).coerceIn(0, 100)
+    }
+
+    private fun isSaturdayIso(isoDate: String): Boolean {
+        return try {
+            LocalDate.parse(isoDate.trim()).dayOfWeek == DayOfWeek.SATURDAY
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun achievement(badgeId: BadgeId, rawProgress: Int): GamificationAchievement {
         val clamped = rawProgress.coerceAtLeast(0)
+        val stages = badgeId.stages
+        val unlockedStages = stages.filter { clamped >= it.targetCount }
+        val currentLevel = unlockedStages.size
+        val nextStage = stages.firstOrNull { clamped < it.targetCount } ?: stages.last()
         return GamificationAchievement(
             badgeId = badgeId,
-            progressCurrent = clamped.coerceAtMost(badgeId.targetCount),
-            progressTarget = badgeId.targetCount,
-            isUnlocked = clamped >= badgeId.targetCount
+            progressCurrent = clamped.coerceAtMost(nextStage.targetCount),
+            progressTarget = nextStage.targetCount,
+            isUnlocked = currentLevel > 0,
+            rawProgress = clamped,
+            currentLevel = currentLevel,
+            maxLevel = stages.size,
+            earnedXp = unlockedStages.sumOf { it.xpReward },
+            nextStageXpReward = nextStage.xpReward
         )
     }
 

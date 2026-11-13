@@ -276,12 +276,13 @@ fun ConfettiCelebrationOverlayDarkPreview() {
                 event = CelebrationEvent(
                     id = "preview_badge",
                     type = CelebrationType.BADGE_UNLOCKED,
-                    titleTr = "Yeni Rozet Açıldı!",
-                    titleEn = "New Badge Unlocked!",
-                    subtitleTr = "Haftalık Ateş • 7 günlük seri ile haftayı eksiksiz tamamla.",
-                    subtitleEn = "7-Day Flame • Complete a full 7-day active streak.",
+                    titleTr = "Rozet Seviyesi Yükseldi!",
+                    titleEn = "Badge Leveled Up!",
+                    subtitleTr = "Seri Ateşi (Sv. 2/5) • 7 gün hedefine ulaştın!",
+                    subtitleEn = "Streak Flame (Lv. 2/5) • Reached 7 days!",
                     xpBonus = 150,
-                    badgeId = BadgeId.STREAK_7
+                    badgeId = BadgeId.STREAK_MASTER,
+                    badgeStageLevel = 2
                 ),
                 onDismiss = {}
             )

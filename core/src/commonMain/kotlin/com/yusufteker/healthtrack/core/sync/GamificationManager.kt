@@ -155,6 +155,7 @@ class GamificationManager(
     ) {
         val initKey = "ht_gamify_init_$userId"
         val rulesV2Key = "ht_gamify_rules_v2_$userId"
+        val rulesV3Key = "ht_gamify_rules_v3_tiered_$userId"
         val seenBadgesKey = "ht_gamify_badges_$userId"
         val seenLevelKey = "ht_gamify_level_$userId"
         val seenStreakKey = "ht_gamify_streak_$userId"
@@ -162,7 +163,9 @@ class GamificationManager(
         val seenWorkoutGoalKey = "ht_gamify_workout_goal_${userId}_$todayIso"
         val seenWaterGoalKey = "ht_gamify_water_goal_${userId}_$todayIso"
 
-        val unlockedNames = summary.achievements.filter { it.isUnlocked }.map { it.badgeId.name }.toSet()
+        val unlockedStageKeys = summary.achievements.flatMap { ach ->
+            (1..ach.currentLevel).map { lvl -> "${ach.badgeId.name}:$lvl" }
+        }.toSet()
         val allDailyDone = summary.dailyQuests.isNotEmpty() && summary.dailyQuests.all { it.isCompleted }
         val isWorkoutGoalDoneNow = todaySnapshot.totalBurnedWithSteps >= workoutTarget
         val isWaterGoalDoneNow = todaySnapshot.waterMl >= waterTarget
@@ -176,13 +179,16 @@ class GamificationManager(
             wasWaterGoalDoneToday = settings.getBoolean(seenWaterGoalKey, isWaterGoalDoneNow)
         }
 
-        val isSeededV2 = settings.getBoolean(initKey, false) && settings.getBoolean(rulesV2Key, false)
-        if (!isSeededV2) {
-            // Seed or re-seed baseline cleanly under v2 rules so historical/passive step entries
-            // never leave stale streaks or trigger false 30-day badge confetti.
+        val isSeededV3 = settings.getBoolean(initKey, false) &&
+            settings.getBoolean(rulesV2Key, false) &&
+            settings.getBoolean(rulesV3Key, false)
+        if (!isSeededV3) {
+            // Seed or re-seed baseline cleanly under tiered v3 rules so existing progress
+            // never triggers retroactive confetti on upgrade or historical backfill.
             settings.putBoolean(initKey, true)
             settings.putBoolean(rulesV2Key, true)
-            settings.putString(seenBadgesKey, unlockedNames.joinToString(","))
+            settings.putBoolean(rulesV3Key, true)
+            settings.putString(seenBadgesKey, unlockedStageKeys.joinToString(","))
             settings.putInt(seenLevelKey, summary.level)
             settings.putInt(seenStreakKey, summary.currentStreakDays)
             if (allDailyDone) settings.putBoolean(seenDailyDoneKey, true)
@@ -202,7 +208,7 @@ class GamificationManager(
                 .split(",")
                 .filter { it.isNotBlank() }
                 .toMutableSet()
-            mergedBadges.addAll(unlockedNames)
+            mergedBadges.addAll(unlockedStageKeys)
             settings.putString(seenBadgesKey, mergedBadges.joinToString(","))
             settings.putInt(seenLevelKey, maxOf(settings.getInt(seenLevelKey, 1), summary.level))
             settings.putInt(seenStreakKey, maxOf(settings.getInt(seenStreakKey, 0), summary.currentStreakDays))
@@ -227,31 +233,43 @@ class GamificationManager(
         val prev = lastTodaySnapshot
         lastTodaySnapshot = todaySnapshot
 
-        // 1. Check milestone badges, level-ups, streak milestones, all daily quests
+        // 1. Check tiered milestone badges, level-ups, streak milestones, all daily quests
         val seenBadges = settings.getString(seenBadgesKey, "")
             .split(",")
             .filter { it.isNotBlank() }
             .toMutableSet()
 
-        val newlyUnlocked = summary.achievements.filter {
-            it.isUnlocked && !seenBadges.contains(it.badgeId.name)
-        }
-        for (ach in newlyUnlocked) {
-            seenBadges.add(ach.badgeId.name)
+        var anyNewBadgeStage = false
+        for (ach in summary.achievements) {
+            if (ach.currentLevel <= 0) continue
+            val newLevels = (1..ach.currentLevel).filter { lvl ->
+                !seenBadges.contains("${ach.badgeId.name}:$lvl")
+            }
+            if (newLevels.isEmpty()) continue
+            anyNewBadgeStage = true
+            newLevels.forEach { lvl -> seenBadges.add("${ach.badgeId.name}:$lvl") }
+
+            val highestLvl = newLevels.max()
+            val stageTarget = ach.badgeId.stageForLevel(highestLvl)?.targetCount ?: ach.progressTarget
+            val earnedStageXp = newLevels.sumOf { lvl -> ach.badgeId.stageForLevel(lvl)?.xpReward ?: 0 }
+            val isUpgrade = highestLvl > 1 && ach.maxLevel > 1
+            val stageSuffix = if (ach.maxLevel > 1) " (Sv. $highestLvl/${ach.maxLevel})" else ""
+            val stageSuffixEn = if (ach.maxLevel > 1) " (Lv. $highestLvl/${ach.maxLevel})" else ""
             enqueueCelebration(
                 CelebrationEvent(
-                    id = "badge_${ach.badgeId.name}",
+                    id = "badge_${ach.badgeId.name}_lvl_$highestLvl",
                     type = CelebrationType.BADGE_UNLOCKED,
-                    titleTr = "Yeni Rozet Açıldı!",
-                    titleEn = "New Badge Unlocked!",
-                    subtitleTr = "${ach.badgeId.titleTr} • ${ach.badgeId.descriptionTr}",
-                    subtitleEn = "${ach.badgeId.titleEn} • ${ach.badgeId.descriptionEn}",
-                    xpBonus = ach.badgeId.xpReward,
-                    badgeId = ach.badgeId
+                    titleTr = if (isUpgrade) "Rozet Seviyesi Yükseldi!" else "Yeni Rozet Açıldı!",
+                    titleEn = if (isUpgrade) "Badge Leveled Up!" else "New Badge Unlocked!",
+                    subtitleTr = "${ach.badgeId.titleTr}$stageSuffix • $stageTarget ${ach.badgeId.unitTr} hedefine ulaştın!",
+                    subtitleEn = "${ach.badgeId.titleEn}$stageSuffixEn • Reached $stageTarget ${ach.badgeId.unitEn}!",
+                    xpBonus = earnedStageXp,
+                    badgeId = ach.badgeId,
+                    badgeStageLevel = highestLvl
                 )
             )
         }
-        if (newlyUnlocked.isNotEmpty()) {
+        if (anyNewBadgeStage) {
             settings.putString(seenBadgesKey, seenBadges.joinToString(","))
         }
 
@@ -292,7 +310,7 @@ class GamificationManager(
             settings.putInt(seenStreakKey, summary.currentStreakDays)
         }
 
-        var triggeredGoalConfettiThisCycle = newlyUnlocked.isNotEmpty() || summary.level > seenLevel
+        var triggeredGoalConfettiThisCycle = anyNewBadgeStage || summary.level > seenLevel
 
         // 2. Check Workout action & Daily Calorie Burn Goal
         val workoutAdded = todaySnapshot.explicitWorkoutsCount > prev.explicitWorkoutsCount ||

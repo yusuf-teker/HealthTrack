@@ -59,8 +59,11 @@ class GamificationEngineTest {
         assertEquals(3, summary.longestStreakDays)
         assertTrue(summary.isActiveToday)
         assertTrue(summary.achievements.first { it.badgeId == BadgeId.FIRST_LOG }.isUnlocked)
-        assertTrue(summary.achievements.first { it.badgeId == BadgeId.STREAK_3 }.isUnlocked)
-        assertFalse(summary.achievements.first { it.badgeId == BadgeId.STREAK_7 }.isUnlocked)
+        val streakAch = summary.achievements.first { it.badgeId == BadgeId.STREAK_MASTER }
+        assertTrue(streakAch.isUnlocked)
+        assertEquals(1, streakAch.currentLevel)
+        assertEquals(7, streakAch.progressTarget)
+        assertEquals(75, streakAch.earnedXp)
     }
 
     @Test
@@ -91,10 +94,11 @@ class GamificationEngineTest {
     }
 
     @Test
-    fun evaluate_burn1000AndWorkouts_updatesProgressCorrectly() {
+    fun evaluate_burnStagesAndDuration_updatesMultiLevelProgressCorrectly() {
         val workouts = listOf(
-            WorkoutLog(id = "w1", userId = 1, date = "2026-11-11", rawText = "Koşu", caloriesBurned = 650, durationMinutes = 50),
-            WorkoutLog(id = "w2", userId = 1, date = "2026-11-12", rawText = "Bisiklet", caloriesBurned = 450, durationMinutes = 40)
+            WorkoutLog(id = "w1", userId = 1, date = "2026-11-08", rawText = "Uzun Koşu", caloriesBurned = 2200, durationMinutes = 90),
+            WorkoutLog(id = "w2", userId = 1, date = "2026-11-09", rawText = "Bisiklet", caloriesBurned = 3100, durationMinutes = 110),
+            WorkoutLog(id = "w3", userId = 1, date = "2026-11-11", rawText = "HIIT", caloriesBurned = 4800, durationMinutes = 100)
         )
         val summary = GamificationEngine.evaluate(
             foods = emptyList(),
@@ -105,9 +109,81 @@ class GamificationEngineTest {
             todayIso = "2026-11-13"
         )
 
-        assertTrue(summary.achievements.first { it.badgeId == BadgeId.BURN_1000 }.isUnlocked)
-        assertFalse(summary.achievements.first { it.badgeId == BadgeId.BURN_5000 }.isUnlocked)
-        assertEquals(1100, summary.achievements.first { it.badgeId == BadgeId.BURN_5000 }.progressCurrent)
+        val engine = summary.achievements.first { it.badgeId == BadgeId.CALORIE_ENGINE }
+        assertTrue(engine.isUnlocked)
+        // 10.100 kcal unlocks Sv.1 (1000) + Sv.2 (5000) + Sv.3 (10000), targeting Sv.4 (25000)
+        assertEquals(3, engine.currentLevel)
+        assertEquals(10100, engine.rawProgress)
+        assertEquals(25000, engine.progressTarget)
+        assertEquals(100 + 250 + 500, engine.earnedXp)
+
+        val endurance = summary.achievements.first { it.badgeId == BadgeId.ENDURANCE_MINUTES }
+        assertTrue(endurance.isUnlocked)
+        // 300 minutes unlocks Sv.1 (150), targeting Sv.2 (500)
+        assertEquals(1, endurance.currentLevel)
+        assertEquals(300, endurance.rawProgress)
+        assertEquals(500, endurance.progressTarget)
+    }
+
+    @Test
+    fun evaluate_newBehavioralBadges_bioScoreWeekendAndFiberUnlockCorrectly() {
+        // 2026-11-07 Sat + 2026-11-08 Sun, 2026-11-14 Sat + 2026-11-15 Sun -> 2 full weekends + fiber >= 30g + high bio score
+        val activeDays = listOf("2026-11-07", "2026-11-08", "2026-11-14", "2026-11-15", "2026-11-16")
+        val foods = activeDays.mapIndexed { idx, d ->
+            FoodLog(
+                id = "food_$idx",
+                userId = 1,
+                date = d,
+                rawText = "Yulaf & Tavuk",
+                totalCalories = 2000,
+                items = listOf(
+                    FoodItem(
+                        name = "Tam Gün",
+                        formattedPortion = "1 porsiyon",
+                        calories = 2000,
+                        proteinG = 100.0,
+                        fiberG = 35.0
+                    )
+                )
+            )
+        }
+        val workouts = activeDays.mapIndexed { idx, d ->
+            WorkoutLog(
+                id = "wk_$idx",
+                userId = 1,
+                date = d,
+                rawText = "Koşu",
+                caloriesBurned = 350,
+                durationMinutes = 35
+            )
+        }
+        val waters = activeDays.map { d ->
+            WaterEntry(date = d, userId = 1, amountMl = 2600, targetMl = 2500)
+        }
+
+        val summary = GamificationEngine.evaluate(
+            foods = foods,
+            workouts = workouts,
+            weights = emptyList(),
+            waters = waters,
+            nutritionGoal = NutritionGoal(id = "g1", userId = 1, calories = 2000, proteinG = 80.0, fiberG = 30.0),
+            todayIso = "2026-11-16"
+        )
+
+        val weekend = summary.achievements.first { it.badgeId == BadgeId.WEEKEND_WARRIOR }
+        assertTrue(weekend.isUnlocked)
+        assertEquals(1, weekend.currentLevel)
+        assertEquals(2, weekend.rawProgress)
+
+        val bioElite = summary.achievements.first { it.badgeId == BadgeId.BIO_SCORE_ELITE }
+        assertTrue(bioElite.isUnlocked)
+        assertEquals(1, bioElite.currentLevel)
+        assertEquals(5, bioElite.rawProgress)
+
+        val fiber = summary.achievements.first { it.badgeId == BadgeId.FIBER_CHAMPION }
+        assertTrue(fiber.isUnlocked)
+        assertEquals(1, fiber.currentLevel)
+        assertEquals(5, fiber.rawProgress)
     }
 
     @Test
@@ -155,8 +231,10 @@ class GamificationEngineTest {
         assertEquals(0, summary.longestStreakDays)
         assertEquals(0, summary.totalXp)
         assertEquals(0, summary.unlockedBadgesCount)
-        assertFalse(summary.achievements.first { it.badgeId == BadgeId.STREAK_30 }.isUnlocked)
-        assertFalse(summary.achievements.first { it.badgeId == BadgeId.BURN_5000 }.isUnlocked)
+        assertEquals(0, summary.unlockedTiersCount)
+        assertFalse(summary.achievements.first { it.badgeId == BadgeId.STREAK_MASTER }.isUnlocked)
+        assertFalse(summary.achievements.first { it.badgeId == BadgeId.CALORIE_ENGINE }.isUnlocked)
+        assertFalse(summary.achievements.first { it.badgeId == BadgeId.ENDURANCE_MINUTES }.isUnlocked)
     }
 }
 

@@ -77,6 +77,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -532,6 +535,8 @@ private fun OverviewSection(
     )
 
     // Achievements / Badges Section
+    var inspectedAchievement by remember { mutableStateOf<GamificationAchievement?>(null) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -544,8 +549,8 @@ private fun OverviewSection(
             )
             Text(
                 text = str(
-                    "${summary.unlockedBadgesCount} / ${summary.totalBadgesCount} rozet açıldı",
-                    "${summary.unlockedBadgesCount} / ${summary.totalBadgesCount} badges unlocked"
+                    "${summary.unlockedBadgesCount}/${summary.totalBadgesCount} rozet • ${summary.unlockedTiersCount}/${summary.totalTiersCount} seviye",
+                    "${summary.unlockedBadgesCount}/${summary.totalBadgesCount} badges • ${summary.unlockedTiersCount}/${summary.totalTiersCount} tiers"
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -588,6 +593,7 @@ private fun OverviewSection(
                 rowItems.forEach { ach ->
                     BadgeGridCard(
                         achievement = ach,
+                        onClick = { inspectedAchievement = ach },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -596,6 +602,13 @@ private fun OverviewSection(
                 }
             }
         }
+    }
+
+    inspectedAchievement?.let { activeAch ->
+        BadgeStagesDetailSheet(
+            achievement = activeAch,
+            onDismiss = { inspectedAchievement = null }
+        )
     }
 }
 
@@ -695,28 +708,52 @@ private fun QuestsCard(
 }
 
 @Composable
+private fun badgeIconFor(badgeId: BadgeId): ImageVector = when (badgeId) {
+    BadgeId.FIRST_LOG -> Icons.Rounded.AutoAwesome
+    BadgeId.STREAK_MASTER -> Icons.Rounded.LocalFireDepartment
+    BadgeId.BIO_SCORE_ELITE -> Icons.Rounded.WorkspacePremium
+    BadgeId.WEEKEND_WARRIOR -> Icons.Rounded.Shield
+    BadgeId.PROTEIN_PRO -> Icons.Rounded.Restaurant
+    BadgeId.CALORIE_SNIPER -> Icons.Rounded.EmojiEvents
+    BadgeId.FIBER_CHAMPION -> Icons.Rounded.AutoAwesome
+    BadgeId.HYDRATION_HERO -> Icons.Rounded.WaterDrop
+    BadgeId.WORKOUT_DISCIPLINE -> Icons.AutoMirrored.Rounded.DirectionsRun
+    BadgeId.CALORIE_ENGINE -> Icons.Rounded.LocalFireDepartment
+    BadgeId.ENDURANCE_MINUTES -> Icons.Rounded.Timer
+    BadgeId.SCALE_TRACKER -> Icons.Rounded.MonitorWeight
+}
+
+@Composable
 private fun BadgeGridCard(
     achievement: GamificationAchievement,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lang = appLang()
     val badge = achievement.badgeId
     val accent = Color(badge.accentColorHex)
     val unlocked = achievement.isUnlocked
-
-    val icon = when (badge.category) {
-        BadgeCategory.STREAK -> Icons.Rounded.LocalFireDepartment
-        BadgeCategory.NUTRITION -> Icons.Rounded.Restaurant
-        BadgeCategory.WORKOUT -> Icons.AutoMirrored.Rounded.DirectionsRun
-        BadgeCategory.HYDRATION -> Icons.Rounded.WaterDrop
-        BadgeCategory.WEIGHT -> Icons.Rounded.MonitorWeight
-    }
+    val isMaxed = achievement.isMaxed
+    val rank = badge.rankForLevel(achievement.currentLevel)
+    val rankColor = Color(rank.accentHex)
+    val icon = badgeIconFor(badge)
 
     GlassCard(
-        modifier = modifier,
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .bounceClick()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        borderGradient = if (unlocked) listOf(accent.copy(alpha = 0.55f), HealthColors.PrimaryGlow.copy(alpha = 0.25f)) else null,
-        borderWidth = if (unlocked) 1.4.dp else 1.dp
+        borderGradient = when {
+            isMaxed -> listOf(rankColor.copy(alpha = 0.8f), accent.copy(alpha = 0.55f))
+            unlocked -> listOf(accent.copy(alpha = 0.55f), rankColor.copy(alpha = 0.35f))
+            else -> null
+        },
+        borderWidth = when {
+            isMaxed -> 1.6.dp
+            unlocked -> 1.3.dp
+            else -> 1.dp
+        }
     ) {
         Column(
             modifier = Modifier
@@ -734,7 +771,7 @@ private fun BadgeGridCard(
                     color = if (unlocked) accent.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                     border = BorderStroke(
                         1.dp,
-                        if (unlocked) accent.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        if (unlocked) rankColor.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     ),
                     modifier = Modifier.size(40.dp)
                 ) {
@@ -748,13 +785,35 @@ private fun BadgeGridCard(
                     }
                 }
 
-                if (unlocked) {
+                if (achievement.maxLevel > 1) {
+                    val stageBadgeBg = if (unlocked) rankColor.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    val stageBadgeFg = if (unlocked) rankColor else MaterialTheme.colorScheme.onSurfaceVariant
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = stageBadgeBg,
+                        border = if (unlocked) BorderStroke(0.8.dp, rankColor.copy(alpha = 0.45f)) else null
+                    ) {
+                        Text(
+                            text = if (isMaxed) {
+                                str("MAKS ${achievement.currentLevel}/${achievement.maxLevel}", "MAX ${achievement.currentLevel}/${achievement.maxLevel}")
+                            } else {
+                                str("Sv.${achievement.currentLevel}/${achievement.maxLevel}", "Lv.${achievement.currentLevel}/${achievement.maxLevel}")
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp
+                            ),
+                            color = stageBadgeFg,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
+                } else if (unlocked) {
                     Surface(
                         shape = RoundedCornerShape(999.dp),
                         color = Color(0xFF10B981).copy(alpha = 0.16f)
                     ) {
                         Text(
-                            text = "+${badge.xpReward} XP",
+                            text = "+${achievement.earnedXp} XP",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 10.sp
@@ -789,17 +848,53 @@ private fun BadgeGridCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Progress bar
+            // Mini stage pips for tiered badges
+            if (achievement.maxLevel > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    for (lvl in 1..achievement.maxLevel) {
+                        val filled = lvl <= achievement.currentLevel
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(
+                                    if (filled) rankColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                )
+                        )
+                    }
+                }
+            }
+
+            // Progress bar to next stage (or maxed XP summary)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (unlocked) str("Tamamlandı", "Unlocked") else "${achievement.progressCurrent} / ${achievement.progressTarget}",
+                        text = if (isMaxed) {
+                            str("Tamamlandı • +${achievement.earnedXp} XP", "Maxed • +${achievement.earnedXp} XP")
+                        } else {
+                            "${achievement.progressCurrent}/${achievement.progressTarget} ${badge.localizedUnit(lang)}"
+                        },
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
-                        color = if (unlocked) accent else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isMaxed) rankColor else if (unlocked) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (!isMaxed) {
+                        Text(
+                            text = "+${achievement.nextStageXpReward} XP",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                            color = accent.copy(alpha = 0.9f)
+                        )
+                    }
                 }
                 Box(
                     modifier = Modifier
@@ -813,10 +908,198 @@ private fun BadgeGridCard(
                             .fillMaxWidth(achievement.progressFraction.coerceIn(0f, 1f))
                             .height(5.dp)
                             .clip(RoundedCornerShape(999.dp))
-                            .background(if (unlocked) accent else accent.copy(alpha = 0.55f))
+                            .background(if (isMaxed) rankColor else if (unlocked) accent else accent.copy(alpha = 0.55f))
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BadgeStagesDetailSheet(
+    achievement: GamificationAchievement,
+    onDismiss: () -> Unit
+) {
+    val lang = appLang()
+    val badge = achievement.badgeId
+    val accent = Color(badge.accentColorHex)
+    val rank = badge.rankForLevel(achievement.currentLevel)
+    val rankColor = Color(rank.accentHex)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = accent.copy(alpha = 0.16f),
+                    border = BorderStroke(1.2.dp, rankColor.copy(alpha = 0.65f)),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = badgeIconFor(badge),
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = badge.localizedTitle(lang),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold)
+                    )
+                    Text(
+                        text = "${badge.category.localizedTitle(lang)} • ${rank.localizedLabel(lang)}",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = rankColor
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = accent.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "+${achievement.earnedXp} XP",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = accent,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = badge.localizedDescription(lang),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = str("Mevcut Toplam İlerleme", "Total Current Progress"),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${achievement.rawProgress} ${badge.localizedUnit(lang)}",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        color = accent
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                badge.stages.forEach { stage ->
+                    val unlockedStage = achievement.currentLevel >= stage.level
+                    val isNextTarget = !achievement.isMaxed && stage.level == achievement.currentLevel + 1
+                    val stageRankColor = Color(badge.rankForLevel(stage.level).accentHex)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = when {
+                            unlockedStage -> stageRankColor.copy(alpha = 0.12f)
+                            isNextTarget -> accent.copy(alpha = 0.08f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            when {
+                                unlockedStage -> stageRankColor.copy(alpha = 0.45f)
+                                isNextTarget -> accent.copy(alpha = 0.4f)
+                                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                            }
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (unlockedStage) Icons.Rounded.CheckCircle else Icons.Rounded.Lock,
+                                    contentDescription = null,
+                                    tint = if (unlockedStage) stageRankColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = if (badge.maxLevel > 1) {
+                                            str("Seviye ${stage.level}", "Level ${stage.level}")
+                                        } else {
+                                            str("Başlangıç Rozeti", "Starter Badge")
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = if (unlockedStage || isNextTarget) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    )
+                                    Text(
+                                        text = "${stage.targetCount} ${badge.localizedUnit(lang)}",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = (if (unlockedStage) stageRankColor else accent).copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = if (unlockedStage) "✓ +${stage.xpReward} XP" else "+${stage.xpReward} XP",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (unlockedStage) stageRankColor else accent,
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text(str("Kapat", "Close"))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

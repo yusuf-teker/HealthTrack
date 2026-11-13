@@ -41,15 +41,39 @@ enum class BadgeCategory(val titleTr: String, val titleEn: String) {
 }
 
 @Serializable
+data class BadgeStage(
+    val level: Int,
+    val targetCount: Int,
+    val xpReward: Int
+)
+
+enum class BadgeRank(
+    val accentHex: Long,
+    val labelTr: String,
+    val labelEn: String
+) {
+    LOCKED(0xFF64748B, "Kilitli", "Locked"),
+    BRONZE(0xFFCD7F32, "Bronz", "Bronze"),
+    SILVER(0xFFCBD5E1, "Gümüş", "Silver"),
+    GOLD(0xFFF59E0B, "Altın", "Gold"),
+    PLATINUM(0xFF38BDF8, "Platin", "Platinum"),
+    DIAMOND(0xFFEC4899, "Elmas", "Diamond");
+
+    fun localizedLabel(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(labelTr, labelEn, language)
+}
+
+@Serializable
 enum class BadgeId(
     val category: BadgeCategory,
     val titleTr: String,
     val titleEn: String,
     val descriptionTr: String,
     val descriptionEn: String,
-    val targetCount: Int,
-    val xpReward: Int,
-    val accentColorHex: Long
+    val unitTr: String,
+    val unitEn: String,
+    val accentColorHex: Long,
+    val stages: List<BadgeStage>
 ) {
     FIRST_LOG(
         category = BadgeCategory.STREAK,
@@ -57,126 +81,216 @@ enum class BadgeId(
         titleEn = "First Step",
         descriptionTr = "İlk sağlık kaydını (öğün, spor veya tartım) oluştur.",
         descriptionEn = "Create your very first health log (meal, workout, or weight).",
-        targetCount = 1,
-        xpReward = 50,
-        accentColorHex = 0xFF38BDF8
+        unitTr = "kayıt",
+        unitEn = "logs",
+        accentColorHex = 0xFF38BDF8,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 1, xpReward = 50)
+        )
     ),
-    STREAK_3(
+    STREAK_MASTER(
         category = BadgeCategory.STREAK,
-        titleTr = "3 Günlük Kıvılcım",
-        titleEn = "3-Day Spark",
-        descriptionTr = "3 gün üst üste aktif kalarak ritmi yakala.",
-        descriptionEn = "Stay active for 3 consecutive days.",
-        targetCount = 3,
-        xpReward = 75,
-        accentColorHex = 0xFFF59E0B
+        titleTr = "Seri Ateşi",
+        titleEn = "Streak Flame",
+        descriptionTr = "Üst üste aktif gün serisi yakalayarak alışkanlığını güçlendir.",
+        descriptionEn = "Build unstoppable momentum with consecutive active days.",
+        unitTr = "gün",
+        unitEn = "days",
+        accentColorHex = 0xFFFB923C,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 3, xpReward = 75),
+            BadgeStage(level = 2, targetCount = 7, xpReward = 150),
+            BadgeStage(level = 3, targetCount = 14, xpReward = 300),
+            BadgeStage(level = 4, targetCount = 30, xpReward = 600),
+            BadgeStage(level = 5, targetCount = 60, xpReward = 1100)
+        )
     ),
-    STREAK_7(
+    BIO_SCORE_ELITE(
         category = BadgeCategory.STREAK,
-        titleTr = "Haftalık Ateş",
-        titleEn = "7-Day Flame",
-        descriptionTr = "7 günlük seri ile haftayı eksiksiz tamamla.",
-        descriptionEn = "Complete a full 7-day active streak.",
-        targetCount = 7,
-        xpReward = 150,
-        accentColorHex = 0xFFFB923C
+        titleTr = "Bio-Skor Ustası",
+        titleEn = "Bio-Score Elite",
+        descriptionTr = "Beslenme, su ve sporu dengeleyerek günlük 85+ Bio-Skor yakala.",
+        descriptionEn = "Reach 85+ daily Bio-Score by balancing nutrition, water, and activity.",
+        unitTr = "gün",
+        unitEn = "days",
+        accentColorHex = 0xFFA855F7,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 3, xpReward = 100),
+            BadgeStage(level = 2, targetCount = 10, xpReward = 220),
+            BadgeStage(level = 3, targetCount = 25, xpReward = 450),
+            BadgeStage(level = 4, targetCount = 50, xpReward = 850)
+        )
     ),
-    STREAK_14(
+    WEEKEND_WARRIOR(
         category = BadgeCategory.STREAK,
-        titleTr = "İki Haftalık İrade",
-        titleEn = "14-Day Iron Will",
-        descriptionTr = "14 gün boyunca serini koru.",
-        descriptionEn = "Protect your streak for 14 days.",
-        targetCount = 14,
-        xpReward = 300,
-        accentColorHex = 0xFFA855F7
-    ),
-    STREAK_30(
-        category = BadgeCategory.STREAK,
-        titleTr = "30 Gün Efsanesi",
-        titleEn = "30-Day Legend",
-        descriptionTr = "30 günlük efsane seriyle alışkanlığı kalıcı kıl.",
-        descriptionEn = "Forge a permanent habit with a 30-day streak.",
-        targetCount = 30,
-        xpReward = 600,
-        accentColorHex = 0xFFEC4899
+        titleTr = "Hafta Sonu Savaşçısı",
+        titleEn = "Weekend Warrior",
+        descriptionTr = "Cumartesi ve Pazar günlerini birlikte aktif tamamla.",
+        descriptionEn = "Stay active across both Saturday and Sunday on weekends.",
+        unitTr = "hafta sonu",
+        unitEn = "weekends",
+        accentColorHex = 0xFFF59E0B,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 2, xpReward = 90),
+            BadgeStage(level = 2, targetCount = 4, xpReward = 180),
+            BadgeStage(level = 3, targetCount = 8, xpReward = 360),
+            BadgeStage(level = 4, targetCount = 16, xpReward = 720)
+        )
     ),
     PROTEIN_PRO(
         category = BadgeCategory.NUTRITION,
         titleTr = "Protein Ustası",
         titleEn = "Protein Pro",
-        descriptionTr = "5 farklı günde günlük protein hedefine ulaş.",
-        descriptionEn = "Hit your daily protein target on 5 different days.",
-        targetCount = 5,
-        xpReward = 120,
-        accentColorHex = 0xFF06D6A0
+        descriptionTr = "Günlük protein hedefini tutturduğun gün sayısını artır.",
+        descriptionEn = "Hit your daily protein target across multiple days.",
+        unitTr = "gün",
+        unitEn = "days",
+        accentColorHex = 0xFF06D6A0,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 5, xpReward = 120),
+            BadgeStage(level = 2, targetCount = 15, xpReward = 240),
+            BadgeStage(level = 3, targetCount = 30, xpReward = 480),
+            BadgeStage(level = 4, targetCount = 60, xpReward = 900)
+        )
     ),
     CALORIE_SNIPER(
         category = BadgeCategory.NUTRITION,
         titleTr = "Kalori Nişancısı",
         titleEn = "Calorie Sniper",
-        descriptionTr = "5 günde kalori hedefinin ±%15 bandında kal.",
-        descriptionEn = "Stay within ±15% of your calorie target for 5 days.",
-        targetCount = 5,
-        xpReward = 140,
-        accentColorHex = 0xFF10B981
+        descriptionTr = "Günlük kalori hedefinin ±%15 bandında kalarak isabet sağla.",
+        descriptionEn = "Stay within ±15% of your daily calorie target.",
+        unitTr = "gün",
+        unitEn = "days",
+        accentColorHex = 0xFF10B981,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 5, xpReward = 140),
+            BadgeStage(level = 2, targetCount = 15, xpReward = 280),
+            BadgeStage(level = 3, targetCount = 30, xpReward = 520),
+            BadgeStage(level = 4, targetCount = 60, xpReward = 950)
+        )
+    ),
+    FIBER_CHAMPION(
+        category = BadgeCategory.NUTRITION,
+        titleTr = "Lif Şampiyonu",
+        titleEn = "Fiber Champion",
+        descriptionTr = "Günlük lif hedefine ulaştığın dengeli günleri biriktir.",
+        descriptionEn = "Reach your daily dietary fiber goal consistently.",
+        unitTr = "gün",
+        unitEn = "days",
+        accentColorHex = 0xFF34D399,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 5, xpReward = 110),
+            BadgeStage(level = 2, targetCount = 15, xpReward = 220),
+            BadgeStage(level = 3, targetCount = 30, xpReward = 440),
+            BadgeStage(level = 4, targetCount = 60, xpReward = 800)
+        )
     ),
     HYDRATION_HERO(
         category = BadgeCategory.HYDRATION,
         titleTr = "Hidrasyon Kahramanı",
         titleEn = "Hydration Hero",
-        descriptionTr = "5 farklı günde günlük su hedefini tamamla.",
-        descriptionEn = "Reach your daily water goal on 5 different days.",
-        targetCount = 5,
-        xpReward = 110,
-        accentColorHex = 0xFF0EA5E9
+        descriptionTr = "Günlük su hedefine tam ulaştığın günleri çoğalt.",
+        descriptionEn = "Complete your daily hydration goal across days.",
+        unitTr = "gün",
+        unitEn = "days",
+        accentColorHex = 0xFF0EA5E9,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 5, xpReward = 110),
+            BadgeStage(level = 2, targetCount = 15, xpReward = 230),
+            BadgeStage(level = 3, targetCount = 30, xpReward = 460),
+            BadgeStage(level = 4, targetCount = 60, xpReward = 850)
+        )
     ),
-    WORKOUT_10(
+    WORKOUT_DISCIPLINE(
         category = BadgeCategory.WORKOUT,
         titleTr = "Demir Disiplin",
         titleEn = "Iron Discipline",
-        descriptionTr = "Toplam 10 antrenman seansı kaydet.",
-        descriptionEn = "Log 10 workout sessions in total.",
-        targetCount = 10,
-        xpReward = 180,
-        accentColorHex = 0xFFF97316
+        descriptionTr = "Toplam aktif antrenman seansı sayını yükselt.",
+        descriptionEn = "Grow your total count of logged active workout sessions.",
+        unitTr = "seans",
+        unitEn = "workouts",
+        accentColorHex = 0xFFF97316,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 5, xpReward = 100),
+            BadgeStage(level = 2, targetCount = 15, xpReward = 220),
+            BadgeStage(level = 3, targetCount = 30, xpReward = 450),
+            BadgeStage(level = 4, targetCount = 60, xpReward = 900)
+        )
     ),
-    BURN_1000(
+    CALORIE_ENGINE(
         category = BadgeCategory.WORKOUT,
-        titleTr = "1.000 kcal Yakıcı",
-        titleEn = "1K Burner",
-        descriptionTr = "Antrenmanlarla toplam 1.000 kcal yak.",
-        descriptionEn = "Burn 1,000 kcal in total through workouts.",
-        targetCount = 1000,
-        xpReward = 100,
-        accentColorHex = 0xFFEF4444
+        titleTr = "Kalori Motoru",
+        titleEn = "Calorie Engine",
+        descriptionTr = "Antrenmanlarla toplam yakılan kaloriyi katla (1K → 50K kcal).",
+        descriptionEn = "Multiply total calories burned via workouts (1K → 50K kcal).",
+        unitTr = "kcal",
+        unitEn = "kcal",
+        accentColorHex = 0xFFEF4444,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 1000, xpReward = 100),
+            BadgeStage(level = 2, targetCount = 5000, xpReward = 250),
+            BadgeStage(level = 3, targetCount = 10000, xpReward = 500),
+            BadgeStage(level = 4, targetCount = 25000, xpReward = 1000),
+            BadgeStage(level = 5, targetCount = 50000, xpReward = 1800)
+        )
     ),
-    BURN_5000(
+    ENDURANCE_MINUTES(
         category = BadgeCategory.WORKOUT,
-        titleTr = "5.000 kcal Motoru",
-        titleEn = "5K Engine",
-        descriptionTr = "Antrenmanlarla toplam 5.000 kcal yak.",
-        descriptionEn = "Burn 5,000 kcal in total through workouts.",
-        targetCount = 5000,
-        xpReward = 350,
-        accentColorHex = 0xFFE11D48
+        titleTr = "Dayanıklılık Zamanı",
+        titleEn = "Endurance Time",
+        descriptionTr = "Antrenmanlarda harcadığın toplam aktif dakikayı büyüt.",
+        descriptionEn = "Accumulate active training minutes across your workouts.",
+        unitTr = "dk",
+        unitEn = "min",
+        accentColorHex = 0xFFFB7185,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 150, xpReward = 100),
+            BadgeStage(level = 2, targetCount = 500, xpReward = 240),
+            BadgeStage(level = 3, targetCount = 1500, xpReward = 520),
+            BadgeStage(level = 4, targetCount = 3000, xpReward = 1000)
+        )
     ),
     SCALE_TRACKER(
         category = BadgeCategory.WEIGHT,
         titleTr = "Düzenli Takip",
         titleEn = "Steady Tracker",
-        descriptionTr = "5 farklı tartım kaydı girerek trendini takip et.",
-        descriptionEn = "Log 5 weight entries to track your trend.",
-        targetCount = 5,
-        xpReward = 90,
-        accentColorHex = 0xFF8B5CF6
+        descriptionTr = "Düzenli tartım kayıtlarıyla vücut trendini yakından izle.",
+        descriptionEn = "Log regular weight check-ins to track your long-term trend.",
+        unitTr = "tartım",
+        unitEn = "weigh-ins",
+        accentColorHex = 0xFF8B5CF6,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 5, xpReward = 90),
+            BadgeStage(level = 2, targetCount = 15, xpReward = 180),
+            BadgeStage(level = 3, targetCount = 30, xpReward = 360),
+            BadgeStage(level = 4, targetCount = 60, xpReward = 720)
+        )
     );
+
+    val maxLevel: Int get() = stages.size
+    val targetCount: Int get() = stages.first().targetCount
+    val xpReward: Int get() = stages.first().xpReward
+
+    fun stageForLevel(level: Int): BadgeStage? = stages.firstOrNull { it.level == level }
+
+    fun rankForLevel(currentLevel: Int): BadgeRank = when {
+        currentLevel <= 0 -> BadgeRank.LOCKED
+        maxLevel == 1 -> BadgeRank.GOLD
+        currentLevel >= maxLevel -> BadgeRank.DIAMOND
+        currentLevel == 1 -> BadgeRank.BRONZE
+        currentLevel == 2 -> BadgeRank.SILVER
+        currentLevel == 3 -> BadgeRank.GOLD
+        else -> BadgeRank.PLATINUM
+    }
 
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(titleTr, titleEn, language)
 
     fun localizedDescription(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(descriptionTr, descriptionEn, language)
+
+    fun localizedUnit(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(unitTr, unitEn, language)
 }
 
 @Serializable
@@ -184,12 +298,23 @@ data class GamificationAchievement(
     val badgeId: BadgeId,
     val progressCurrent: Int,
     val progressTarget: Int,
-    val isUnlocked: Boolean
+    val isUnlocked: Boolean,
+    val rawProgress: Int = progressCurrent,
+    val currentLevel: Int = if (isUnlocked) 1 else 0,
+    val maxLevel: Int = badgeId.maxLevel,
+    val earnedXp: Int = if (isUnlocked) badgeId.xpReward else 0,
+    val nextStageXpReward: Int = badgeId.xpReward
 ) {
+    val isMaxed: Boolean
+        get() = maxLevel > 0 && currentLevel >= maxLevel
+
     val progressFraction: Float
-        get() = if (progressTarget > 0) {
-            (progressCurrent.toFloat() / progressTarget.toFloat()).coerceIn(0f, 1f)
-        } else if (isUnlocked) 1f else 0f
+        get() = when {
+            isMaxed -> 1f
+            progressTarget > 0 -> (progressCurrent.toFloat() / progressTarget.toFloat()).coerceIn(0f, 1f)
+            isUnlocked -> 1f
+            else -> 0f
+        }
 }
 
 @Serializable
@@ -234,6 +359,8 @@ data class GamificationSummary(
     val todayEarnedXp: Int = 0,
     val unlockedBadgesCount: Int = 0,
     val totalBadgesCount: Int = BadgeId.entries.size,
+    val unlockedTiersCount: Int = 0,
+    val totalTiersCount: Int = BadgeId.entries.sumOf { it.maxLevel },
     val achievements: List<GamificationAchievement> = emptyList(),
     val dailyQuests: List<GamificationQuest> = emptyList(),
     val weeklyQuests: List<GamificationQuest> = emptyList()
@@ -277,6 +404,7 @@ data class CelebrationEvent(
     val subtitleEn: String,
     val xpBonus: Int = 0,
     val badgeId: BadgeId? = null,
+    val badgeStageLevel: Int? = null,
     val streakDays: Int? = null,
     val newLevel: Int? = null
 ) {
@@ -286,4 +414,3 @@ data class CelebrationEvent(
     fun localizedSubtitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(subtitleTr, subtitleEn, language)
 }
-
