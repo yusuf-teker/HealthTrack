@@ -13,6 +13,26 @@ class TokenStorage(private val settings: Settings = Settings()) {
     private val _sessionFlow = MutableStateFlow(loadSession())
     val sessionFlow: StateFlow<UserSession> = _sessionFlow.asStateFlow()
 
+    private val _isPremiumFlow = MutableStateFlow(isPremium())
+    val isPremiumFlow: StateFlow<Boolean> = _isPremiumFlow.asStateFlow()
+
+    private val _premiumUntilFlow = MutableStateFlow(getPremiumUntil())
+    val premiumUntilFlow: StateFlow<String?> = _premiumUntilFlow.asStateFlow()
+
+    fun isPremium(): Boolean = settings.getBoolean(KEY_IS_PREMIUM, false)
+    fun getPremiumUntil(): String? = settings.getStringOrNull(KEY_PREMIUM_UNTIL)
+
+    fun setPremium(isPremium: Boolean, premiumUntil: String? = null) {
+        settings.putBoolean(KEY_IS_PREMIUM, isPremium)
+        if (!premiumUntil.isNullOrBlank()) {
+            settings.putString(KEY_PREMIUM_UNTIL, premiumUntil)
+        } else {
+            settings.remove(KEY_PREMIUM_UNTIL)
+        }
+        _isPremiumFlow.value = isPremium
+        _premiumUntilFlow.value = premiumUntil?.takeIf { it.isNotBlank() }
+    }
+
     fun getAccessToken(): String? = settings.getStringOrNull(KEY_ACCESS_TOKEN)
     fun getRefreshToken(): String? = settings.getStringOrNull(KEY_REFRESH_TOKEN)
     fun getUserId(): Int = settings.getInt(KEY_USER_ID, 0)
@@ -164,7 +184,8 @@ class TokenStorage(private val settings: Settings = Settings()) {
         username: String,
         accessToken: String,
         refreshToken: String,
-        avatarId: String? = null
+        avatarId: String? = null,
+        isPremium: Boolean = false
     ) {
         val prevUserId = getUserId()
         if (prevUserId != userId) {
@@ -176,6 +197,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_USERNAME, username)
         settings.putString(KEY_ACCESS_TOKEN, accessToken)
         settings.putString(KEY_REFRESH_TOKEN, refreshToken)
+        settings.putBoolean(KEY_IS_PREMIUM, isPremium)
         if (avatarId != null) settings.putString(KEY_AVATAR_ID, avatarId)
 
         _sessionFlow.value = UserSession(
@@ -185,6 +207,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
             accessToken = accessToken,
             refreshToken = refreshToken,
             avatarId = avatarId,
+            isPremium = isPremium,
             isLoggedIn = true
         )
     }
@@ -196,6 +219,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_ACCESS_TOKEN)
         settings.remove(KEY_REFRESH_TOKEN)
         settings.remove(KEY_AVATAR_ID)
+        settings.remove(KEY_IS_PREMIUM)
         settings.remove(KEY_USER_WEIGHT)
         settings.remove(KEY_USER_TARGET_WEIGHT)
         settings.remove(KEY_USER_HEIGHT)
@@ -203,6 +227,10 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_USER_GENDER)
         settings.remove(KEY_USER_FITNESS_GOAL)
         settings.remove(KEY_LAST_SYNC_TS)
+        settings.remove(KEY_IS_PREMIUM)
+        settings.remove(KEY_PREMIUM_UNTIL)
+        _isPremiumFlow.value = false
+        _premiumUntilFlow.value = null
 
         _sessionFlow.value = UserSession(
             userId = 0,
@@ -225,6 +253,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
                 accessToken = token,
                 refreshToken = getRefreshToken() ?: "",
                 avatarId = settings.getStringOrNull(KEY_AVATAR_ID),
+                isPremium = isPremium(),
                 isLoggedIn = true
             )
         } else {
@@ -267,5 +296,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_LAST_WEIGHT_REMINDER_DATE = "ht_last_weight_reminder_date"
         private const val KEY_LAST_FOOD_REMINDER_DATE = "ht_last_food_reminder_date"
         private const val KEY_CUSTOM_GEMINI_API_KEY = "ht_custom_gemini_api_key"
+        private const val KEY_IS_PREMIUM = "ht_is_premium"
+        private const val KEY_PREMIUM_UNTIL = "ht_premium_until"
     }
 }

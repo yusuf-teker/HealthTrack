@@ -6,6 +6,7 @@ import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.network.AiQuotaExceededException
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
@@ -51,7 +52,19 @@ class WorkoutViewModel(
                     observeWorkoutsAndCalories(session.userId, _state.value.selectedDate)
                     observeAllWorkoutsHistory(session.userId)
                     observeWeight(session.userId)
+                    refreshAiQuota()
                 }
+            }
+        }
+    }
+
+    private fun refreshAiQuota() {
+        val hasCustomKey = !tokenStorage.getCustomGeminiApiKey().isNullOrBlank()
+        _state.update { it.copy(hasCustomGeminiKey = hasCustomKey) }
+        if (hasCustomKey) return
+        viewModelScope.launch {
+            apiClient.getAiQuota().onSuccess { quota ->
+                _state.update { it.copy(aiQuota = quota) }
             }
         }
     }
@@ -241,7 +254,18 @@ class WorkoutViewModel(
                     )
                 }
                 launch { syncEngine.sync() }
+                refreshAiQuota()
             }.onFailure { err ->
+                if (err is AiQuotaExceededException) {
+                    _state.update {
+                        it.copy(
+                            isCalculatingAi = false,
+                            errorMessage = err.message,
+                            aiQuota = err.quota ?: it.aiQuota
+                        )
+                    }
+                    return@onFailure
+                }
                 val errorMsg = err.message ?: "Bilinmeyen hata"
                 println("[WorkoutViewModel] analyzeWorkout failure: $errorMsg")
                 val displayMsg = when {

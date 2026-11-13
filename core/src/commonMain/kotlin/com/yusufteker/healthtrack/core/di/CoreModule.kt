@@ -2,6 +2,9 @@ package com.yusufteker.healthtrack.core.di
 
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
+import com.yusufteker.healthtrack.core.model.PendingStoreBillingClient
+import com.yusufteker.healthtrack.core.model.StoreBillingClient
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DailyMealPlanEngine
@@ -19,4 +22,6 @@ val coreModule = module {
     single { DeviceHealthSyncManager(get(), get(), get()) }
     single { HealthReportAiGenerator(get()) }
     single { DailyMealPlanEngine(get()) }
+    single { CheckAppVersionUseCase() }
+    single<StoreBillingClient> { PendingStoreBillingClient() }
 }

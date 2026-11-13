@@ -304,6 +304,34 @@ fun WorkoutScreen(
                     }
                 }
 
+                val workoutAiQuota = state.aiQuota
+                if (!state.hasCustomGeminiKey && workoutAiQuota != null) {
+                    val isExhausted = workoutAiQuota.dailyRemaining <= 0
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (workoutAiQuota.isPremium) {
+                                "Premium AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
+                            } else {
+                                "Günlük AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isExhausted) HealthColors.Error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (isExhausted) {
+                            Text(
+                                text = "Profil > Özel API Key ile sınırsız",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = HealthColors.Primary
+                            )
+                        }
+                    }
+                }
+
                 // AI Calculate Button
                 Button(
                     onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },

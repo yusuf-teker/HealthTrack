@@ -13,6 +13,7 @@ fun ProfileScreenRoot(
     onBack: () -> Unit,
     onThemeAccentChanged: (AppThemeColor) -> Unit,
     onDarkModeChanged: (Boolean) -> Unit,
+    onOpenPremium: () -> Unit = {},
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel()
@@ -44,6 +45,7 @@ fun ProfileScreenRoot(
         state = state,
         onIntent = viewModel::onIntent,
         onBack = onBack,
+        onOpenPremium = onOpenPremium,
         onLogout = onLogout,
         modifier = modifier
     )

@@ -430,6 +430,34 @@ fun FoodScreen(
                         }
                     }
 
+                    val foodAiQuota = state.aiQuota
+                    if (!state.hasCustomGeminiKey && foodAiQuota != null) {
+                        val isExhausted = foodAiQuota.dailyRemaining <= 0
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (foodAiQuota.isPremium) {
+                                    "Premium AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
+                                } else {
+                                    "Günlük AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isExhausted) HealthColors.Error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (isExhausted) {
+                                Text(
+                                    text = "Profil > Özel API Key ile sınırsız",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = HealthColors.Primary
+                                )
+                            }
+                        }
+                    }
+
                     // Action Row: Calculate with AI + Optional Raw Save
                     Row(
                         modifier = Modifier.fillMaxWidth(),

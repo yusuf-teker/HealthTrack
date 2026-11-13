@@ -15,6 +15,7 @@ import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.SmartMealSuggestion
 import com.yusufteker.healthtrack.core.model.WaterEntry
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
+import com.yusufteker.healthtrack.core.network.HealthAiQuotaDto
 import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 
@@ -94,7 +95,11 @@ data class FoodState(
     val isDailyMealPlanSheetOpen: Boolean = false,
     val isGeneratingDailyMealPlan: Boolean = false,
     val dailyMealPlan: DailyMealPlan? = null,
-    val addedMealSlotTypes: Set<MealSlotType> = emptySet()
+    val addedMealSlotTypes: Set<MealSlotType> = emptySet(),
+
+    // ── AI Kota ──
+    val aiQuota: HealthAiQuotaDto? = null,
+    val hasCustomGeminiKey: Boolean = false
 )
 
 enum class FoodScanTarget {

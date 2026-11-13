@@ -11,6 +11,7 @@ import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.feature.analytics.presentation.AnalyticsViewModel
 import com.yusufteker.healthtrack.feature.auth.presentation.AuthViewModel
 import com.yusufteker.healthtrack.feature.food.presentation.FoodViewModel
+import com.yusufteker.healthtrack.feature.premium.presentation.PremiumViewModel
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileViewModel
 import com.yusufteker.healthtrack.feature.weight.presentation.WeightViewModel
 import com.yusufteker.healthtrack.feature.workout.presentation.WorkoutViewModel
@@ -35,6 +36,7 @@ val featureModule = module {
             get<HealthApiClient>()
         )
     }
+    viewModel { PremiumViewModel(get(), get(), get()) }
 }
 
 val appModules = listOf(coreModule, featureModule)

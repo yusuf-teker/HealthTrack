@@ -6,6 +6,7 @@ import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
+import com.yusufteker.healthtrack.core.network.HealthAiQuotaDto
 import com.yusufteker.healthtrack.theme.AppThemeColor
 
 data class ProfileState(
@@ -23,7 +24,10 @@ data class ProfileState(
     val weightReminderFrequency: WeightReminderFrequency = WeightReminderFrequency.EVERY_3_DAYS,
     val isDarkMode: Boolean = true,
     val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
+    val isPremium: Boolean = false,
+    val premiumUntil: String? = null,
     val customGeminiApiKey: String = "",
+    val aiQuota: HealthAiQuotaDto? = null,
     val latestWeightDate: String? = null,
     val isSaving: Boolean = false,
     val isSyncing: Boolean = false,

@@ -47,6 +47,30 @@ class ProfileViewModel(
         observeLatestWeight()
         observeSyncState()
         observeNutritionGoal()
+        refreshAiQuota()
+        observePremiumStatus()
+    }
+
+    private fun observePremiumStatus() {
+        viewModelScope.launch {
+            tokenStorage.isPremiumFlow.collect { isPrem ->
+                _state.update { it.copy(isPremium = isPrem) }
+            }
+        }
+        viewModelScope.launch {
+            tokenStorage.premiumUntilFlow.collect { until ->
+                _state.update { it.copy(premiumUntil = until) }
+            }
+        }
+    }
+
+    private fun refreshAiQuota() {
+        if (!tokenStorage.getCustomGeminiApiKey().isNullOrBlank()) return
+        viewModelScope.launch {
+            apiClient.getAiQuota().onSuccess { quota ->
+                _state.update { it.copy(aiQuota = quota) }
+            }
+        }
     }
 
     private fun observeNutritionGoal() {

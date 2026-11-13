@@ -60,6 +60,7 @@ fun ProfileScreen(
     state: ProfileState,
     onIntent: (ProfileIntent) -> Unit,
     onBack: () -> Unit,
+    onOpenPremium: () -> Unit = {},
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -187,6 +188,57 @@ fun ProfileScreen(
                             Icon(Icons.Default.Close, contentDescription = "Kapat", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
+                }
+            }
+
+            // ── HealthTrack Premium Banner ──
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bounceClick()
+                    .clickable(onClick = onOpenPremium)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WorkspacePremium,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (state.isPremium) "HealthTrack Premium Aktif" else "HealthTrack Premium'a Geç",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (state.isPremium) {
+                                val until = state.premiumUntil?.take(10)
+                                if (until != null) "Bitiş: $until" else "Süresiz / Aktif Üyelik"
+                            } else {
+                                "Sınırsız AI analizi, öğün planlayıcı ve özel temalar"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -964,7 +1016,14 @@ fun ProfileScreen(
                         text = if (maskedKey != null) {
                             "Kayıtlı anahtar: $maskedKey • Yemek ve egzersiz analizleri kendi Gemini kotanızla çalışır."
                         } else {
-                            "İsterseniz kendi Google Gemini API anahtarınızı (aistudio.google.com) girerek AI analizlerini kendi kotanızla kullanabilirsiniz."
+                            val quotaSuffix = state.aiQuota?.let { q ->
+                                if (q.isPremium) {
+                                    "\nGünlük Premium AI hakkınız: ${q.dailyRemaining}/${q.dailyLimit}"
+                                } else {
+                                    "\nGünlük ücretsiz AI hakkınız: ${q.dailyRemaining}/${q.dailyLimit}"
+                                }
+                            }.orEmpty()
+                            "İsterseniz kendi Google Gemini API anahtarınızı (aistudio.google.com) girerek AI analizlerini kendi kotanızla kullanabilirsiniz.$quotaSuffix"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

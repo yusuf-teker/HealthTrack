@@ -3,6 +3,7 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.network.HealthAiQuotaDto
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 
 data class WorkoutState(
@@ -25,7 +26,9 @@ data class WorkoutState(
     val reminderFrequency: com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency = com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE,
     val isReminderDialogOpen: Boolean = false,
     val errorMessage: String? = null,
-    val infoMessage: String? = null
+    val infoMessage: String? = null,
+    val aiQuota: HealthAiQuotaDto? = null,
+    val hasCustomGeminiKey: Boolean = false
 ) {
     val calorieProgress: Float
         get() = if (targetCalories > 0) (totalCaloriesBurned.toFloat() / targetCalories).coerceIn(0f, 1f) else 0f

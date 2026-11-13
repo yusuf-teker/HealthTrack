@@ -48,6 +48,25 @@ data class WorkoutAiResultDto(
 )
 
 @Serializable
+data class HealthAiQuotaDto(
+    val isPremium: Boolean = false,
+    val dailyRemaining: Int = 3,
+    val dailyLimit: Int = 3
+)
+
+@Serializable
+data class HealthAiErrorDto(
+    val error: String = "",
+    val code: String = "",
+    val quota: HealthAiQuotaDto? = null
+)
+
+class AiQuotaExceededException(
+    override val message: String,
+    val quota: HealthAiQuotaDto? = null
+) : RuntimeException(message)
+
+@Serializable
 data class FoodSyncPayload(
     val id: String,
     val date: String,
@@ -237,6 +256,15 @@ class HealthApiClient(
         }
     }
 
+    suspend fun getAiQuota(): Result<HealthAiQuotaDto> = runCatching {
+        val response = httpClient.get("/health/ai/quota")
+        if (response.status.isSuccess()) {
+            response.body<HealthAiQuotaDto>()
+        } else {
+            throw RuntimeException("Kota bilgisi alınamadı (HTTP ${response.status.value})")
+        }
+    }
+
     suspend fun analyzeFood(
         text: String,
         date: String,
@@ -249,6 +277,13 @@ class HealthApiClient(
         }
         if (response.status.isSuccess()) {
             response.body<FoodAiResultDto>()
+        } else if (response.status == HttpStatusCode.TooManyRequests) {
+            val errDto = runCatching { response.body<HealthAiErrorDto>() }.getOrNull()
+            throw AiQuotaExceededException(
+                message = errDto?.error?.takeIf { it.isNotBlank() }
+                    ?: "Günlük ücretsiz AI hakkınız doldu.",
+                quota = errDto?.quota
+            )
         } else {
             val errBody = runCatching { response.bodyAsText() }.getOrNull()?.take(200)
             throw RuntimeException("Yemek AI analizi başarısız (HTTP ${response.status.value}): ${errBody ?: ""}")
@@ -262,6 +297,13 @@ class HealthApiClient(
         }
         if (response.status.isSuccess()) {
             response.body<WorkoutAiResultDto>()
+        } else if (response.status == HttpStatusCode.TooManyRequests) {
+            val errDto = runCatching { response.body<HealthAiErrorDto>() }.getOrNull()
+            throw AiQuotaExceededException(
+                message = errDto?.error?.takeIf { it.isNotBlank() }
+                    ?: "Günlük ücretsiz AI hakkınız doldu.",
+                quota = errDto?.quota
+            )
         } else {
             val errBody = runCatching { response.bodyAsText() }.getOrNull()?.take(200)
             throw RuntimeException("Spor AI analizi başarısız (HTTP ${response.status.value}): ${errBody ?: ""}")
@@ -295,6 +337,61 @@ class HealthApiClient(
         val response = httpClient.delete("/users/me")
         if (!response.status.isSuccess()) {
             throw RuntimeException("Hesap silme başarısız: HTTP ${response.status.value}")
+        }
+    }
+
+    suspend fun fetchAppVersionConfig(): Result<AppVersionConfigDto> = runCatching {
+        val response = httpClient.get("/api/app-config") {
+            parameter("app", "healthtrack")
+        }
+        if (response.status.isSuccess()) {
+            response.body<AppVersionConfigDto>()
+        } else {
+            throw RuntimeException("Versiyon bilgisi alınamadı: HTTP ${response.status.value}")
+        }
+    }
+
+    suspend fun fetchSubscriptionPlans(): Result<List<SubscriptionPlan>> = runCatching {
+        val response = httpClient.get("/api/subscriptions/plans") {
+            parameter("app", "healthtrack")
+        }
+        if (response.status.isSuccess()) {
+            response.body<List<SubscriptionPlan>>()
+        } else {
+            throw RuntimeException("Abonelik planları alınamadı: HTTP ${response.status.value}")
+        }
+    }
+
+    suspend fun fetchSubscriptionStatus(): Result<SubscriptionStatusResponse> = runCatching {
+        val response = httpClient.get("/api/subscriptions/status")
+        if (response.status.isSuccess()) {
+            response.body<SubscriptionStatusResponse>()
+        } else {
+            throw RuntimeException("Abonelik durumu alınamadı: HTTP ${response.status.value}")
+        }
+    }
+
+    suspend fun verifySubscriptionPurchase(req: VerifyPurchaseRequest): Result<VerifyPurchaseResponse> = runCatching {
+        val response = httpClient.post("/api/subscriptions/verify") {
+            contentType(ContentType.Application.Json)
+            setBody(req)
+        }
+        if (response.status.isSuccess() || response.status == HttpStatusCode.ServiceUnavailable) {
+            response.body<VerifyPurchaseResponse>()
+        } else {
+            throw RuntimeException("Satın alma doğrulama hatası: HTTP ${response.status.value}")
+        }
+    }
+
+    suspend fun restoreSubscriptionPurchases(req: RestorePurchaseRequest): Result<SubscriptionStatusResponse> = runCatching {
+        val response = httpClient.post("/api/subscriptions/restore") {
+            contentType(ContentType.Application.Json)
+            setBody(req)
+        }
+        if (response.status.isSuccess()) {
+            response.body<SubscriptionStatusResponse>()
+        } else {
+            throw RuntimeException("Satın alma geri yükleme hatası: HTTP ${response.status.value}")
         }
     }
 }

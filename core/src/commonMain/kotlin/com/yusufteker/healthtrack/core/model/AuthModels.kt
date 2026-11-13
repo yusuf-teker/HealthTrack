@@ -35,5 +35,6 @@ data class UserSession(
     val accessToken: String,
     val refreshToken: String,
     val avatarId: String? = null,
+    val isPremium: Boolean = false,
     val isLoggedIn: Boolean = false
 )

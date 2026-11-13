@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.*
+import com.yusufteker.healthtrack.core.network.AiQuotaExceededException
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DailyMealPlanEngine
@@ -118,7 +119,19 @@ class FoodViewModel(
                     observeAllFoods(session.userId)
                     observeWaterAndWorkouts(session.userId, _state.value.selectedDate)
                     observeDailyMealPlan(session.userId, _state.value.selectedDate)
+                    refreshAiQuota()
                 }
+            }
+        }
+    }
+
+    private fun refreshAiQuota() {
+        val hasCustomKey = !tokenStorage.getCustomGeminiApiKey().isNullOrBlank()
+        _state.update { it.copy(hasCustomGeminiKey = hasCustomKey) }
+        if (hasCustomKey) return
+        viewModelScope.launch {
+            apiClient.getAiQuota().onSuccess { quota ->
+                _state.update { it.copy(aiQuota = quota) }
             }
         }
     }
@@ -509,7 +522,18 @@ class FoodViewModel(
                         customFoodAiError = null
                     )
                 }
+                refreshAiQuota()
             }.onFailure { err ->
+                if (err is AiQuotaExceededException) {
+                    _state.update {
+                        it.copy(
+                            isAnalyzingCustomFoodAi = false,
+                            customFoodAiError = err.message,
+                            aiQuota = err.quota ?: it.aiQuota
+                        )
+                    }
+                    return@onFailure
+                }
                 val errorMsg = err.message ?: "Bilinmeyen hata"
                 val displayMsg = when {
                     errorMsg.contains("404") ->
@@ -647,7 +671,18 @@ class FoodViewModel(
                         rawText = ""
                     )
                 }
+                refreshAiQuota()
             }.onFailure { err ->
+                if (err is AiQuotaExceededException) {
+                    _state.update {
+                        it.copy(
+                            isCalculatingAi = false,
+                            errorMessage = err.message,
+                            aiQuota = err.quota ?: it.aiQuota
+                        )
+                    }
+                    return@onFailure
+                }
                 val errorMsg = err.message ?: "Bilinmeyen hata"
                 println("[FoodViewModel] analyzeFood failure: $errorMsg")
                 val displayMsg = when {
@@ -1292,11 +1327,18 @@ class FoodViewModel(
                         infoMessage = "✨ \"$recipeTitle\" tarifi başarıyla hazırlandı!"
                     )
                 }
+                refreshAiQuota()
             }.onFailure { err ->
+                val displayMsg = if (err is AiQuotaExceededException) {
+                    err.message
+                } else {
+                    "AI önerisi oluşturulamadı: ${err.message}"
+                }
                 _state.update {
                     it.copy(
                         isGeneratingAiCustomRecipe = false,
-                        errorMessage = "AI önerisi oluşturulamadı: ${err.message}"
+                        errorMessage = displayMsg,
+                        aiQuota = (err as? AiQuotaExceededException)?.quota ?: it.aiQuota
                     )
                 }
             }
@@ -1367,12 +1409,19 @@ class FoodViewModel(
                         isAiReviewSheetOpen = true
                     )
                 }
+                refreshAiQuota()
             }.onFailure { err ->
+                val displayMsg = if (err is AiQuotaExceededException) {
+                    err.message
+                } else {
+                    "Fotoğraf/Etiket analizi başarısız: ${err.message}"
+                }
                 _state.update {
                     it.copy(
                         isCalculatingAi = false,
                         isPhotoScanAnalyzing = false,
-                        errorMessage = "Fotoğraf/Etiket analizi başarısız: ${err.message}"
+                        errorMessage = displayMsg,
+                        aiQuota = (err as? AiQuotaExceededException)?.quota ?: it.aiQuota
                     )
                 }
             }

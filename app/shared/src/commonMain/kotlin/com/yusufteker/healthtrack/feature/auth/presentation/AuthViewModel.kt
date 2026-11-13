@@ -63,8 +63,10 @@ class AuthViewModel(
                     username = response.username,
                     accessToken = response.accessToken,
                     refreshToken = response.refreshToken,
-                    avatarId = response.avatarId
+                    avatarId = response.avatarId,
+                    isPremium = response.isPremium
                 )
+                tokenStorage.setPremium(response.isPremium, response.premiumUntil)
 
                 // Await initial sync so that weights, goals, workouts, and foods are restored
                 // BEFORE navigating to Home and before checking profile configuration.

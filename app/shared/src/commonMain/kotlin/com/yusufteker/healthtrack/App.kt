@@ -30,16 +30,21 @@ import com.russhwolf.settings.Settings
 import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
+import com.yusufteker.healthtrack.core.model.UpdateStatus
+import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalApp
+import com.yusufteker.healthtrack.core.utils.rememberAppVersion
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
 import com.yusufteker.healthtrack.di.appModules
 import com.yusufteker.healthtrack.feature.analytics.presentation.AnalyticsScreenRoot
 import com.yusufteker.healthtrack.feature.auth.presentation.AuthScreenRoot
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScreenRoot
+import com.yusufteker.healthtrack.feature.premium.presentation.PremiumScreenRoot
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileScreenRoot
 import com.yusufteker.healthtrack.feature.weight.presentation.WeightScreenRoot
 import com.yusufteker.healthtrack.feature.workout.presentation.WorkoutScreenRoot
@@ -47,6 +52,7 @@ import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
+import com.yusufteker.healthtrack.ui.components.ForceUpdateDialog
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -83,9 +89,38 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val database: HealthDatabase = koinInject()
             val syncEngine: SyncEngine = koinInject()
             val deviceHealthSyncManager: DeviceHealthSyncManager = koinInject()
+            val apiClient: HealthApiClient = koinInject()
+            val checkAppVersionUseCase: CheckAppVersionUseCase = koinInject()
             val deviceHealthBridge = rememberDeviceHealthBridge()
+            val currentAppVersion = rememberAppVersion()
             val session by tokenStorage.sessionFlow.collectAsState()
 
+            var updateStatus by remember { mutableStateOf<UpdateStatus>(UpdateStatus.UpToDate) }
+            var isOptionalUpdateDismissed by remember { mutableStateOf(false) }
+
+            LaunchedEffect(currentAppVersion) {
+                apiClient.fetchAppVersionConfig().onSuccess { config ->
+                    updateStatus = checkAppVersionUseCase.evaluate(currentAppVersion, config)
+                }
+            }
+
+            when (val status = updateStatus) {
+                is UpdateStatus.ForceUpdateRequired -> {
+                    ForceUpdateDialog(config = status.config, isForceUpdate = true)
+                }
+                is UpdateStatus.OptionalUpdateAvailable -> {
+                    if (!isOptionalUpdateDismissed) {
+                        ForceUpdateDialog(
+                            config = status.config,
+                            isForceUpdate = false,
+                            onDismiss = { isOptionalUpdateDismissed = true }
+                        )
+                    }
+                }
+                UpdateStatus.UpToDate -> {}
+            }
+
+            var isPremiumScreenOpen by remember { mutableStateOf(false) }
             var isProfileScreenOpen by remember(session.isLoggedIn) {
                 mutableStateOf(session.isLoggedIn && !tokenStorage.isProfileConfigured() && database.getWeights(session.userId).isEmpty())
             }
@@ -115,6 +150,9 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             LaunchedEffect(session.isLoggedIn, session.userId) {
                 if (session.isLoggedIn && session.userId > 0) {
                     Napier.d("SYNC: Oturum açık, uygulama açılışında otomatik sync tetikleniyor (userId=${session.userId})...")
+                    apiClient.fetchSubscriptionStatus().onSuccess { subStatus ->
+                        tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
+                    }
                     syncEngine.sync()
                     deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
                         result.onSuccess { snapshot ->
@@ -152,13 +190,24 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         // User logged in
                     }
                 )
+            } else if (isPremiumScreenOpen) {
+                PremiumScreenRoot(
+                    onNavigateBack = { isPremiumScreenOpen = false },
+                    onShowToast = { msg ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(msg)
+                        }
+                    }
+                )
             } else if (isProfileScreenOpen) {
                 ProfileScreenRoot(
                     onBack = { isProfileScreenOpen = false },
                     onThemeAccentChanged = { currentThemeColor = it },
                     onDarkModeChanged = { isDark = it },
+                    onOpenPremium = { isPremiumScreenOpen = true },
                     onLogout = {
                         isProfileScreenOpen = false
+                        isPremiumScreenOpen = false
                         coroutineScope.launch {
                             database.clearAll()
                             tokenStorage.clearSession()
