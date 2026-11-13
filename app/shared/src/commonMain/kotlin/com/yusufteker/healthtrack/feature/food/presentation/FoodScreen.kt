@@ -60,6 +60,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +79,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
+import com.yusufteker.healthtrack.core.utils.WidgetDeepLinkBus
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
 import com.yusufteker.healthtrack.feature.food.presentation.components.DailyMealPlanBottomSheet
@@ -103,13 +105,16 @@ import com.yusufteker.healthtrack.theme.appLang
 import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.CalorieProgressGauge
 import com.yusufteker.healthtrack.ui.components.CalorieTelemetryColors
+import com.yusufteker.healthtrack.ui.components.ShimmeringAiButton
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.ForkSpoonPlusIcon
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
+import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import io.github.aakira.napier.Napier
 
 @Composable
@@ -125,6 +130,13 @@ fun FoodScreen(
     var showGeneralMicrosSheet by remember { mutableStateOf(false) }
     var showInventoryStudio by remember { mutableStateOf(false) }
     var initialStudioItem by remember { mutableStateOf<CustomFoodItem?>(null) }
+
+    val pendingDeepLink by WidgetDeepLinkBus.pendingTarget.collectAsState()
+    LaunchedEffect(pendingDeepLink) {
+        if (WidgetDeepLinkBus.consumeAction("add_food")) {
+            showManualAddSheet = true
+        }
+    }
 
     LaunchedEffect(showManualAddSheet) {
         if (showManualAddSheet) Napier.d("SCREEN: ManualFoodEntryDialog açıldı")
@@ -183,7 +195,8 @@ fun FoodScreen(
                 carbsCurrent = carbsProgress?.current ?: 0.0,
                 carbsTarget = state.nutritionGoal.carbsG,
                 fatCurrent = fatProgress?.current ?: 0.0,
-                fatTarget = state.nutritionGoal.fatG
+                fatTarget = state.nutritionGoal.fatG,
+                modifier = Modifier.spotlightTarget(SpotlightTargetId.FOOD_CALORIE_GAUGE)
             )
 
             // ── Bento Split Row: [ Micros (Top 3 Vital) ] + [ Weight Scale Sparkline ] ──
@@ -394,7 +407,9 @@ fun FoodScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .spotlightTarget(SpotlightTargetId.FOOD_INPUT_FIELD),
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = HealthColors.Primary,
@@ -479,46 +494,16 @@ fun FoodScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
+                        ShimmeringAiButton(
+                            text = str("AI ile Hesapla", "Calculate with AI"),
+                            isLoading = state.isCalculatingAi,
                             enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
-                            modifier = Modifier.weight(1f).height(44.dp).bounceClick(),
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = Color.White,
-                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                                disabledContentColor = Color.White
-                            )
-                        ) {
-                            if (state.isCalculatingAi) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    str("Hesaplanıyor...", "Calculating..."),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    str("AI ile Hesapla", "Calculate with AI"),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color.White
-                                )
-                            }
-                        }
+                            onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .spotlightTarget(SpotlightTargetId.FOOD_CALCULATE_BUTTON),
+                            height = 44.dp
+                        )
 
                         if (state.rawText.isNotBlank()) {
                             OutlinedButton(

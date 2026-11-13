@@ -407,4 +407,64 @@ class HealthApiClient(
             throw response.toHttpApiException("Satın alma geri yükleme hatası", "Purchase restore error", json)
         }
     }
+
+    suspend fun getLeaderboard(
+        period: LeaderboardPeriod,
+        scope: LeaderboardScope,
+        category: LeaderboardCategory,
+        dateIso: String
+    ): Result<LeaderboardResponseDto> = safeApiCall {
+        val response = httpClient.get("/health/leaderboard") {
+            parameter("period", period.id)
+            parameter("scope", scope.id)
+            parameter("category", category.id)
+            parameter("date", dateIso)
+        }
+        if (response.status.isSuccess()) {
+            response.body<LeaderboardResponseDto>()
+        } else {
+            throw response.toHttpApiException("Lider tablosu alınamadı", "Could not fetch leaderboard", json)
+        }
+    }
+
+    suspend fun searchUsers(query: String): Result<List<FriendUserDto>> = safeApiCall {
+        val response = httpClient.get("/users/search") {
+            parameter("q", query)
+        }
+        if (response.status.isSuccess()) {
+            response.body<SearchUsersResponseDto>().users
+        } else {
+            throw response.toHttpApiException("Kullanıcı araması başarısız", "User search failed", json)
+        }
+    }
+
+    suspend fun toggleFollowUser(userId: Int): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/users/$userId/follow")
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("Takip işlemi başarısız", "Follow action failed", json)
+        }
+    }
+
+    suspend fun getFollowRequests(): Result<List<FollowRequestItemDto>> = safeApiCall {
+        val response = httpClient.get("/users/follow-requests")
+        if (response.status.isSuccess()) {
+            response.body<List<FollowRequestItemDto>>()
+        } else {
+            throw response.toHttpApiException("Takip istekleri alınamadı", "Could not fetch follow requests", json)
+        }
+    }
+
+    suspend fun acceptFollowRequest(requestId: Int): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/users/follow-requests/$requestId/accept")
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("İstek kabul edilemedi", "Could not accept request", json)
+        }
+    }
+
+    suspend fun rejectFollowRequest(requestId: Int): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/users/follow-requests/$requestId/reject")
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("İstek reddedilemedi", "Could not reject request", json)
+        }
+    }
 }

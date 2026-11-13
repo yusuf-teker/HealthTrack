@@ -153,6 +153,24 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_LAST_FOOD_REMINDER_DATE, dateIso)
     }
 
+    fun getLastWidgetReminderDate(): String? = settings.getStringOrNull(KEY_LAST_WIDGET_REMINDER_DATE)
+    fun setLastWidgetReminderDate(dateIso: String) {
+        settings.putString(KEY_LAST_WIDGET_REMINDER_DATE, dateIso)
+    }
+
+    fun isWidgetReminderEnabled(): Boolean = settings.getBoolean(KEY_WIDGET_REMINDER_ENABLED, true)
+    fun setWidgetReminderEnabled(enabled: Boolean) {
+        settings.putBoolean(KEY_WIDGET_REMINDER_ENABLED, enabled)
+    }
+
+    /**
+     * Returns true at most once per calendar day when the user has not yet added a home-screen widget.
+     */
+    fun shouldShowDailyWidgetReminder(todayIso: String, isWidgetInstalled: Boolean): Boolean {
+        if (!isLoggedIn() || isWidgetInstalled || !isWidgetReminderEnabled()) return false
+        return getLastWidgetReminderDate() != todayIso
+    }
+
     fun getCustomGeminiApiKey(): String? =
         settings.getStringOrNull(KEY_CUSTOM_GEMINI_API_KEY)?.takeIf { it.isNotBlank() }
 
@@ -314,5 +332,14 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_CUSTOM_GEMINI_API_KEY = "ht_custom_gemini_api_key"
         private const val KEY_IS_PREMIUM = "ht_is_premium"
         private const val KEY_PREMIUM_UNTIL = "ht_premium_until"
+        private const val KEY_HAS_SEEN_ONBOARDING = "ht_has_seen_onboarding"
+        private const val KEY_LAST_WIDGET_REMINDER_DATE = "ht_last_widget_reminder_date"
+        private const val KEY_WIDGET_REMINDER_ENABLED = "ht_widget_reminder_enabled"
+    }
+
+    fun hasSeenOnboarding(): Boolean = settings.getBoolean(KEY_HAS_SEEN_ONBOARDING, false)
+
+    fun setOnboardingSeen(seen: Boolean = true) {
+        settings.putBoolean(KEY_HAS_SEEN_ONBOARDING, seen)
     }
 }

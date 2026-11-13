@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_telemetry_name">HealthTrack • Bio-Telemetri</string>
+    <string name="widget_telemetry_desc">Günlük kalori halkası, makrolar, tek dokunuşla +250 ml su takibi ve hızlı öğün/spor kısayolları.</string>
+    <string name="widget_hydration_name">HealthTrack • Su &amp; Kalori</string>
+    <string name="widget_hydration_desc">Kompakt günlük kalori özeti ve ana ekrandan tek dokunuşla +250 ml su ekleme.</string>
+</resources>
+

@@ -17,6 +17,8 @@ fun ProfileScreenRoot(
     onThemeAccentChanged: (AppThemeColor) -> Unit,
     onDarkModeChanged: (Boolean) -> Unit,
     onOpenPremium: () -> Unit = {},
+    onReplayOnboarding: () -> Unit = {},
+    onOpenWidgetPromo: (() -> Unit)? = null,
     onLogout: () -> Unit = {},
     onShowToast: (String) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -65,6 +67,8 @@ fun ProfileScreenRoot(
         onIntent = viewModel::onIntent,
         onBack = onBack,
         onOpenPremium = onOpenPremium,
+        onReplayOnboarding = onReplayOnboarding,
+        onOpenWidgetPromo = onOpenWidgetPromo,
         onLogout = onLogout,
         modifier = modifier
     )

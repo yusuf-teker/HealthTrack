@@ -14,6 +14,7 @@ import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.detectSystemLanguage
 import com.yusufteker.healthtrack.core.i18n.trEn
+import com.yusufteker.healthtrack.core.utils.WidgetDeepLinkBus
 import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
 
@@ -30,13 +31,8 @@ class MainActivity : ComponentActivity() {
         val isHealthRationaleIntent = intent?.action == "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" ||
             intent?.action == "android.intent.action.VIEW_PERMISSION_USAGE"
 
-        val targetTabStr = intent?.getStringExtra("open_tab")
-        val initialTab = when (targetTabStr) {
-            "WORKOUT" -> HealthTab.WORKOUT
-            "WEIGHT" -> HealthTab.WEIGHT
-            "ANALYTICS" -> HealthTab.ANALYTICS
-            else -> HealthTab.FOOD
-        }
+        val initialTab = resolveTabFromIntent(intent)
+        dispatchDeepLinkIfPresent(intent)
 
         setContent {
             App(initialTab = initialTab)
@@ -61,6 +57,36 @@ class MainActivity : ComponentActivity() {
                 }
                 .setNegativeButton(trEn("Kapat", "Close", lang), null)
                 .show()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        dispatchDeepLinkIfPresent(intent)
+    }
+
+    private fun resolveTabFromIntent(intent: Intent?): HealthTab {
+        val data = intent?.data
+        val tabParam = data?.getQueryParameter("tab")?.uppercase()
+            ?: intent?.getStringExtra("open_tab")?.uppercase()
+        return when (tabParam) {
+            "WORKOUT" -> HealthTab.WORKOUT
+            "WEIGHT" -> HealthTab.WEIGHT
+            "ANALYTICS" -> HealthTab.ANALYTICS
+            else -> HealthTab.FOOD
+        }
+    }
+
+    private fun dispatchDeepLinkIfPresent(intent: Intent?) {
+        val data = intent?.dataString
+        if (!data.isNullOrBlank() && data.startsWith("healthtrack://", ignoreCase = true)) {
+            WidgetDeepLinkBus.emitFromUri(data)
+            return
+        }
+        val tab = intent?.getStringExtra("open_tab")
+        if (!tab.isNullOrBlank()) {
+            WidgetDeepLinkBus.emit(tabName = tab, action = intent.getStringExtra("open_action"))
         }
     }
 }

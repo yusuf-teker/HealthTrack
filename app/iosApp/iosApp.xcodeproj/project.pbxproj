@@ -7,13 +7,43 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F6000100000001 /* HealthTrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1B2C3D4E5F600010000000F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000011 /* WidgetKit.framework */; };
+		A1B2C3D4E5F6000100000010 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000012 /* SwiftUI.framework */; };
 		1C81D6F669B7BB6D2FFCCEB3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */; };
 		2ECACC695940F13A4EDFB2D7 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F7F4335A9FA704A52EB0C58D /* GoogleService-Info.plist */; };
 		445C052442747365B7CB2124 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 617043448F4869026C2F0BB4 /* FirebaseAuth */; };
 		B7C4F6137AC8345E71E92063 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 84FCD721953CC33D9035BCCD /* FirebaseFirestore */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		A1B2C3D4E5F6000100000005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1C2557F93A602B14592CF08C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D4E5F600010000000B;
+			remoteInfo = HealthTrackWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1B2C3D4E5F6000100000007 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1B2C3D4E5F6000100000001 /* HealthTrackWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HealthTrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F6000100000011 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		A1B2C3D4E5F6000100000012 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		D98B053C208B133390F29BFC /* HealthTrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HealthTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F7F4335A9FA704A52EB0C58D /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = text.plist; lastKnownFileType = text.plist; name = "GoogleService-Info.plist"; path = "iosApp/GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -23,12 +53,29 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				iosApp.entitlements,
 			);
 			target = 5C1A62F97F187592F48A26CC /* iosApp */;
+		};
+		A1B2C3D4E5F6000100000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				HealthTrackWidget.entitlements,
+			);
+			target = A1B2C3D4E5F600010000000B /* HealthTrackWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A1B2C3D4E5F6000100000004 /* HealthTrackWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1B2C3D4E5F6000100000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			path = HealthTrackWidget;
+			sourceTree = "<group>";
+		};
 		04F73BCF9E6927C0618CC63B /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -45,6 +92,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		A1B2C3D4E5F6000100000009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3D4E5F6000100000010 /* SwiftUI.framework in Frameworks */,
+				A1B2C3D4E5F600010000000F /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FF28733D724831E7059B9EAA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -62,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				D98B053C208B133390F29BFC /* HealthTrack.app */,
+				A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -71,6 +128,7 @@
 			children = (
 				10EC2F6ABB329089318D720A /* Configuration */,
 				04F73BCF9E6927C0618CC63B /* iosApp */,
+				A1B2C3D4E5F6000100000004 /* HealthTrackWidget */,
 				24DE4B1A2CB47A2BD94DBF23 /* Products */,
 				F7F4335A9FA704A52EB0C58D /* GoogleService-Info.plist */,
 			);
@@ -87,10 +145,12 @@
 				D8D59D0B83BB800C33FA0B4E /* Sources */,
 				FF28733D724831E7059B9EAA /* Frameworks */,
 				5505AA0C9C8EAE92B2318222 /* Resources */,
+				A1B2C3D4E5F6000100000007 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A1B2C3D4E5F6000100000006 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				04F73BCF9E6927C0618CC63B /* iosApp */,
@@ -105,6 +165,26 @@
 			productReference = D98B053C208B133390F29BFC /* HealthTrack.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1B2C3D4E5F600010000000B /* HealthTrackWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4E5F600010000000C /* Build configuration list for PBXNativeTarget "HealthTrackWidgetExtension" */;
+			buildPhases = (
+				A1B2C3D4E5F6000100000008 /* Sources */,
+				A1B2C3D4E5F6000100000009 /* Frameworks */,
+				A1B2C3D4E5F600010000000A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D4E5F6000100000004 /* HealthTrackWidget */,
+			);
+			name = HealthTrackWidgetExtension;
+			productName = HealthTrackWidgetExtension;
+			productReference = A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -116,6 +196,9 @@
 				LastUpgradeCheck = 2730;
 				TargetAttributes = {
 					5C1A62F97F187592F48A26CC = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					A1B2C3D4E5F600010000000B = {
 						CreatedOnToolsVersion = 16.2;
 					};
 				};
@@ -138,11 +221,19 @@
 			projectRoot = "";
 			targets = (
 				5C1A62F97F187592F48A26CC /* iosApp */,
+				A1B2C3D4E5F600010000000B /* HealthTrackWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A1B2C3D4E5F600010000000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5505AA0C9C8EAE92B2318222 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -176,6 +267,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		A1B2C3D4E5F6000100000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D8D59D0B83BB800C33FA0B4E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -185,8 +283,15 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin XCBuildConfiguration section */
-		0EA884BD9355067FFC227FDD /* Debug */ = {
+/* Begin PBXTargetDependency section */
+		A1B2C3D4E5F6000100000006 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D4E5F600010000000B /* HealthTrackWidgetExtension */;
+			targetProxy = A1B2C3D4E5F6000100000005 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */		0EA884BD9355067FFC227FDD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -314,7 +419,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yusufteker.healthtrack.HealthTrack$(TEAM_ID)";
+				PRODUCT_NAME = HealthTrack;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
@@ -343,7 +451,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yusufteker.healthtrack.HealthTrack$(TEAM_ID)";
+				PRODUCT_NAME = HealthTrack;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
@@ -367,6 +478,58 @@
 			};
 			name = Debug;
 		};
+		A1B2C3D4E5F600010000000D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HealthTrackWidget/HealthTrackWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HealthTrackWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HealthTrack;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yusufteker.healthtrack.HealthTrack$(TEAM_ID).Widget";
+				PRODUCT_NAME = HealthTrackWidgetExtension;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A1B2C3D4E5F600010000000E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HealthTrackWidget/HealthTrackWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HealthTrackWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HealthTrack;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yusufteker.healthtrack.HealthTrack$(TEAM_ID).Widget";
+				PRODUCT_NAME = HealthTrackWidgetExtension;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -384,6 +547,15 @@
 			buildConfigurations = (
 				9BDACB7B1966935915EB7F50 /* Debug */,
 				657965AE27BF34AAC7BA19FB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D4E5F600010000000C /* Build configuration list for PBXNativeTarget "HealthTrackWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4E5F600010000000D /* Debug */,
+				A1B2C3D4E5F600010000000E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

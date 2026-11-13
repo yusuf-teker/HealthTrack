@@ -24,7 +24,8 @@ sealed interface SyncState {
 class SyncEngine(
     private val database: HealthDatabase,
     private val apiClient: HealthApiClient,
-    private val tokenStorage: TokenStorage
+    private val tokenStorage: TokenStorage,
+    private val gamificationManager: GamificationManager? = null
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val isoDateRegex = Regex("""^\d{4}-\d{2}-\d{2}$""")
@@ -32,7 +33,10 @@ class SyncEngine(
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
-    suspend fun sync(forceFullPull: Boolean = false): Boolean = syncMutex.withLock {
+    suspend fun sync(forceFullPull: Boolean = false): Boolean =
+        gamificationManager?.runQuietly { performSync(forceFullPull) } ?: performSync(forceFullPull)
+
+    private suspend fun performSync(forceFullPull: Boolean): Boolean = syncMutex.withLock {
         val userId = tokenStorage.getUserId()
         if (userId <= 0 || tokenStorage.getAccessToken().isNullOrBlank()) {
             _syncState.value = SyncState.Error(trEn("Oturum açılmamış.", "Not signed in."))

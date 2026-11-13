@@ -34,6 +34,9 @@ import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
+import com.yusufteker.healthtrack.ui.components.LocalSpotlightController
+import com.yusufteker.healthtrack.ui.components.SpotlightInlineGuideBubble
+import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
@@ -53,6 +56,9 @@ fun FoodAiReviewBottomSheet(
 
     var isConfirming by remember { mutableStateOf(false) }
     var isSavingInventory by remember { mutableStateOf(false) }
+    val spotlightController = LocalSpotlightController.current
+    val isOnboardingGuide = spotlightController?.activeTargetId == SpotlightTargetId.FOOD_REVIEW_CONFIRM &&
+        target == FoodScanTarget.DAILY_MEAL
 
     val totalProtein = aiResult.items.sumOf { it.proteinG }
     val totalCarbs = aiResult.items.sumOf { it.carbsG }
@@ -370,6 +376,18 @@ fun FoodAiReviewBottomSheet(
                             }
                         }
                     } else {
+                        if (isOnboardingGuide) {
+                            SpotlightInlineGuideBubble(
+                                badge = str("3/4 • AI ÖZET PANELİ", "3/4 • AI REVIEW SHEET"),
+                                title = str("Besinleri Kontrol Et ve Onayla", "Review & Confirm Foods"),
+                                description = str(
+                                    "Gemini her yiyeceği kalori ve makrolarıyla ayırdı. Şimdi 'Onayla ve Günlüğe Ekle'ye dokun ve kalori barının değiştiğini gör!",
+                                    "Gemini split each item with calories and macros. Tap 'Confirm & Add to Log' below to watch your calorie bars update!"
+                                ),
+                                pointingDown = true
+                            )
+                        }
+
                         // Primary: Onayla ve Günlüğe Ekle
                         Button(
                             onClick = {
@@ -379,6 +397,9 @@ fun FoodAiReviewBottomSheet(
                                 }
                             },
                             enabled = !isConfirming && !isSavingInventory,
+                            border = if (isOnboardingGuide) {
+                                androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.85f))
+                            } else null,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)

@@ -6,11 +6,13 @@ import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.di.coreModule
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
+import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.HealthReportAiGenerator
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.feature.analytics.presentation.AnalyticsViewModel
 import com.yusufteker.healthtrack.feature.auth.presentation.AuthViewModel
 import com.yusufteker.healthtrack.feature.food.presentation.FoodViewModel
+import com.yusufteker.healthtrack.feature.gamification.presentation.GamificationViewModel
 import com.yusufteker.healthtrack.feature.premium.presentation.PremiumViewModel
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileViewModel
 import com.yusufteker.healthtrack.feature.weight.presentation.WeightViewModel
@@ -37,6 +39,7 @@ val featureModule = module {
         )
     }
     viewModel { PremiumViewModel(get(), get(), get()) }
+    viewModel { GamificationViewModel(get<GamificationManager>(), get<HealthApiClient>(), get<TokenStorage>()) }
 }
 
 val appModules = listOf(coreModule, featureModule)

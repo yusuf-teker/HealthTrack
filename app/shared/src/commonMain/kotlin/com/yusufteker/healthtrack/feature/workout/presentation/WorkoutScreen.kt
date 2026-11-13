@@ -1,6 +1,11 @@
 package com.yusufteker.healthtrack.feature.workout.presentation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -29,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,9 +58,12 @@ import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
+import com.yusufteker.healthtrack.ui.components.ShimmeringAiButton
+import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import kotlinx.coroutines.launch
 
 @Composable
@@ -131,7 +140,8 @@ fun WorkoutScreen(
             // ── Radial Strain & Calorie Burn Gauge (Hero Card) ──
             WorkoutStrainHeroCard(
                 state = state,
-                onOpenReminderSettings = { onIntent(WorkoutIntent.OnSetReminderDialogOpen(true)) }
+                onOpenReminderSettings = { onIntent(WorkoutIntent.OnSetReminderDialogOpen(true)) },
+                modifier = Modifier.spotlightTarget(SpotlightTargetId.WORKOUT_HERO_GAUGE)
             )
 
             // ── Ambient Daily Steps & Movement Telemetry Widget (Option 1) ──
@@ -277,7 +287,9 @@ fun WorkoutScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .spotlightTarget(SpotlightTargetId.WORKOUT_INPUT_FIELD),
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.tertiary,
@@ -353,52 +365,19 @@ fun WorkoutScreen(
                 }
 
                 // AI Calculate Button
-                Button(
-                    onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },
+                ShimmeringAiButton(
+                    text = str(
+                        "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
+                        "Calculate with AI (${state.userWeightKg} kg)"
+                    ),
+                    isLoading = state.isCalculatingAi,
                     enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
+                    onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
-                        .bounceClick(),
-                    shape = RoundedCornerShape(999.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White,
-                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                        disabledContentColor = Color.White
-                    )
-                ) {
-                    if (state.isCalculatingAi) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            str("Yakılan Kalori Hesaplanıyor...", "Calculating Calories Burned..."),
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            str(
-                                "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
-                                "Calculate with AI (${state.userWeightKg} kg)"
-                            ),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color.White
-                        )
-                    }
-                }
+                        .spotlightTarget(SpotlightTargetId.WORKOUT_CALCULATE_BUTTON),
+                    height = 44.dp
+                )
 
                 // Manual Fields Section (Expanded via Header Pill)
                 if (showManualFields) {
@@ -619,7 +598,8 @@ fun WorkoutScreen(
 @Composable
 private fun WorkoutStrainHeroCard(
     state: WorkoutState,
-    onOpenReminderSettings: () -> Unit
+    onOpenReminderSettings: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
     val progress = state.calorieProgress
@@ -630,7 +610,7 @@ private fun WorkoutStrainHeroCard(
     val percentage = (progress * 100).toInt()
 
     GlassCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         elevation = 10.dp
     ) {
@@ -718,17 +698,32 @@ private fun WorkoutStrainHeroCard(
                         }
                     }
 
+                    val isGoalReached = state.targetCalories > 0 && state.totalCaloriesBurned >= state.targetCalories
+                    val goalPillBg = if (isGoalReached) {
+                        HealthColors.Primary.copy(alpha = 0.22f)
+                    } else {
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
+                    }
+                    val goalPillTextColor = if (isGoalReached) {
+                        if (isDark) Color(0xFF34D399) else HealthColors.Primary
+                    } else {
+                        MaterialTheme.colorScheme.tertiary
+                    }
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
+                            .background(goalPillBg)
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = str("%$percentage Hedef", "$percentage% Goal"),
+                            text = if (isGoalReached) {
+                                str("✓ HEDEF DOLDU ($percentage%)", "✓ GOAL HIT ($percentage%)")
+                            } else {
+                                str("%$percentage Hedef", "$percentage% Goal")
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.tertiary
+                            color = goalPillTextColor
                         )
                     }
                 }
@@ -737,21 +732,71 @@ private fun WorkoutStrainHeroCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Glowing Radial Progress Ring
+            val isGoalReached = state.targetCalories > 0 && state.totalCaloriesBurned >= state.targetCalories
+            val goalPulse = if (isGoalReached) {
+                val transition = rememberInfiniteTransition(label = "workout_goal_ring")
+                val scale by transition.animateFloat(
+                    initialValue = 0.97f,
+                    targetValue = 1.03f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "ring_halo_pulse"
+                )
+                scale
+            } else {
+                1f
+            }
+
             Box(
-                modifier = Modifier.size(190.dp),
+                modifier = Modifier.size(196.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val ringBackground = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.4f) else HealthColors.SurfaceVariantLight
-                val flameGradient = Brush.sweepGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.tertiary,
-                        Color(0xFFFF7043),
-                        HealthColors.Primary,
-                        MaterialTheme.colorScheme.tertiary
+                if (isGoalReached) {
+                    Box(
+                        modifier = Modifier
+                            .size(192.dp)
+                            .graphicsLayer {
+                                scaleX = goalPulse
+                                scaleY = goalPulse
+                            }
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        HealthColors.PrimaryGlow.copy(alpha = 0.24f),
+                                        Color(0xFFFACC15).copy(alpha = 0.10f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
                     )
-                )
+                }
 
-                Canvas(modifier = Modifier.fillMaxSize()) {
+                val ringBackground = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.4f) else HealthColors.SurfaceVariantLight
+                val flameGradient = if (isGoalReached) {
+                    Brush.sweepGradient(
+                        listOf(
+                            Color(0xFFFACC15),
+                            HealthColors.PrimaryGlow,
+                            Color(0xFF06D6A0),
+                            Color(0xFFF97316),
+                            Color(0xFFFACC15)
+                        )
+                    )
+                } else {
+                    Brush.sweepGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.tertiary,
+                            Color(0xFFFF7043),
+                            HealthColors.Primary,
+                            MaterialTheme.colorScheme.tertiary
+                        )
+                    )
+                }
+
+                Canvas(modifier = Modifier.size(186.dp)) {
                     val strokeWidth = 14.dp.toPx()
                     val diameter = size.minDimension - strokeWidth
                     val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
@@ -785,10 +830,14 @@ private fun WorkoutStrainHeroCard(
                 // Centered Telemetry
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = str("YAKILAN", "BURNED"),
+                        text = if (isGoalReached) str("HEDEF TAMAMLANDI", "GOAL CRUSHED") else str("YAKILAN", "BURNED"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        color = if (isGoalReached) {
+                            if (isDark) Color(0xFF34D399) else HealthColors.Primary
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        },
                         letterSpacing = 1.sp
                     )
                     Row(
@@ -809,9 +858,18 @@ private fun WorkoutStrainHeroCard(
                         )
                     }
                     Text(
-                        text = str("kcal hedefi", "kcal goal"),
+                        text = if (isGoalReached) {
+                            str("🔥 Harika enerji!", "🔥 Unstoppable!")
+                        } else {
+                            str("kcal hedefi", "kcal goal")
+                        },
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontWeight = if (isGoalReached) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isGoalReached) {
+                            if (isDark) Color(0xFFFDE047) else Color(0xFFD97706)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
             }

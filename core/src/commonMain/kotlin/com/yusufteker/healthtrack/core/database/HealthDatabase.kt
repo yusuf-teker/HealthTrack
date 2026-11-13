@@ -265,6 +265,14 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         }
     }
 
+    fun getWorkouts(userId: Int, date: String): List<WorkoutLog> {
+        return _workoutsFlow.value.filter { it.userId == userId && it.date == date && !it.isDeleted }
+    }
+
+    fun getAllWorkouts(userId: Int): List<WorkoutLog> {
+        return _workoutsFlow.value.filter { it.userId == userId && !it.isDeleted }
+    }
+
     suspend fun upsertWorkout(workout: WorkoutLog) {
         val current = _workoutsFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == workout.id }
@@ -818,8 +826,22 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         }
     }
 
+    fun observeAllWater(userId: Int): Flow<List<WaterEntry>> {
+        return _waterFlow.map { list ->
+            list.filter { it.userId == userId }
+        }
+    }
+
     suspend fun getWaterForDate(userId: Int, date: String): WaterEntry? {
         return _waterFlow.value.find { it.userId == userId && it.date == date }
+    }
+
+    fun getWaterSync(userId: Int, date: String): WaterEntry? {
+        return _waterFlow.value.find { it.userId == userId && it.date == date }
+    }
+
+    fun getAllWaterSync(userId: Int): List<WaterEntry> {
+        return _waterFlow.value.filter { it.userId == userId }
     }
 
     suspend fun addWater(userId: Int, date: String, deltaMl: Int, defaultTargetMl: Int = 2500): WaterEntry {

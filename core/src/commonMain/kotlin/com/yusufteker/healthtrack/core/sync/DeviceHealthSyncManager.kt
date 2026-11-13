@@ -33,7 +33,8 @@ import kotlin.math.roundToInt
 class DeviceHealthSyncManager(
     private val database: HealthDatabase,
     private val tokenStorage: TokenStorage,
-    private val syncEngine: SyncEngine
+    private val syncEngine: SyncEngine,
+    private val gamificationManager: GamificationManager? = null
 ) {
     private val mutex = Mutex()
     private val isoDateRegex = Regex("""^\d{4}-\d{2}-\d{2}$""")
@@ -41,6 +42,13 @@ class DeviceHealthSyncManager(
     suspend fun mergeSnapshot(
         snapshot: DeviceHealthSnapshot,
         syncToCloud: Boolean = true
+    ): DeviceSyncSummary =
+        gamificationManager?.runQuietly { performMergeSnapshot(snapshot, syncToCloud) }
+            ?: performMergeSnapshot(snapshot, syncToCloud)
+
+    private suspend fun performMergeSnapshot(
+        snapshot: DeviceHealthSnapshot,
+        syncToCloud: Boolean
     ): DeviceSyncSummary = mutex.withLock {
         val userId = tokenStorage.getUserId().takeIf { it > 0 } ?: 1
         val now = currentTimeMillis()

@@ -8,6 +8,7 @@ import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
+import com.yusufteker.healthtrack.core.model.WorkoutTelemetryHelper
 import com.yusufteker.healthtrack.core.network.AiQuotaExceededException
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
@@ -150,19 +151,8 @@ class WorkoutViewModel(
                 val explicitBurned = explicitWorkouts.sumOf { it.caloriesBurned }
                 val explicitDuration = explicitWorkouts.sumOf { it.durationMinutes }
 
-                // Estimate steps taken during explicit active sports to prevent double-counting
-                val estimatedSportSteps = explicitWorkouts.sumOf { w ->
-                    estimateSportSteps(w.rawText, w.durationMinutes)
-                }
-
                 val stepTelemetry = stepLog?.let {
-                    val parsed = parseDailyStepTelemetry(it)
-                    val netSteps = (parsed.stepCount - estimatedSportSteps).coerceAtLeast(0)
-                    val netKcal = if (parsed.stepCount > 0) {
-                        val ratio = netSteps.toDouble() / parsed.stepCount
-                        (parsed.caloriesBurned * ratio).roundToInt()
-                    } else 0
-                    parsed.copy(netCaloriesBurned = netKcal)
+                    WorkoutTelemetryHelper.parseDailyStepTelemetry(it, explicitWorkouts)
                 }
 
                 val totalBurned = explicitBurned + (stepTelemetry?.netCaloriesBurned ?: 0)
@@ -351,47 +341,6 @@ class WorkoutViewModel(
             database.deleteWorkout(id)
             launch { syncEngine.sync() }
         }
-    }
-
-    private fun parseDailyStepTelemetry(log: WorkoutLog): DailyStepTelemetry {
-        val steps = Regex("""(\d+)\s*(?:Adım|Steps)""", RegexOption.IGNORE_CASE).find(log.rawText)?.groupValues?.get(1)?.toIntOrNull()
-            ?: (log.durationMinutes * 100).coerceAtLeast(0)
-        val analysis = log.aiAnalysis.orEmpty()
-        val distanceKm = Regex("""([\d.,]+)\s*km""").find(analysis)?.groupValues?.get(1)
-            ?.replace(',', '.')?.toDoubleOrNull()
-            ?: ((steps * 0.75) / 1000.0)
-        val defaultWatchName = trEn("Akıllı Saat", "Smart Watch")
-        val source = if (analysis.contains("•")) {
-            analysis.substringBefore("•").trim().removePrefix("⌚").trim()
-        } else {
-            defaultWatchName
-        }
-        return DailyStepTelemetry(
-            stepCount = steps,
-            distanceKm = round(distanceKm * 10.0) / 10.0,
-            durationMinutes = log.durationMinutes,
-            caloriesBurned = log.caloriesBurned,
-            netCaloriesBurned = log.caloriesBurned,
-            sourceName = source.ifBlank { defaultWatchName },
-            stepTarget = 10_000
-        )
-    }
-
-    private fun estimateSportSteps(rawText: String, durationMinutes: Int): Int {
-        if (durationMinutes <= 0) return 0
-        val lower = rawText.lowercase()
-        val stepsPerMinute = when {
-            lower.contains("koşu") || lower.contains("running") || lower.contains("jogging") -> 140
-            lower.contains("tenis") || lower.contains("tennis") -> 85
-            lower.contains("basket") || lower.contains("futbol") || lower.contains("soccer") -> 100
-            lower.contains("yürüyüş") || lower.contains("walking") || lower.contains("trekking") -> 100
-            lower.contains("hiit") || lower.contains("kardiyo") -> 90
-            lower.contains("fitness") || lower.contains("ağırlık") || lower.contains("body") || lower.contains("bench") -> 25
-            lower.contains("pilates") || lower.contains("yoga") -> 10
-            lower.contains("bisiklet") || lower.contains("cycling") || lower.contains("yüzme") || lower.contains("swim") -> 0
-            else -> 60
-        }
-        return stepsPerMinute * durationMinutes
     }
 
     private fun currentTime(): Long = com.yusufteker.healthtrack.core.utils.currentTimeMillis()

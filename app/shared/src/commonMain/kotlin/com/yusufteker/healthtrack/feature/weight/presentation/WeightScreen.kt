@@ -49,9 +49,13 @@ import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
+import com.yusufteker.healthtrack.ui.components.LocalSpotlightController
+import com.yusufteker.healthtrack.ui.components.SpotlightInlineGuideBubble
+import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import io.github.aakira.napier.Napier
 
 @Composable
@@ -150,7 +154,8 @@ fun WeightScreen(
                 entries = state.filteredEntries,
                 targetWeightKg = state.targetWeightKg,
                 selectedPeriod = state.selectedPeriod,
-                onPeriodSelect = { onIntent(WeightIntent.OnPeriodSelected(it)) }
+                onPeriodSelect = { onIntent(WeightIntent.OnPeriodSelected(it)) },
+                modifier = Modifier.spotlightTarget(SpotlightTargetId.WEIGHT_CHART_CARD)
             )
 
             // ── History List (Directly Visible Above the Fold) ──
@@ -407,6 +412,18 @@ private fun AddWeightDialog(
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                if (LocalSpotlightController.current?.activeTargetId == SpotlightTargetId.WEIGHT_ADD_BUTTON) {
+                    SpotlightInlineGuideBubble(
+                        badge = str("TARTI KAYDI", "WEIGH-IN"),
+                        title = str("Kiloyu Kaydet", "Save Weight"),
+                        description = str(
+                            "Şimdi 'Kaydet'e dokun ve kilo grafiğinin güncellenişini izle!",
+                            "Tap 'Save' below to see your weight trend chart update!"
+                        ),
+                        pointingDown = true
+                    )
+                }
 
                 // Action Buttons
                 Row(
@@ -696,6 +713,7 @@ private fun CurrentBioMassHeroCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp)
+                        .spotlightTarget(SpotlightTargetId.WEIGHT_ADD_BUTTON)
                         .bounceClick(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(

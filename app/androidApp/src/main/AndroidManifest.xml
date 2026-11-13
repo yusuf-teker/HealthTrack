@@ -76,6 +76,37 @@
             android:name="com.yusufteker.healthtrack.core.utils.HealthReminderReceiver"
             android:exported="false" />
 
+        <!-- Home Screen Bio-Telemetry Widget (4x2 Responsive) -->
+        <receiver
+            android:name="com.yusufteker.healthtrack.widget.HealthTrackTelemetryWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_telemetry_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_ADD_WATER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/healthtrack_telemetry_widget_info" />
+        </receiver>
+
+        <!-- Home Screen Compact Hydration & Calorie Widget (2x2) -->
+        <receiver
+            android:name="com.yusufteker.healthtrack.widget.HealthTrackHydrationWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_hydration_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/healthtrack_hydration_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name="com.yusufteker.healthtrack.widget.HealthTrackWidgetPinReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

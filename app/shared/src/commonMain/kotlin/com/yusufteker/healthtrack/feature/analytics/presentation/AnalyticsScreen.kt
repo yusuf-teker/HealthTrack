@@ -52,9 +52,12 @@ import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
+import com.yusufteker.healthtrack.ui.components.ShimmeringAiButton
+import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.spotlightTarget
 
 private val WhatsAppGreen = Color(0xFF25D366)
 
@@ -153,7 +156,8 @@ fun AnalyticsScreen(
                         val formatted = activeReport.toWhatsAppMessage(state.userName, lang)
                         appLauncher.shareToWhatsApp(formatted, state.whatsAppPhone)
                         onIntent(AnalyticsIntent.OnReportSentToWhatsApp(activeReport.id))
-                    }
+                    },
+                    modifier = Modifier.spotlightTarget(SpotlightTargetId.ANALYTICS_REPORT_CARD)
                 )
             }
 
@@ -637,41 +641,20 @@ private fun SelectionSummaryAndGenerateCard(
                 )
             }
 
-            Button(
-                onClick = onGenerateClick,
+            ShimmeringAiButton(
+                text = if (state.currentReport != null) {
+                    if (isDaily) str("Günlük AI Analizini Yenile", "Refresh Daily AI Analysis") else str("Haftalık AI Raporunu Yenile", "Refresh Weekly AI Report")
+                } else {
+                    if (isDaily) str("Seçili Günü AI ile Analiz Et", "Analyze Selected Day with AI") else str("Seçili Haftayı AI ile Analiz Et", "Analyze Selected Week with AI")
+                },
+                isLoading = state.isGenerating,
                 enabled = !state.isGenerating,
+                onClick = onGenerateClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
-                    .bounceClick(),
-                shape = RoundedCornerShape(999.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White
-                )
-            ) {
-                if (state.isGenerating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(str("AI Analiz Raporu Hazırlanıyor...", "Preparing AI Analysis Report..."), fontWeight = FontWeight.Bold)
-                } else {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (state.currentReport != null) {
-                            if (isDaily) str("✨ Günlük AI Analizini Yenile", "✨ Refresh Daily AI Analysis") else str("✨ Haftalık AI Raporunu Yenile", "✨ Refresh Weekly AI Report")
-                        } else {
-                            if (isDaily) str("✨ Seçili Günü AI ile Analiz Et", "✨ Analyze Selected Day with AI") else str("✨ Seçili Haftayı AI ile Analiz Et", "✨ Analyze Selected Week with AI")
-                        },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
+                    .spotlightTarget(SpotlightTargetId.ANALYTICS_GENERATE_BUTTON),
+                height = 50.dp
+            )
         }
     }
 }
@@ -716,7 +699,8 @@ private fun MiniMetricBox(
 @Composable
 private fun AiReportDetailCard(
     report: HealthAiReport,
-    onShareWhatsApp: () -> Unit
+    onShareWhatsApp: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
     val scoreProgress = (report.score / 100f).coerceIn(0f, 1f)
@@ -726,7 +710,7 @@ private fun AiReportDetailCard(
     )
 
     GlassCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         elevation = 10.dp
     ) {

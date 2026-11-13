@@ -64,6 +64,8 @@ fun ProfileScreen(
     onIntent: (ProfileIntent) -> Unit,
     onBack: () -> Unit,
     onOpenPremium: () -> Unit = {},
+    onReplayOnboarding: () -> Unit = {},
+    onOpenWidgetPromo: (() -> Unit)? = null,
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -746,6 +748,64 @@ fun ProfileScreen(
                     }
                 }
 
+                // ── Home Screen Widget Card ──
+                if (onOpenWidgetPromo != null) {
+                    GlassCard(
+                        onClick = onOpenWidgetPromo,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(22.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(11.dp))
+                                        .background(Color(0xFF38BDF8).copy(alpha = 0.16f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Widgets,
+                                        contentDescription = null,
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = str("Ana Ekran Widget'ı", "Home Screen Widget"),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = str(
+                                            "Canlı kalori halkası, makrolar ve tek dokunuşla +250ml su",
+                                            "Live calorie ring, macros & one-tap +250ml hydration"
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
                 // ── Language Selector Card ──
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -1181,6 +1241,34 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            // ── İnteraktif Tanıtım Turunu Tekrar İzle ──
+            OutlinedButton(
+                onClick = onReplayOnboarding,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .bounceClick(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary
+                ),
+                border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = str("İnteraktif Tanıtım Turunu İzle", "Replay Interactive App Tour"),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
 
             // ── Section 5: Çıkış Yap & Hesap Silme ──
