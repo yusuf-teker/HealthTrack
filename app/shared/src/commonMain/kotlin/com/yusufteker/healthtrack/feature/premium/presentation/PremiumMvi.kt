@@ -1,65 +1,91 @@
 package com.yusufteker.healthtrack.feature.premium.presentation
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.PaymentMethod
 import com.yusufteker.healthtrack.core.model.PremiumFeatureItem
 import com.yusufteker.healthtrack.core.model.SubscriptionPeriod
 import com.yusufteker.healthtrack.core.model.SubscriptionPlan
 
-val defaultHealthTrackPlans = listOf(
+fun localizedHealthTrackPlans(language: AppLanguage = LocalizationManager.currentLanguage): List<SubscriptionPlan> = listOf(
     SubscriptionPlan(
         id = "healthtrack_premium_annual",
-        name = "Yıllık Plan",
-        priceText = "799.99 ₺ / Yıl",
+        name = trEn("Yıllık Plan", "Annual Plan", language),
+        priceText = trEn("799.99 ₺ / Yıl", "799.99 ₺ / Year", language),
         priceAmount = 799.99,
         period = SubscriptionPeriod.ANNUAL,
         discountPercentage = 33,
         isPopular = true,
-        description = "Aylık sadece 66.60 ₺ (%33 Tasarruf)"
+        description = trEn("Aylık sadece 66.60 ₺ (%33 Tasarruf)", "Only 66.60 ₺/mo (Save 33%)", language)
     ),
     SubscriptionPlan(
         id = "healthtrack_premium_monthly",
-        name = "Aylık Plan",
-        priceText = "99.99 ₺ / Ay",
+        name = trEn("Aylık Plan", "Monthly Plan", language),
+        priceText = trEn("99.99 ₺ / Ay", "99.99 ₺ / Month", language),
         priceAmount = 99.99,
         period = SubscriptionPeriod.MONTHLY,
         discountPercentage = 0,
         isPopular = false,
-        description = "İstediğiniz zaman iptal edebilirsiniz"
+        description = trEn("İstediğiniz zaman iptal edebilirsiniz", "Cancel anytime", language)
     )
 )
 
-val defaultHealthTrackFeatures = listOf(
+fun localizedHealthTrackFeatures(language: AppLanguage = LocalizationManager.currentLanguage): List<PremiumFeatureItem> = listOf(
     PremiumFeatureItem(
         id = "ai_food_vision",
-        title = "Sınırsız AI Öğün & Fotoğraf Analizi",
-        description = "Tabak fotoğrafından veya metinden anında makro ve mikro besin analizi.",
+        title = trEn("Sınırsız AI Öğün & Fotoğraf Analizi", "Unlimited AI Meal & Photo Analysis", language),
+        description = trEn(
+            "Tabak fotoğrafından veya metinden anında makro ve mikro besin analizi.",
+            "Instant macro & micronutrient analysis from a plate photo or text.",
+            language
+        ),
         iconName = "auto_awesome"
     ),
     PremiumFeatureItem(
         id = "ai_meal_plan",
-        title = "Kişisel AI Günlük Öğün Planlayıcı",
-        description = "Hedef kalorine ve protein ihtiyacına göre akıllı öğün önerileri.",
+        title = trEn("Kişisel AI Günlük Öğün Planlayıcı", "Personal AI Daily Meal Planner", language),
+        description = trEn(
+            "Hedef kalorine ve protein ihtiyacına göre akıllı öğün önerileri.",
+            "Smart meal recommendations tailored to your calorie and protein goals.",
+            language
+        ),
         iconName = "restaurant"
     ),
     PremiumFeatureItem(
         id = "weekly_bio_report",
-        title = "Haftalık Bio-Telemetri & WhatsApp Raporu",
-        description = "Kilo, antrenman ve beslenme trendlerinin otomatik AI özeti.",
+        title = trEn("Haftalık Bio-Telemetri & WhatsApp Raporu", "Weekly Bio-Telemetry & WhatsApp Report", language),
+        description = trEn(
+            "Kilo, antrenman ve beslenme trendlerinin otomatik AI özeti.",
+            "Automated AI summary of your weight, workout, and nutrition trends.",
+            language
+        ),
         iconName = "insights"
     ),
     PremiumFeatureItem(
         id = "cloud_sync",
-        title = "Çoklu Cihaz Bulut Senkronizasyonu",
-        description = "Tüm sağlık verilerin Planora ekosistemiyle anlık yedeklenir.",
+        title = trEn("Çoklu Cihaz Bulut Senkronizasyonu", "Multi-Device Cloud Sync", language),
+        description = trEn(
+            "Tüm sağlık verilerin Planora ekosistemiyle anlık yedeklenir.",
+            "All your health data backs up automatically across the Planora ecosystem.",
+            language
+        ),
         iconName = "cloud_done"
     ),
     PremiumFeatureItem(
         id = "premium_themes",
-        title = "Özel Bio-Telemetri Temaları",
-        description = "Obsidian, Emerald, Solar ve Crimson vurgu renklerine tam erişim.",
+        title = trEn("Özel Bio-Telemetri Temaları", "Custom Bio-Telemetry Themes", language),
+        description = trEn(
+            "Obsidian, Emerald, Solar ve Crimson vurgu renklerine tam erişim.",
+            "Full access to Obsidian, Emerald, Solar, and Crimson accent palettes.",
+            language
+        ),
         iconName = "palette"
     )
 )
+
+val defaultHealthTrackPlans: List<SubscriptionPlan> get() = localizedHealthTrackPlans()
+val defaultHealthTrackFeatures: List<PremiumFeatureItem> get() = localizedHealthTrackFeatures()
 
 data class PremiumState(
     val isPremium: Boolean = false,

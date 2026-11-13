@@ -1,13 +1,17 @@
 package com.yusufteker.healthtrack.theme
 
 import androidx.compose.ui.graphics.Color
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 
 /**
  * Available color theme presets for HealthTrack.
  */
 enum class AppThemeColor(
     val id: String,
-    val title: String,
+    val titleTr: String,
+    val titleEn: String,
     val primary: Color,
     val primaryGlow: Color,
     val primaryVariant: Color,
@@ -18,7 +22,8 @@ enum class AppThemeColor(
 ) {
     TEAL(
         id = "teal",
-        title = "Bio Turkuaz",
+        titleTr = "Bio Turkuaz",
+        titleEn = "Bio Teal",
         primary = Color(0xFF06D6A0),
         primaryGlow = Color(0xFF47F3BB),
         primaryVariant = Color(0xFF27E0A9),
@@ -29,7 +34,8 @@ enum class AppThemeColor(
     ),
     OCEAN(
         id = "ocean",
-        title = "Okyanus Mavisi",
+        titleTr = "Okyanus Mavisi",
+        titleEn = "Ocean Blue",
         primary = Color(0xFF0284C7),
         primaryGlow = Color(0xFF38BDF8),
         primaryVariant = Color(0xFF0369A1),
@@ -40,7 +46,8 @@ enum class AppThemeColor(
     ),
     PURPLE(
         id = "purple",
-        title = "Asil Mor",
+        titleTr = "Asil Mor",
+        titleEn = "Royal Purple",
         primary = Color(0xFF9333EA),
         primaryGlow = Color(0xFFC084FC),
         primaryVariant = Color(0xFF7E22CE),
@@ -51,7 +58,8 @@ enum class AppThemeColor(
     ),
     CORAL(
         id = "coral",
-        title = "Günbatımı Mercan",
+        titleTr = "Günbatımı Mercan",
+        titleEn = "Sunset Coral",
         primary = Color(0xFFEA580C),
         primaryGlow = Color(0xFFFB923C),
         primaryVariant = Color(0xFFC2410C),
@@ -62,7 +70,8 @@ enum class AppThemeColor(
     ),
     EMERALD(
         id = "emerald",
-        title = "Doğal Zümrüt",
+        titleTr = "Doğal Zümrüt",
+        titleEn = "Natural Emerald",
         primary = Color(0xFF059669),
         primaryGlow = Color(0xFF34D399),
         primaryVariant = Color(0xFF047857),
@@ -71,6 +80,12 @@ enum class AppThemeColor(
         onPrimaryContainer = Color(0xFFD1FAE5),
         gradient = listOf(Color(0xFF34D399), Color(0xFF047857))
     );
+
+    val title: String
+        get() = localizedTitle()
+
+    fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(titleTr, titleEn, language)
 
     companion object {
         fun fromId(id: String?): AppThemeColor {
@@ -104,11 +119,15 @@ object HealthColors {
 
     // ── Tertiary (Metabolic Coral / Workout Strain / Carbs) ───
     val Tertiary = Color(0xFFFFA87A)
+    val TertiaryLight = Color(0xFFC2410C)
     val TertiaryVariant = Color(0xFFF97316)
     val TertiaryGlow = Color(0xFFFFCEB7)
     val OnTertiary = Color(0xFF552100)
+    val OnTertiaryLight = Color(0xFFFFFFFF)
     val TertiaryContainer = Color(0xFF803500)
+    val TertiaryContainerLight = Color(0xFFFFDBCA)
     val OnTertiaryContainer = Color(0xFFFFDBCA)
+    val OnTertiaryContainerLight = Color(0xFF331100)
 
     // ── Semantic Nutrient Group Colors ───────────────────────
     val NutrientProtein = Color(0xFFC084FC)   // Lavender / Purple
@@ -151,6 +170,10 @@ object HealthColors {
     val OnError = Color(0xFF690005)
     val ErrorContainer = Color(0xFF93000A)
     val OnErrorContainer = Color(0xFFFFDAD6)
+    val ErrorLight = Color(0xFFBA1A1A)
+    val OnErrorLight = Color(0xFFFFFFFF)
+    val ErrorContainerLight = Color(0xFFFFDAD6)
+    val OnErrorContainerLight = Color(0xFF410002)
 
     // ── Gradients ────────────────────────────────────────────
     val GradientTeal = listOf(Color(0xFF47F3BB), Color(0xFF06D6A0), Color(0xFF27E0A9))

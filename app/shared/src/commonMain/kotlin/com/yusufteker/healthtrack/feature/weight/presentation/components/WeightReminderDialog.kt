@@ -27,6 +27,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 
@@ -38,6 +40,7 @@ fun WeightReminderDialog(
 ) {
     var selectedFrequency by remember { mutableStateOf(currentFrequency) }
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val scrollState = rememberScrollState()
 
     Dialog(
@@ -91,13 +94,13 @@ fun WeightReminderDialog(
                             }
                             Column {
                                 Text(
-                                    text = "Tartı Hatırlatıcısı",
+                                    text = str("Tartı Hatırlatıcısı", "Weigh-in Reminder"),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Kilo Takip Periyodu",
+                                    text = str("Kilo Takip Periyodu", "Weight Tracking Cadence"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -110,7 +113,7 @@ fun WeightReminderDialog(
                         ) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = str("Kapat", "Close"),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -137,7 +140,10 @@ fun WeightReminderDialog(
                                 modifier = Modifier.size(20.dp).padding(top = 2.dp)
                             )
                             Text(
-                                text = "Düzenli aralıklarla tartılmak vücut kitle indeksi ve kalori hedeflerinin doğru hesaplanmasını sağlar.",
+                                text = str(
+                                    "Düzenli aralıklarla tartılmak vücut kitle indeksi ve kalori hedeflerinin doğru hesaplanmasını sağlar.",
+                                    "Regular weigh-ins ensure accurate BMI tracking and calorie target calculations."
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 18.sp
@@ -191,18 +197,18 @@ fun WeightReminderDialog(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = option.title,
+                                            text = option.localizedTitle(lang),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                             color = if (isSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         val desc = when (option) {
-                                            WeightReminderFrequency.EVERY_3_DAYS -> "Son tartımından sonra 3 gün geçtiğinde hatırlatır."
-                                            WeightReminderFrequency.WEEKLY -> "Haftada 1 kez tartılma hatırlatması yapar."
-                                            WeightReminderFrequency.DAILY -> "Her gün tartılma hatırlatması yapar."
-                                            WeightReminderFrequency.EVERY_2_DAYS -> "2 günde bir tartılma hatırlatması yapar."
-                                            WeightReminderFrequency.OFF -> "Tartı hatırlatıcısı gönderilmez."
+                                            WeightReminderFrequency.EVERY_3_DAYS -> str("Son tartımından sonra 3 gün geçtiğinde hatırlatır.", "Reminds you 3 days after your last weigh-in.")
+                                            WeightReminderFrequency.WEEKLY -> str("Haftada 1 kez tartılma hatırlatması yapar.", "Sends a weigh-in reminder once a week.")
+                                            WeightReminderFrequency.DAILY -> str("Her gün tartılma hatırlatması yapar.", "Sends a daily weigh-in reminder.")
+                                            WeightReminderFrequency.EVERY_2_DAYS -> str("2 günde bir tartılma hatırlatması yapar.", "Sends a weigh-in reminder every 2 days.")
+                                            WeightReminderFrequency.OFF -> str("Tartı hatırlatıcısı gönderilmez.", "No weigh-in reminders will be sent.")
                                         }
                                         Text(
                                             text = desc,
@@ -231,7 +237,7 @@ fun WeightReminderDialog(
                                 .bounceClick(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Vazgeç")
+                            Text(str("Vazgeç", "Cancel"))
                         }
 
                         Button(
@@ -243,7 +249,7 @@ fun WeightReminderDialog(
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
                         ) {
-                            Text("Kaydet", color = HealthColors.OnPrimary, fontWeight = FontWeight.Bold)
+                            Text(str("Kaydet", "Save"), color = HealthColors.OnPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

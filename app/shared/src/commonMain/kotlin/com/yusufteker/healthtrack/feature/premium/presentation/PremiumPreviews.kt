@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.premium.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 
 @Preview
@@ -40,3 +41,19 @@ fun PremiumScreenActivePreview() {
     }
 }
 
+@Preview
+@Composable
+fun PremiumScreenEnglishPreview() {
+    val plans = localizedHealthTrackPlans(AppLanguage.EN)
+    HealthTrackTheme(darkTheme = true, language = AppLanguage.EN) {
+        PremiumScreen(
+            state = PremiumState(
+                isPremium = false,
+                availablePlans = plans,
+                selectedPlan = plans.first(),
+                features = localizedHealthTrackFeatures(AppLanguage.EN)
+            ),
+            onIntent = {}
+        )
+    }
+}

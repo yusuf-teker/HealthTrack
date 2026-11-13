@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.PaymentMethod
 import com.yusufteker.healthtrack.core.model.SubscriptionPlan
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -91,7 +92,7 @@ fun PremiumScreen(
                     IconButton(onClick = { onIntent(PremiumIntent.OnBackClicked) }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri"
+                            contentDescription = str("Geri", "Back")
                         )
                     }
                 },
@@ -103,7 +104,7 @@ fun PremiumScreen(
                         if (state.isSyncing) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Durumu Yenile")
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = str("Durumu Yenile", "Refresh Status"))
                         }
                     }
                 },
@@ -148,7 +149,7 @@ fun PremiumScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = if (state.isPremium) "HealthTrack Premium Aktif" else "Bio-Telemetri Deneyimini Yükselt",
+                        text = if (state.isPremium) str("HealthTrack Premium Aktif", "HealthTrack Premium Active") else str("Bio-Telemetri Deneyimini Yükselt", "Upgrade Your Bio-Telemetry"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -159,9 +160,12 @@ fun PremiumScreen(
                     Text(
                         text = if (state.isPremium) {
                             val untilText = state.premiumUntil?.take(10)
-                            if (untilText != null) "Bitiş Tarihi: $untilText" else "Süresiz / Aktif Üyelik"
+                            if (untilText != null) str("Bitiş Tarihi: $untilText", "Expires on: $untilText") else str("Süresiz / Aktif Üyelik", "Lifetime / Active Membership")
                         } else {
-                            "AI destekli öğün planlama, sınırsız yemek fotoğrafı analizi ve haftalık bio-telemetri raporları."
+                            str(
+                                "AI destekli öğün planlama, sınırsız yemek fotoğrafı analizi ve haftalık bio-telemetri raporları.",
+                                "AI-powered meal planning, unlimited food photo analysis, and weekly bio-telemetry reports."
+                            )
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -189,7 +193,7 @@ fun PremiumScreen(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { onIntent(PremiumIntent.OnDismissMessages) }) {
-                            Text("Tamam")
+                            Text(str("Tamam", "OK"))
                         }
                     }
                 }
@@ -213,7 +217,7 @@ fun PremiumScreen(
 
             // Features List
             Text(
-                text = "Premium Ayrıcalıkları",
+                text = str("Premium Ayrıcalıkları", "Premium Benefits"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -261,7 +265,7 @@ fun PremiumScreen(
 
             if (!state.isPremium) {
                 Text(
-                    text = "Abonelik Planını Seç",
+                    text = str("Abonelik Planını Seç", "Choose a Plan"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -284,7 +288,7 @@ fun PremiumScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
                     Text(
-                        text = "${state.selectedPlan.priceText} ile Başla",
+                        text = str("${state.selectedPlan.priceText} ile Başla", "Start at ${state.selectedPlan.priceText}"),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
@@ -300,7 +304,7 @@ fun PremiumScreen(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text("Satın Alımları Geri Yükle")
+                    Text(str("Satın Alımları Geri Yükle", "Restore Purchases"))
                 }
             }
         }
@@ -321,7 +325,7 @@ fun PremiumScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Ödeme Yöntemi",
+                    text = str("Ödeme Yöntemi", "Payment Method"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -332,9 +336,15 @@ fun PremiumScreen(
                 )
 
                 val methods = if (state.isIosPlatform) {
-                    listOf(PaymentMethod.APPLE_PAY to "Apple App Store / Apple Pay", PaymentMethod.CREDIT_CARD to "Kredi / Banka Kartı")
+                    listOf(
+                        PaymentMethod.APPLE_PAY to "Apple App Store / Apple Pay",
+                        PaymentMethod.CREDIT_CARD to str("Kredi / Banka Kartı", "Credit / Debit Card")
+                    )
                 } else {
-                    listOf(PaymentMethod.GOOGLE_PLAY to "Google Play Billing", PaymentMethod.CREDIT_CARD to "Kredi / Banka Kartı")
+                    listOf(
+                        PaymentMethod.GOOGLE_PLAY to "Google Play Billing",
+                        PaymentMethod.CREDIT_CARD to str("Kredi / Banka Kartı", "Credit / Debit Card")
+                    )
                 }
 
                 methods.forEach { (method, label) ->
@@ -379,7 +389,7 @@ fun PremiumScreen(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text("Aboneliği Onayla", fontWeight = FontWeight.Bold)
+                    Text(str("Aboneliği Onayla", "Confirm Subscription"), fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -426,7 +436,7 @@ private fun PlanOptionCard(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "%${plan.discountPercentage} Tasarruf",
+                                text = str("%${plan.discountPercentage} Tasarruf", "Save ${plan.discountPercentage}%"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = PremiumGold,
                                 fontWeight = FontWeight.Bold

@@ -1,5 +1,8 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
 
 /**
@@ -16,25 +19,29 @@ enum class HealthPlatformStatus {
  */
 enum class DeviceExerciseCategory(
     val titleTr: String,
+    val titleEn: String,
     val defaultMet: Double
 ) {
-    RUNNING("Koşu", 8.5),
-    WALKING("Yürüyüş", 3.8),
-    CYCLING("Bisiklet", 7.0),
-    SWIMMING("Yüzme", 7.5),
-    STRENGTH("Ağırlık Antrenmanı", 5.0),
-    HIIT("HIIT Kardiyo", 8.0),
-    YOGA("Yoga & Esneme", 3.0),
-    PILATES("Pilates", 3.5),
-    ROWING("Kürek Antrenmanı", 7.0),
-    ELLIPTICAL("Eliptik Bisiklet", 5.5),
-    HIKING("Doğa Yürüyüşü (Hiking)", 6.0),
-    BASKETBALL("Basketbol", 7.5),
-    FOOTBALL("Futbol", 8.0),
-    TENNIS("Tenis", 7.0),
-    MARTIAL_ARTS("Dövüş Sporları / Boks", 7.8),
-    DAILY_STEPS("Günlük Adım & Hareket", 3.5),
-    OTHER("Serbest Antrenman", 5.0)
+    RUNNING("Koşu", "Running", 8.5),
+    WALKING("Yürüyüş", "Walking", 3.8),
+    CYCLING("Bisiklet", "Cycling", 7.0),
+    SWIMMING("Yüzme", "Swimming", 7.5),
+    STRENGTH("Ağırlık Antrenmanı", "Strength Training", 5.0),
+    HIIT("HIIT Kardiyo", "HIIT Cardio", 8.0),
+    YOGA("Yoga & Esneme", "Yoga & Stretching", 3.0),
+    PILATES("Pilates", "Pilates", 3.5),
+    ROWING("Kürek Antrenmanı", "Rowing", 7.0),
+    ELLIPTICAL("Eliptik Bisiklet", "Elliptical", 5.5),
+    HIKING("Doğa Yürüyüşü (Hiking)", "Hiking", 6.0),
+    BASKETBALL("Basketbol", "Basketball", 7.5),
+    FOOTBALL("Futbol", "Football / Soccer", 8.0),
+    TENNIS("Tenis", "Tennis", 7.0),
+    MARTIAL_ARTS("Dövüş Sporları / Boks", "Martial Arts / Boxing", 7.8),
+    DAILY_STEPS("Günlük Adım & Hareket", "Daily Steps & Activity", 3.5),
+    OTHER("Serbest Antrenman", "Open Workout", 5.0);
+
+    fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(titleTr, titleEn, language)
 }
 
 /**
@@ -50,7 +57,7 @@ data class DeviceWeightRecord(
     val leanBodyMassKg: Double? = null,
     val measuredAtMillis: Long,
     val sourcePackage: String = "",
-    val sourceName: String = "Akıllı Tartı"
+    val sourceName: String = trEn("Akıllı Tartı", "Smart Scale")
 )
 
 /**
@@ -71,7 +78,7 @@ data class DeviceWorkoutRecord(
     val startTimeMillis: Long,
     val endTimeMillis: Long,
     val sourcePackage: String = "",
-    val sourceName: String = "Akıllı Saat"
+    val sourceName: String = trEn("Akıllı Saat", "Smartwatch")
 )
 
 /**
@@ -101,11 +108,23 @@ data class DeviceSyncSummary(
     val totalChanges: Int
         get() = importedWeights + updatedWeights + importedWorkouts + updatedWorkouts
 
-    fun toUserMessage(): String {
+    fun toUserMessage(language: AppLanguage = LocalizationManager.currentLanguage): String {
         val weightPart = when {
-            importedWeights > 0 && updatedWeights > 0 -> "$importedWeights yeni tartım eklendi, $updatedWeights tartım güncellendi"
-            importedWeights > 0 -> "$importedWeights yeni tartım eklendi"
-            updatedWeights > 0 -> "$updatedWeights tartım güncellendi"
+            importedWeights > 0 && updatedWeights > 0 -> trEn(
+                "$importedWeights yeni tartım eklendi, $updatedWeights tartım güncellendi",
+                "$importedWeights new weigh-ins added, $updatedWeights weigh-ins updated",
+                language
+            )
+            importedWeights > 0 -> trEn(
+                "$importedWeights yeni tartım eklendi",
+                "$importedWeights new weigh-ins added",
+                language
+            )
+            updatedWeights > 0 -> trEn(
+                "$updatedWeights tartım güncellendi",
+                "$updatedWeights weigh-ins updated",
+                language
+            )
             else -> null
         }
         val dateRangeSuffix = when {
@@ -116,19 +135,42 @@ data class DeviceSyncSummary(
             else -> ""
         }
         val workoutPart = when {
-            importedWorkouts > 0 && updatedWorkouts > 0 -> "$importedWorkouts yeni antrenman eklendi, $updatedWorkouts antrenman güncellendi$dateRangeSuffix"
-            importedWorkouts > 0 -> "$importedWorkouts yeni antrenman eklendi$dateRangeSuffix"
-            updatedWorkouts > 0 -> "$updatedWorkouts antrenman güncellendi$dateRangeSuffix"
+            importedWorkouts > 0 && updatedWorkouts > 0 -> trEn(
+                "$importedWorkouts yeni antrenman eklendi, $updatedWorkouts antrenman güncellendi$dateRangeSuffix",
+                "$importedWorkouts new workouts added, $updatedWorkouts workouts updated$dateRangeSuffix",
+                language
+            )
+            importedWorkouts > 0 -> trEn(
+                "$importedWorkouts yeni antrenman eklendi$dateRangeSuffix",
+                "$importedWorkouts new workouts added$dateRangeSuffix",
+                language
+            )
+            updatedWorkouts > 0 -> trEn(
+                "$updatedWorkouts antrenman güncellendi$dateRangeSuffix",
+                "$updatedWorkouts workouts updated$dateRangeSuffix",
+                language
+            )
             else -> null
         }
 
         return when {
-            weightPart != null && workoutPart != null -> "$platformName: $weightPart ve $workoutPart."
+            weightPart != null && workoutPart != null -> trEn(
+                "$platformName: $weightPart ve $workoutPart.",
+                "$platformName: $weightPart and $workoutPart.",
+                language
+            )
             weightPart != null -> "$platformName: $weightPart."
             workoutPart != null -> "$platformName: $workoutPart."
-            skippedWeights > 0 || skippedWorkouts > 0 -> "$platformName verileri zaten güncel (çakışma yok, ${skippedWeights + skippedWorkouts} kayıt kontrol edildi)."
-            else -> "$platformName üzerinde son 30 güne ait yeni tartım, adım veya antrenman kaydı bulunamadı. Lütfen Huawei Health / Health Sync veya Zepp Life uygulamasının $platformName'e veri yazdığından emin olun."
+            skippedWeights > 0 || skippedWorkouts > 0 -> trEn(
+                "$platformName verileri zaten güncel (çakışma yok, ${skippedWeights + skippedWorkouts} kayıt kontrol edildi).",
+                "$platformName data is already up to date (no conflicts, ${skippedWeights + skippedWorkouts} records checked).",
+                language
+            )
+            else -> trEn(
+                "$platformName üzerinde son 30 güne ait yeni tartım, adım veya antrenman kaydı bulunamadı. Lütfen Huawei Health / Health Sync veya Zepp Life uygulamasının $platformName'e veri yazdığından emin olun.",
+                "No new weigh-ins, steps, or workouts found on $platformName in the last 30 days. Please make sure Huawei Health / Health Sync or Zepp Life is writing data to $platformName.",
+                language
+            )
         }
     }
 }
-

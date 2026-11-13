@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 
 /**
  * Dynamic metabolic telemetry color palette for daily calorie tracking:
@@ -146,7 +147,7 @@ fun CalorieProgressGauge(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Metabolik Yakıt",
+                        text = str("Metabolik Yakıt", "Metabolic Fuel"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -169,9 +170,9 @@ fun CalorieProgressGauge(
                 ) {
                     Text(
                         text = when {
-                            isExceeded -> "+${consumedCalories - targetCalories} kcal aşıldı"
-                            remaining > 0 -> "$remaining kcal kaldı"
-                            else -> "%$percentage tamamlandı"
+                            isExceeded -> str("+${consumedCalories - targetCalories} kcal aşıldı", "+${consumedCalories - targetCalories} kcal over")
+                            remaining > 0 -> str("$remaining kcal kaldı", "$remaining kcal left")
+                            else -> str("%$percentage tamamlandı", "$percentage% completed")
                         },
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
@@ -264,7 +265,7 @@ fun CalorieProgressGauge(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = if (isExceeded) "AŞILDI" else "ALINAN",
+                        text = if (isExceeded) str("AŞILDI", "OVER") else str("ALINAN", "INTAKE"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = if (isExceeded) CalorieTelemetryColors.Red else MaterialTheme.colorScheme.onSurfaceVariant
@@ -298,9 +299,9 @@ fun CalorieProgressGauge(
                         )
                         Text(
                             text = if (isExceeded) {
-                                "/ $targetCalories kcal aşıldı"
+                                str("/ $targetCalories kcal aşıldı", "/ $targetCalories kcal exceeded")
                             } else if (burnedCalories > 0) {
-                                "$burnedCalories kcal yakıldı"
+                                str("$burnedCalories kcal yakıldı", "$burnedCalories kcal burned")
                             } else {
                                 "/ $targetCalories kcal"
                             },
@@ -332,14 +333,14 @@ fun CalorieProgressGauge(
                     modifier = Modifier.weight(1f)
                 )
                 MacroItem(
-                    label = "Karb",
+                    label = str("Karb", "Carbs"),
                     current = carbsCurrent,
                     target = carbsTarget,
                     color = HealthColors.NutrientCarbs,
                     modifier = Modifier.weight(1f)
                 )
                 MacroItem(
-                    label = "Yağ",
+                    label = str("Yağ", "Fat"),
                     current = fatCurrent,
                     target = fatTarget,
                     color = HealthColors.NutrientLipids,

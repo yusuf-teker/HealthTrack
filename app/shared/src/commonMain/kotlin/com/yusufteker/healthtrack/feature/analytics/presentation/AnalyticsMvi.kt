@@ -36,6 +36,12 @@ data class AnalyticsState(
 
     val selectedWeekLabel: String
         get() = formatWeekRangeTr(selectedWeekMonday, selectedWeekSunday)
+
+    fun localizedSelectedDayLabel(language: com.yusufteker.healthtrack.core.i18n.AppLanguage): String =
+        formatDisplayDateTr(selectedDate, language)
+
+    fun localizedSelectedWeekLabel(language: com.yusufteker.healthtrack.core.i18n.AppLanguage): String =
+        formatWeekRangeTr(selectedWeekMonday, selectedWeekSunday, language)
 }
 
 sealed interface AnalyticsIntent {

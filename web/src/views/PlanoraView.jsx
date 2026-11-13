@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getPlanoraTasks } from '../api/client';
 import { 
   CheckSquare, 
@@ -20,6 +21,7 @@ import {
 
 export default function PlanoraView() {
   const { token, user } = useAuth();
+  const { t, lang, dateLocale } = useLanguage();
   const cacheKey = user?.id ? `planora_tasks_cache_${user.id}` : 'planora_tasks_cache_default';
 
   const [tasks, setTasks] = useState(() => {
@@ -51,7 +53,7 @@ export default function PlanoraView() {
     } catch (err) {
       console.error('Failed to load Planora tasks:', err);
       if (tasks.length === 0) {
-        setError(err.message || 'Görevler alınırken hata oluştu.');
+        setError(err.message || t('Görevler alınırken hata oluştu.', 'Failed to fetch tasks.'));
       }
     } finally {
       setLoading(false);
@@ -135,11 +137,11 @@ export default function PlanoraView() {
               <CheckSquare className="w-4 h-4" />
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              Planora Verimlilik & Görev Panosu
+              {t('Planora Verimlilik & Görev Panosu', 'Planora Productivity & Task Board')}
             </h1>
           </div>
           <p className="text-xs text-gray-400 mt-1">
-            Masaüstünden görevlerinizi ve hedeflerinizi anlık olarak takip edin
+            {t('Masaüstünden görevlerinizi ve hedeflerinizi anlık olarak takip edin', 'Track your tasks and goals live from your desktop')}
           </p>
         </div>
 
@@ -150,7 +152,7 @@ export default function PlanoraView() {
             className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Yenile</span>
+            <span>{t('Yenile', 'Refresh')}</span>
           </button>
         </div>
       </div>
@@ -169,42 +171,42 @@ export default function PlanoraView() {
         {/* Metric 1: Total Tasks */}
         <div className="glass-panel rounded-3xl p-6 border border-indigo-500/20">
           <div className="flex items-center justify-between text-xs text-indigo-400 font-bold uppercase tracking-wider mb-2">
-            <span>Toplam Görev</span>
+            <span>{t('Toplam Görev', 'Total Tasks')}</span>
             <Layers className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="text-3xl font-black text-white">{totalTasks}</div>
-          <p className="text-[11px] text-gray-400 mt-2">Kayıtlı tüm görevler</p>
+          <p className="text-[11px] text-gray-400 mt-2">{t('Kayıtlı tüm görevler', 'All saved tasks')}</p>
         </div>
 
         {/* Metric 2: Today Tasks */}
         <div className="glass-panel rounded-3xl p-6 border border-teal-500/20">
           <div className="flex items-center justify-between text-xs text-teal-400 font-bold uppercase tracking-wider mb-2">
-            <span>Bugünkü Görevler</span>
+            <span>{t('Bugünkü Görevler', "Today's Tasks")}</span>
             <CalendarDays className="w-4 h-4 text-teal-400" />
           </div>
           <div className="text-3xl font-black text-white">{todayCount}</div>
-          <p className="text-[11px] text-gray-400 mt-2">Bugün yapılması planlananlar</p>
+          <p className="text-[11px] text-gray-400 mt-2">{t('Bugün yapılması planlananlar', 'Scheduled for today')}</p>
         </div>
 
         {/* Metric 3: Pending */}
         <div className="glass-panel rounded-3xl p-6 border border-amber-500/20">
           <div className="flex items-center justify-between text-xs text-amber-400 font-bold uppercase tracking-wider mb-2">
-            <span>Bekleyen / Aktif</span>
+            <span>{t('Bekleyen / Aktif', 'Pending / Active')}</span>
             <Clock className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-3xl font-black text-white">{pendingTasks}</div>
-          <p className="text-[11px] text-gray-400 mt-2">Yapılacaklar listesindeki görevler</p>
+          <p className="text-[11px] text-gray-400 mt-2">{t('Yapılacaklar listesindeki görevler', 'Tasks remaining on your to-do list')}</p>
         </div>
 
         {/* Metric 4: Completion Rate */}
         <div className="glass-panel rounded-3xl p-6 border border-white/10">
           <div className="flex items-center justify-between text-xs text-indigo-300 font-bold uppercase tracking-wider mb-2">
-            <span>Verimlilik Skoru</span>
+            <span>{t('Verimlilik Skoru', 'Productivity Score')}</span>
             <BarChart2 className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-black text-white">%{completionRate}</span>
-            <span className="text-xs text-gray-400">tamamlanma</span>
+            <span className="text-3xl font-black text-white">{lang === 'tr' ? `%${completionRate}` : `${completionRate}%`}</span>
+            <span className="text-xs text-gray-400">{t('tamamlanma', 'completed')}</span>
           </div>
 
           <div className="w-full bg-white/5 h-2 rounded-full mt-3 overflow-hidden">
@@ -231,7 +233,7 @@ export default function PlanoraView() {
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Bugün</span>
+            <span>{t('Bugün', 'Today')}</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${dateFilter === 'TODAY' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-400'}`}>
               {todayCount}
             </span>
@@ -246,7 +248,7 @@ export default function PlanoraView() {
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Gelecek</span>
+            <span>{t('Gelecek', 'Upcoming')}</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${dateFilter === 'FUTURE' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-400'}`}>
               {futureCount}
             </span>
@@ -261,7 +263,7 @@ export default function PlanoraView() {
             }`}
           >
             <History className="w-3.5 h-3.5" />
-            <span>Geçmiş</span>
+            <span>{t('Geçmiş', 'Past')}</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${dateFilter === 'PAST' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-400'}`}>
               {pastCount}
             </span>
@@ -276,14 +278,14 @@ export default function PlanoraView() {
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Tümü</span>
+            <span>{t('Tümü', 'All')}</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${dateFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-400'}`}>
               {totalTasks}
             </span>
           </button>
         </div>
 
-        {/* Secondary: Status Filters (Tümü, Bekleyenler, Tamamlananlar) */}
+        {/* Secondary: Status Filters */}
         <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5 self-stretch sm:self-auto justify-center">
           <button
             onClick={() => setFilterStatus('ALL')}
@@ -291,7 +293,7 @@ export default function PlanoraView() {
               filterStatus === 'ALL' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'
             }`}
           >
-            Tüm Durumlar
+            {t('Tüm Durumlar', 'All Statuses')}
           </button>
           <button
             onClick={() => setFilterStatus('PENDING')}
@@ -299,7 +301,7 @@ export default function PlanoraView() {
               filterStatus === 'PENDING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-gray-400 hover:text-white'
             }`}
           >
-            Bekleyenler
+            {t('Bekleyenler', 'Pending')}
           </button>
           <button
             onClick={() => setFilterStatus('COMPLETED')}
@@ -307,7 +309,7 @@ export default function PlanoraView() {
               filterStatus === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:text-white'
             }`}
           >
-            Tamamlananlar
+            {t('Tamamlananlar', 'Completed')}
           </button>
         </div>
 
@@ -320,7 +322,10 @@ export default function PlanoraView() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={`${dateFilter === 'TODAY' ? 'Bugünkü' : dateFilter === 'FUTURE' ? 'Gelecekteki' : dateFilter === 'PAST' ? 'Geçmiş' : 'Tüm'} görevlerde ara...`}
+          placeholder={t(
+            `${dateFilter === 'TODAY' ? 'Bugünkü' : dateFilter === 'FUTURE' ? 'Gelecekteki' : dateFilter === 'PAST' ? 'Geçmiş' : 'Tüm'} görevlerde ara...`,
+            `Search ${dateFilter === 'TODAY' ? "today's" : dateFilter === 'FUTURE' ? 'upcoming' : dateFilter === 'PAST' ? 'past' : 'all'} tasks...`
+          )}
           className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-xs text-white placeholder-gray-500 outline-none border border-white/10 focus:border-indigo-500/40"
         />
       </div>
@@ -331,12 +336,17 @@ export default function PlanoraView() {
           <div className="glass-panel rounded-3xl p-12 text-center border border-white/5">
             <CheckSquare className="w-10 h-10 text-gray-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-gray-200">
-              {searchQuery ? 'Aramanızla Eşleşen Görev Bulunamadı' : `${dateFilter === 'TODAY' ? 'Bugün için' : dateFilter === 'FUTURE' ? 'Gelecek için' : dateFilter === 'PAST' ? 'Geçmişte' : ''} Görev Bulunmuyor`}
+              {searchQuery
+                ? t('Aramanızla Eşleşen Görev Bulunamadı', 'No Tasks Matching Your Search')
+                : t(
+                    `${dateFilter === 'TODAY' ? 'Bugün için' : dateFilter === 'FUTURE' ? 'Gelecek için' : dateFilter === 'PAST' ? 'Geçmişte' : ''} Görev Bulunmuyor`,
+                    `No ${dateFilter === 'TODAY' ? "Today's" : dateFilter === 'FUTURE' ? 'Upcoming' : dateFilter === 'PAST' ? 'Past' : ''} Tasks Found`
+                  )}
             </h3>
             <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
               {searchQuery 
-                ? 'Farklı bir arama terimi deneyebilir veya filtreleri değiştirebilirsiniz.' 
-                : 'Planora mobil uygulamasından yeni görevler ve etkinlikler ekleyebilirsiniz.'}
+                ? t('Farklı bir arama terimi deneyebilir veya filtreleri değiştirebilirsiniz.', 'Try a different search term or adjust your filters.') 
+                : t('Planora mobil uygulamasından yeni görevler ve etkinlikler ekleyebilirsiniz.', 'You can add new tasks and events from the Planora mobile app.')}
             </p>
           </div>
         ) : (
@@ -376,7 +386,7 @@ export default function PlanoraView() {
                     )}
 
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                      {/* Date Badge: Bugün / Gelecek / Geçmiş */}
+                      {/* Date Badge */}
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                         isToday 
                           ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' 
@@ -384,7 +394,7 @@ export default function PlanoraView() {
                           ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30' 
                           : 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
                       }`}>
-                        {isToday ? 'Bugün' : isFuture ? 'Gelecek' : 'Geçmiş'}
+                        {isToday ? t('Bugün', 'Today') : isFuture ? t('Gelecek', 'Upcoming') : t('Geçmiş', 'Past')}
                       </span>
 
                       {/* Type Badge */}
@@ -396,7 +406,7 @@ export default function PlanoraView() {
                       {task.startTime && (
                         <span className="text-[10px] text-gray-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {new Date(task.startTime).toLocaleDateString('tr-TR', { 
+                          {new Date(task.startTime).toLocaleDateString(dateLocale, { 
                             day: 'numeric', 
                             month: 'short',
                             hour: '2-digit',

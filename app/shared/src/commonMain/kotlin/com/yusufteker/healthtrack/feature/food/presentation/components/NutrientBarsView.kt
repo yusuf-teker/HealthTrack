@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 
@@ -55,13 +56,13 @@ fun NutrientBarsView(
         ) {
             Column {
                 Text(
-                    text = "Mikro Besinler & Hedefler",
+                    text = str("Mikro Besinler & Hedefler", "Micronutrients & Goals"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Metabolik referans değerlerine göre",
+                    text = str("Metabolik referans değerlerine göre", "Based on metabolic reference values"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -79,7 +80,7 @@ fun NutrientBarsView(
             ) {
                 Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Düzenle", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Text(str("Düzenle", "Edit"), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -206,7 +207,7 @@ private fun NutrientCapsulePill(
 
             // Label
             Text(
-                text = nutrient.label,
+                text = localizedNutrientLabel(nutrient),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -227,19 +228,37 @@ private fun NutrientCapsulePill(
     }
 }
 
+@Composable
+internal fun localizedNutrientLabel(nutrient: NutrientProgress): String {
+    return when (nutrient.key) {
+        "calories" -> str("Kalori", "Calories")
+        "protein" -> "Protein"
+        "carbs" -> str("Karbonhidrat", "Carbs")
+        "fat" -> str("Yağ", "Fat")
+        "fiber" -> str("Lif", "Fiber")
+        "vit_c" -> "Vit C"
+        "vit_d" -> "Vit D"
+        "vit_b12" -> "Vit B12"
+        "iron" -> str("Demir", "Iron")
+        "calcium" -> str("Kalsiyum", "Calcium")
+        "magnesium" -> str("Magnezyum", "Magnesium")
+        else -> nutrient.label
+    }
+}
+
 internal fun getNutrientGroupVisuals(name: String): Pair<Color, ImageVector> {
     return when (name.lowercase()) {
-        "kalori" -> HealthColors.Primary to Icons.Default.Bolt
+        "kalori", "calories" -> HealthColors.Primary to Icons.Default.Bolt
         "protein" -> HealthColors.NutrientProtein to Icons.Default.FitnessCenter
-        "karbonhidrat", "karb" -> HealthColors.NutrientCarbs to Icons.Default.Grain
-        "yağ" -> HealthColors.NutrientLipids to Icons.Default.WaterDrop
-        "lif" -> HealthColors.NutrientFiber to Icons.Default.Spa
-        "c vitamini", "vit c" -> HealthColors.NutrientVitC to Icons.Default.AutoAwesome
-        "d vitamini", "vit d" -> HealthColors.NutrientVitD to Icons.Default.WbSunny
-        "b12 vitamini", "vit b12" -> HealthColors.NutrientVitB12 to Icons.Default.Bolt
-        "demir" -> HealthColors.NutrientIron to Icons.Default.Shield
-        "kalsiyum" -> HealthColors.NutrientCalcium to Icons.Default.Favorite
-        "magnezyum" -> HealthColors.NutrientMagnesium to Icons.Default.Eco
+        "karbonhidrat", "karb", "carbs", "carbohydrates" -> HealthColors.NutrientCarbs to Icons.Default.Grain
+        "yağ", "fat" -> HealthColors.NutrientLipids to Icons.Default.WaterDrop
+        "lif", "fiber" -> HealthColors.NutrientFiber to Icons.Default.Spa
+        "c vitamini", "vit c", "vitamin c" -> HealthColors.NutrientVitC to Icons.Default.AutoAwesome
+        "d vitamini", "vit d", "vitamin d" -> HealthColors.NutrientVitD to Icons.Default.WbSunny
+        "b12 vitamini", "vit b12", "vitamin b12" -> HealthColors.NutrientVitB12 to Icons.Default.Bolt
+        "demir", "iron" -> HealthColors.NutrientIron to Icons.Default.Shield
+        "kalsiyum", "calcium" -> HealthColors.NutrientCalcium to Icons.Default.Favorite
+        "magnezyum", "magnesium" -> HealthColors.NutrientMagnesium to Icons.Default.Eco
         else -> HealthColors.Primary to Icons.Default.Check
     }
 }

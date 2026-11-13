@@ -1,5 +1,7 @@
 package com.yusufteker.healthtrack.core.network
 
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.*
 import io.github.aakira.napier.Napier
 import io.ktor.client.*
@@ -36,7 +38,10 @@ data class FoodAiResultDto(
     val summary: String,
     val totalCalories: Int,
     val items: List<FoodItem>,
-    val disclaimer: String = "Besin değerleri tahmini yaklaşık değerlerdir."
+    val disclaimer: String = trEn(
+        "Besin değerleri tahmini yaklaşık değerlerdir.",
+        "Nutritional values are estimated approximations."
+    )
 )
 
 @Serializable
@@ -44,7 +49,10 @@ data class WorkoutAiResultDto(
     val summary: String,
     val caloriesBurned: Int,
     val durationMinutes: Int,
-    val disclaimer: String = "Yakılan kalori tahmini olarak hesaplanmıştır."
+    val disclaimer: String = trEn(
+        "Yakılan kalori tahmini olarak hesaplanmıştır.",
+        "Calories burned are calculated as an estimate."
+    )
 )
 
 @Serializable
@@ -212,6 +220,10 @@ class HealthApiClient(
                             tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
                             BearerTokens(authResponse.accessToken, authResponse.refreshToken)
                         } else {
+                            if (response.status == HttpStatusCode.Unauthorized || response.status == HttpStatusCode.Forbidden) {
+                                Napier.w("Refresh token geçersiz (${response.status.value}), oturum kapatılıyor.", tag = "AUTH_LOG")
+                                tokenStorage.clearSession()
+                            }
                             null
                         }
                     } catch (e: Exception) {
@@ -225,6 +237,9 @@ class HealthApiClient(
 
     init {
         httpClient.requestPipeline.intercept(HttpRequestPipeline.State) {
+            val langCode = LocalizationManager.currentLanguage.code
+            context.headers.remove(HttpHeaders.AcceptLanguage)
+            context.headers.append(HttpHeaders.AcceptLanguage, langCode)
             val path = context.url.buildString()
             val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/refresh")
             if (!isAuthEndpoint) {
@@ -244,7 +259,7 @@ class HealthApiClient(
         }
     }
 
-    suspend fun login(req: LoginRequest): Result<AuthResponse> = runCatching {
+    suspend fun login(req: LoginRequest): Result<AuthResponse> = safeApiCall {
         val response = httpClient.post("/auth/login") {
             contentType(ContentType.Application.Json)
             setBody(req)
@@ -252,16 +267,16 @@ class HealthApiClient(
         if (response.status.isSuccess()) {
             response.body<AuthResponse>()
         } else {
-            throw RuntimeException("Giriş başarısız: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Giriş başarısız", "Sign in failed", json)
         }
     }
 
-    suspend fun getAiQuota(): Result<HealthAiQuotaDto> = runCatching {
+    suspend fun getAiQuota(): Result<HealthAiQuotaDto> = safeApiCall {
         val response = httpClient.get("/health/ai/quota")
         if (response.status.isSuccess()) {
             response.body<HealthAiQuotaDto>()
         } else {
-            throw RuntimeException("Kota bilgisi alınamadı (HTTP ${response.status.value})")
+            throw response.toHttpApiException("Kota bilgisi alınamadı", "Could not fetch quota info", json)
         }
     }
 
@@ -270,7 +285,7 @@ class HealthApiClient(
         date: String,
         imageBase64: String? = null,
         imageMimeType: String? = "image/jpeg"
-    ): Result<FoodAiResultDto> = runCatching {
+    ): Result<FoodAiResultDto> = safeApiCall {
         val response = httpClient.post("/health/ai/food") {
             contentType(ContentType.Application.Json)
             setBody(FoodAiRequestDto(text, date, imageBase64, imageMimeType))
@@ -281,16 +296,15 @@ class HealthApiClient(
             val errDto = runCatching { response.body<HealthAiErrorDto>() }.getOrNull()
             throw AiQuotaExceededException(
                 message = errDto?.error?.takeIf { it.isNotBlank() }
-                    ?: "Günlük ücretsiz AI hakkınız doldu.",
+                    ?: trEn("Günlük ücretsiz AI hakkınız doldu.", "Daily free AI quota exceeded."),
                 quota = errDto?.quota
             )
         } else {
-            val errBody = runCatching { response.bodyAsText() }.getOrNull()?.take(200)
-            throw RuntimeException("Yemek AI analizi başarısız (HTTP ${response.status.value}): ${errBody ?: ""}")
+            throw response.toHttpApiException("Yemek AI analizi başarısız", "Food AI analysis failed", json)
         }
     }
 
-    suspend fun analyzeWorkout(text: String, userWeightKg: Double?, date: String): Result<WorkoutAiResultDto> = runCatching {
+    suspend fun analyzeWorkout(text: String, userWeightKg: Double?, date: String): Result<WorkoutAiResultDto> = safeApiCall {
         val response = httpClient.post("/health/ai/workout") {
             contentType(ContentType.Application.Json)
             setBody(WorkoutAiRequestDto(text, userWeightKg, date))
@@ -301,16 +315,15 @@ class HealthApiClient(
             val errDto = runCatching { response.body<HealthAiErrorDto>() }.getOrNull()
             throw AiQuotaExceededException(
                 message = errDto?.error?.takeIf { it.isNotBlank() }
-                    ?: "Günlük ücretsiz AI hakkınız doldu.",
+                    ?: trEn("Günlük ücretsiz AI hakkınız doldu.", "Daily free AI quota exceeded."),
                 quota = errDto?.quota
             )
         } else {
-            val errBody = runCatching { response.bodyAsText() }.getOrNull()?.take(200)
-            throw RuntimeException("Spor AI analizi başarısız (HTTP ${response.status.value}): ${errBody ?: ""}")
+            throw response.toHttpApiException("Spor AI analizi başarısız", "Workout AI analysis failed", json)
         }
     }
 
-    suspend fun pushSync(req: PushRequestPayload): Result<PushResponsePayload> = runCatching {
+    suspend fun pushSync(req: PushRequestPayload): Result<PushResponsePayload> = safeApiCall {
         val response = httpClient.post("/health/sync/push") {
             contentType(ContentType.Application.Json)
             setBody(req)
@@ -318,60 +331,60 @@ class HealthApiClient(
         if (response.status.isSuccess()) {
             response.body<PushResponsePayload>()
         } else {
-            throw RuntimeException("Senkronizasyon (push) başarısız: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Senkronizasyon (push) başarısız", "Sync (push) failed", json)
         }
     }
 
-    suspend fun pullSync(since: Long): Result<PullResponsePayload> = runCatching {
+    suspend fun pullSync(since: Long): Result<PullResponsePayload> = safeApiCall {
         val response = httpClient.get("/health/sync/pull") {
             parameter("since", since)
         }
         if (response.status.isSuccess()) {
             response.body<PullResponsePayload>()
         } else {
-            throw RuntimeException("Senkronizasyon (pull) başarısız: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Senkronizasyon (pull) başarısız", "Sync (pull) failed", json)
         }
     }
 
-    suspend fun deleteAccount(): Result<Unit> = runCatching {
+    suspend fun deleteAccount(): Result<Unit> = safeApiCall {
         val response = httpClient.delete("/users/me")
         if (!response.status.isSuccess()) {
-            throw RuntimeException("Hesap silme başarısız: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Hesap silme başarısız", "Account deletion failed", json)
         }
     }
 
-    suspend fun fetchAppVersionConfig(): Result<AppVersionConfigDto> = runCatching {
+    suspend fun fetchAppVersionConfig(): Result<AppVersionConfigDto> = safeApiCall {
         val response = httpClient.get("/api/app-config") {
             parameter("app", "healthtrack")
         }
         if (response.status.isSuccess()) {
             response.body<AppVersionConfigDto>()
         } else {
-            throw RuntimeException("Versiyon bilgisi alınamadı: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Versiyon bilgisi alınamadı", "Could not fetch version info", json)
         }
     }
 
-    suspend fun fetchSubscriptionPlans(): Result<List<SubscriptionPlan>> = runCatching {
+    suspend fun fetchSubscriptionPlans(): Result<List<SubscriptionPlan>> = safeApiCall {
         val response = httpClient.get("/api/subscriptions/plans") {
             parameter("app", "healthtrack")
         }
         if (response.status.isSuccess()) {
             response.body<List<SubscriptionPlan>>()
         } else {
-            throw RuntimeException("Abonelik planları alınamadı: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Abonelik planları alınamadı", "Could not fetch subscription plans", json)
         }
     }
 
-    suspend fun fetchSubscriptionStatus(): Result<SubscriptionStatusResponse> = runCatching {
+    suspend fun fetchSubscriptionStatus(): Result<SubscriptionStatusResponse> = safeApiCall {
         val response = httpClient.get("/api/subscriptions/status")
         if (response.status.isSuccess()) {
             response.body<SubscriptionStatusResponse>()
         } else {
-            throw RuntimeException("Abonelik durumu alınamadı: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Abonelik durumu alınamadı", "Could not fetch subscription status", json)
         }
     }
 
-    suspend fun verifySubscriptionPurchase(req: VerifyPurchaseRequest): Result<VerifyPurchaseResponse> = runCatching {
+    suspend fun verifySubscriptionPurchase(req: VerifyPurchaseRequest): Result<VerifyPurchaseResponse> = safeApiCall {
         val response = httpClient.post("/api/subscriptions/verify") {
             contentType(ContentType.Application.Json)
             setBody(req)
@@ -379,11 +392,11 @@ class HealthApiClient(
         if (response.status.isSuccess() || response.status == HttpStatusCode.ServiceUnavailable) {
             response.body<VerifyPurchaseResponse>()
         } else {
-            throw RuntimeException("Satın alma doğrulama hatası: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Satın alma doğrulama hatası", "Purchase verification error", json)
         }
     }
 
-    suspend fun restoreSubscriptionPurchases(req: RestorePurchaseRequest): Result<SubscriptionStatusResponse> = runCatching {
+    suspend fun restoreSubscriptionPurchases(req: RestorePurchaseRequest): Result<SubscriptionStatusResponse> = safeApiCall {
         val response = httpClient.post("/api/subscriptions/restore") {
             contentType(ContentType.Application.Json)
             setBody(req)
@@ -391,7 +404,7 @@ class HealthApiClient(
         if (response.status.isSuccess()) {
             response.body<SubscriptionStatusResponse>()
         } else {
-            throw RuntimeException("Satın alma geri yükleme hatası: HTTP ${response.status.value}")
+            throw response.toHttpApiException("Satın alma geri yükleme hatası", "Purchase restore error", json)
         }
     }
 }

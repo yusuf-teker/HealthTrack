@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -108,7 +109,10 @@ class PendingStoreBillingClient : StoreBillingClient {
         return PurchaseResult(
             isSuccess = false,
             planId = plan.id,
-            errorMessage = "Mağaza abonelik SDK'sı henüz bağlanmadı. Google Play / App Store ürün ID'leri eklendikten sonra aktif olacaktır.",
+            errorMessage = trEn(
+                "Mağaza abonelik SDK'sı henüz bağlanmadı. Google Play / App Store ürün ID'leri eklendikten sonra aktif olacaktır.",
+                "Store billing SDK is not connected yet. It will become active once Google Play / App Store product IDs are configured."
+            ),
             isSimulation = true
         )
     }
@@ -116,7 +120,10 @@ class PendingStoreBillingClient : StoreBillingClient {
     override suspend fun restore(): PurchaseResult {
         return PurchaseResult(
             isSuccess = false,
-            errorMessage = "Mağaza abonelik SDK'sı henüz bağlanmadı.",
+            errorMessage = trEn(
+                "Mağaza abonelik SDK'sı henüz bağlanmadı.",
+                "Store billing SDK is not connected yet."
+            ),
             isSimulation = true
         )
     }

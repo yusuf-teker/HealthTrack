@@ -1,32 +1,55 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
 
 @Serializable
 enum class FitnessGoal(
     val id: String,
-    val title: String,
-    val subtitle: String,
+    val titleTr: String,
+    val titleEn: String,
+    val subtitleTr: String,
+    val subtitleEn: String,
     val proteinMultiplier: Double
 ) {
     LOSE_WEIGHT(
         id = "LOSE_WEIGHT",
-        title = "Kilo Verme",
-        subtitle = "Yağ yakımı & kas koruma (1.2x)",
+        titleTr = "Kilo Verme",
+        titleEn = "Fat Loss",
+        subtitleTr = "Yağ yakımı & kas koruma (1.2x)",
+        subtitleEn = "Fat loss & muscle retention (1.2x)",
         proteinMultiplier = 1.2
     ),
     MAINTAIN(
         id = "MAINTAIN",
-        title = "Sabit Kalma",
-        subtitle = "Kilo & form koruma (1.0x)",
+        titleTr = "Sabit Kalma",
+        titleEn = "Maintain",
+        subtitleTr = "Kilo & form koruma (1.0x)",
+        subtitleEn = "Weight & shape maintenance (1.0x)",
         proteinMultiplier = 1.0
     ),
     BUILD_MUSCLE(
         id = "BUILD_MUSCLE",
-        title = "Kaslanma",
-        subtitle = "Hipertrofi & kas kazanımı (1.4x)",
+        titleTr = "Kaslanma",
+        titleEn = "Build Muscle",
+        subtitleTr = "Hipertrofi & kas kazanımı (1.4x)",
+        subtitleEn = "Hypertrophy & muscle gain (1.4x)",
         proteinMultiplier = 1.4
     );
+
+    val title: String
+        get() = localizedTitle()
+
+    val subtitle: String
+        get() = localizedSubtitle()
+
+    fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(titleTr, titleEn, language)
+
+    fun localizedSubtitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(subtitleTr, subtitleEn, language)
 
     companion object {
         fun fromId(id: String?): FitnessGoal =

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
@@ -135,5 +136,16 @@ fun WeightLineChartPreview() {
                 onPeriodSelect = {}
             )
         }
+    }
+}
+
+@Preview
+@Composable
+fun WeightScreenEnglishPreview() {
+    HealthTrackTheme(darkTheme = true, language = AppLanguage.EN) {
+        WeightScreen(
+            state = populatedWeightState.copy(inputNote = "Feeling great"),
+            onIntent = {}
+        )
     }
 }

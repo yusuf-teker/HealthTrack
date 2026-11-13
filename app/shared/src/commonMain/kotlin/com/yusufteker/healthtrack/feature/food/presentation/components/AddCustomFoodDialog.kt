@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.CustomFoodIngredient
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
@@ -38,8 +41,11 @@ import com.yusufteker.healthtrack.core.utils.CapturedPhoto
 import com.yusufteker.healthtrack.core.utils.CropRect
 import com.yusufteker.healthtrack.core.utils.rememberCameraPhotoLauncher
 import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.ImageCropDialog
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -152,7 +158,8 @@ private fun inferFoodIconKey(name: String): String? {
 private fun parseIngredientPortion(
     portionText: String,
     itemName: String = "",
-    fullPrompt: String = ""
+    fullPrompt: String = "",
+    language: AppLanguage = LocalizationManager.currentLanguage
 ): Pair<String, String> {
     val combined = portionText.trim()
     val lower = combined.lowercase()
@@ -171,11 +178,11 @@ private fun parseIngredientPortion(
 
     // 2. Check explicit Ölçek / Scoop
     Regex("""(\d+(?:[.,]\d+)?)\s*(?:ölçek|olcek|scoop)""").find(lower)?.let { m ->
-        return "Ölçek" to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
+        return trEn("Ölçek", "Scoop", language) to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
     }
     if (firstWord.isNotBlank()) {
         Regex("""(\d+(?:[.,]\d+)?)\s*(?:ölçek|olcek|scoop)\s+[^,.\n]*$firstWord""").find(promptLower)?.let { m ->
-            return "Ölçek" to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
+            return trEn("Ölçek", "Scoop", language) to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
         }
     }
 
@@ -189,56 +196,61 @@ private fun parseIngredientPortion(
         return "g" to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 50.0)
     }
 
-    // 5. Check Kaşık
-    Regex("""(\d+(?:[.,]\d+)?)\s*(?:yemek kaşığı|tatlı kaşığı|çay kaşığı|kaşık|kasik)""").find(lower)?.let { m ->
-        return "Kaşık" to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
+    // 5. Check Kaşık / Spoon
+    Regex("""(\d+(?:[.,]\d+)?)\s*(?:yemek kaşığı|tatlı kaşığı|çay kaşığı|kaşık|kasik|tbsp|tsp|tablespoon|teaspoon|spoon)""").find(lower)?.let { m ->
+        return trEn("Kaşık", "Spoon", language) to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
     }
 
-    // 6. Check Dilim
-    Regex("""(\d+(?:[.,]\d+)?)\s*dilim""").find(lower)?.let { m ->
-        return "Dilim" to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
+    // 6. Check Dilim / Slice
+    Regex("""(\d+(?:[.,]\d+)?)\s*(?:dilim|slice)""").find(lower)?.let { m ->
+        return trEn("Dilim", "Slice", language) to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
     }
 
-    // 7. Check Adet
-    Regex("""(\d+(?:[.,]\d+)?)\s*adet""").find(lower)?.let { m ->
-        return "Adet" to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
+    // 7. Check Adet / Piece
+    Regex("""(\d+(?:[.,]\d+)?)\s*(?:adet|piece|pcs)""").find(lower)?.let { m ->
+        return trEn("Adet", "Piece", language) to formatNumClean(m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 1.0)
     }
 
     // Fallback: extract leading number if any
     val fallbackNum = Regex("""(\d+(?:[.,]\d+)?)""").find(lower)?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull() ?: 1.0
-    return "Adet" to formatNumClean(fallbackNum)
+    return trEn("Adet", "Piece", language) to formatNumClean(fallbackNum)
 }
 
 /**
  * Formats single product portion nicely when user specifies both scoop/ölçek and gram/ml
  * (e.g., "1 ölçek protein tozu 35 gr" -> "1 Ölçek (35g)", "1 ölçek l carnitine 30ml" -> "1 Ölçek (30ml)").
  */
-private fun buildSingleProductPortionUnit(aiPortion: String, rawPrompt: String): String {
+private fun buildSingleProductPortionUnit(
+    aiPortion: String,
+    rawPrompt: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
     val pLower = rawPrompt.lowercase()
     val scoopMatch = Regex("""(\d+(?:[.,]\d+)?)\s*(?:ölçek|olcek|scoop)""").find(pLower)
     val weightOrVolMatch = Regex("""(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml)\b""").find(pLower)
+    val scoopWord = trEn("Ölçek", "Scoop", language)
 
     if (scoopMatch != null && weightOrVolMatch != null) {
         val scoopAmt = scoopMatch.groupValues[1]
         val wAmt = weightOrVolMatch.groupValues[1]
         val wUnit = if (weightOrVolMatch.groupValues[2].startsWith("m")) "ml" else "g"
-        return "$scoopAmt Ölçek ($wAmt$wUnit)"
+        return "$scoopAmt $scoopWord ($wAmt$wUnit)"
     }
-    if (scoopMatch != null && !aiPortion.lowercase().contains("ölçek")) {
+    if (scoopMatch != null && !aiPortion.lowercase().contains("ölçek") && !aiPortion.lowercase().contains("scoop")) {
         val scoopAmt = scoopMatch.groupValues[1]
-        return if (aiPortion.isNotBlank()) "$scoopAmt Ölçek ($aiPortion)" else "$scoopAmt Ölçek"
+        return if (aiPortion.isNotBlank()) "$scoopAmt $scoopWord ($aiPortion)" else "$scoopAmt $scoopWord"
     }
-    return aiPortion.ifBlank { "1 Porsiyon" }
+    return aiPortion.ifBlank { trEn("1 Porsiyon", "1 Serving", language) }
 }
 
 private fun presetLevelsForUnit(unitLabel: String, defaultAmt: Double): List<Double> {
     val u = unitLabel.lowercase()
     return when {
         u.contains("shot") -> listOf(1.0, 2.0, 3.0, 4.0)
-        u.contains("ölçek") || u.contains("scoop") -> listOf(0.5, 1.0, 1.5, 2.0)
+        u.contains("ölçek") || u.contains("olcek") || u.contains("scoop") -> listOf(0.5, 1.0, 1.5, 2.0)
         u.contains("ml") -> listOf(50.0, 100.0, 150.0, 200.0, 250.0, 300.0)
         u.contains("g") -> listOf(20.0, 30.0, 50.0, 100.0, 150.0, 200.0)
-        u.contains("kaşık") -> listOf(0.5, 1.0, 2.0, 3.0)
+        u.contains("kaşık") || u.contains("kasik") || u.contains("spoon") -> listOf(0.5, 1.0, 2.0, 3.0)
         else -> listOf(0.5, 1.0, 1.5, 2.0, 3.0)
     }.let { list ->
         if (defaultAmt > 0 && list.none { kotlin.math.abs(it - defaultAmt) < 0.01 }) {
@@ -253,7 +265,7 @@ private fun stepForUnit(unitLabel: String): Double {
         u.contains("ml") -> 50.0
         u.contains("g") -> 10.0
         u.contains("shot") -> 1.0
-        u.contains("adet") || u.contains("dilim") -> 1.0
+        u.contains("adet") || u.contains("dilim") || u.contains("piece") || u.contains("slice") -> 1.0
         else -> 0.5
     }
 }
@@ -286,6 +298,7 @@ fun AddCustomFoodDialog(
     ) -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val speechLauncher = rememberSpeechToTextLauncher()
     val cameraLauncher = rememberCameraPhotoLauncher()
     var capturedPhoto by remember { mutableStateOf<CapturedPhoto?>(null) }
@@ -321,7 +334,7 @@ fun AddCustomFoodDialog(
             DraftIngredientRow(
                 id = "ing_1",
                 name = "",
-                unitLabel = "Ölçek",
+                unitLabel = trEn("Ölçek", "Scoop", lang),
                 defaultAmountText = "1",
                 caloriesText = ""
             ),
@@ -452,11 +465,11 @@ fun AddCustomFoodDialog(
                 draftIngredients.clear()
                 draftIngredients.addAll(nonBlankExisting)
 
-                if (name.isBlank()) {
+                    if (name.isBlank()) {
                     name = if (items.size <= 3) {
                         items.joinToString(" + ") { it.name }
                     } else {
-                        result.summary.take(35).ifBlank { "Özel Karışım" }
+                        result.summary.take(35).ifBlank { trEn("Özel Karışım", "Custom Mix", lang) }
                     }
                 }
                 if (selectedIconKey == null) {
@@ -464,7 +477,11 @@ fun AddCustomFoodDialog(
                 }
                 val combinedMicros = items.flatMap { it.micronutrients }
                 applyMicronutrientsToFields(combinedMicros, accumulate = nonBlankExisting.isNotEmpty())
-                aiSuccessMessage = "AI ${items.size} içeriği birim, miktar ve makrolarıyla otomatik doldurdu."
+                aiSuccessMessage = trEn(
+                    "AI ${items.size} içeriği birim, miktar ve makrolarıyla otomatik doldurdu.",
+                    "AI auto-filled ${items.size} items with units, amounts, and macros.",
+                    lang
+                )
             } else {
                 // Single Product Mode: combine items into one product
                 val first = items.first()
@@ -473,7 +490,8 @@ fun AddCustomFoodDialog(
                 }
                 portionUnit = buildSingleProductPortionUnit(
                     aiPortion = first.formattedPortion,
-                    rawPrompt = promptReference
+                    rawPrompt = promptReference,
+                    language = lang
                 )
                 caloriesText = items.sumOf { it.calories }.toString()
                 proteinText = formatNumClean(items.sumOf { it.proteinG })
@@ -488,25 +506,46 @@ fun AddCustomFoodDialog(
                 }
                 val allMicros = items.flatMap { it.micronutrients }
                 applyMicronutrientsToFields(allMicros, accumulate = false)
-                aiSuccessMessage = "AI ürünün birim, kalori, makro ve mikro besin değerlerini doldurdu."
+                aiSuccessMessage = trEn(
+                    "AI ürünün birim, kalori, makro ve mikro besin değerlerini doldurdu.",
+                    "AI filled the product unit, calories, macros, and micronutrients.",
+                    lang
+                )
             }
             errorMessage = null
         }
         onConsumeAiResult?.invoke()
     }
 
-    val commonPortionSuggestions = listOf(
-        "100g",
-        "500ml (1 Kutu)",
-        "250ml (1 Bardak)",
-        "1 Adet",
-        "1 Porsiyon",
-        "1 Dilim",
-        "1 Ölçek (30g)",
-        "1 Shot"
-    )
+    val commonPortionSuggestions = if (lang == AppLanguage.EN) {
+        listOf(
+            "100g",
+            "500ml (1 Bottle)",
+            "250ml (1 Glass)",
+            "1 Piece",
+            "1 Serving",
+            "1 Slice",
+            "1 Scoop (30g)",
+            "1 Shot"
+        )
+    } else {
+        listOf(
+            "100g",
+            "500ml (1 Kutu)",
+            "250ml (1 Bardak)",
+            "1 Adet",
+            "1 Porsiyon",
+            "1 Dilim",
+            "1 Ölçek (30g)",
+            "1 Shot"
+        )
+    }
 
-    val unitSuggestions = listOf("Shot", "Ölçek", "ml", "g", "Adet", "Dilim", "Kaşık")
+    val unitSuggestions = if (lang == AppLanguage.EN) {
+        listOf("Shot", "Scoop", "ml", "g", "Piece", "Slice", "Spoon")
+    } else {
+        listOf("Shot", "Ölçek", "ml", "g", "Adet", "Dilim", "Kaşık")
+    }
 
     val enteredStandardMicrosCount = listOf(
         vitDText, vitCText, vitB12Text, ironText, calciumText,
@@ -536,7 +575,7 @@ fun AddCustomFoodDialog(
                         capturedPhoto = cropped
                         isCropDialogOpen = false
                         val text = cropped.extractedText
-                        val effectiveText = if (!text.isNullOrBlank()) text else "Fotoğraftaki ürün ve besin değerleri"
+                        val effectiveText = if (!text.isNullOrBlank()) text else trEn("Fotoğraftaki ürün ve besin değerleri", "Product & nutrition values from photo", lang)
                         aiPromptText = effectiveText
                         aiSuccessMessage = null
                         onAnalyzeWithAi?.invoke(effectiveText, isMixMode)
@@ -547,7 +586,7 @@ fun AddCustomFoodDialog(
                         capturedPhoto = fullPhoto
                         isCropDialogOpen = false
                         val text = fullPhoto.extractedText
-                        val effectiveText = if (!text.isNullOrBlank()) text else "Fotoğraftaki ürün ve besin değerleri"
+                        val effectiveText = if (!text.isNullOrBlank()) text else trEn("Fotoğraftaki ürün ve besin değerleri", "Product & nutrition values from photo", lang)
                         aiPromptText = effectiveText
                         aiSuccessMessage = null
                         onAnalyzeWithAi?.invoke(effectiveText, isMixMode)
@@ -607,13 +646,23 @@ fun AddCustomFoodDialog(
                             }
                             Column {
                                 Text(
-                                    text = "Envanterime Ekle",
+                                    text = str("Envanterime Ekle", "Add to Inventory"),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (isMixMode) "İçerik seviyelerini seçerken ayrı ayrı değiştirebilirsiniz" else "Kendi ürünlerinizi veya çoklu içerikli öğünlerinizi kaydedin",
+                                    text = if (isMixMode) {
+                                        str(
+                                            "İçerik seviyelerini seçerken ayrı ayrı değiştirebilirsiniz",
+                                            "Adjust ingredient levels individually when logging"
+                                        )
+                                    } else {
+                                        str(
+                                            "Kendi ürünlerinizi veya çoklu içerikli öğünlerinizi kaydedin",
+                                            "Save your custom products or multi-ingredient meals"
+                                        )
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -626,7 +675,7 @@ fun AddCustomFoodDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = str("Kapat", "Close"),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -666,7 +715,7 @@ fun AddCustomFoodDialog(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Tekli Ürün",
+                                    text = str("Tekli Ürün", "Single Product"),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (!isMixMode) FontWeight.Bold else FontWeight.Medium,
                                     color = if (!isMixMode) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
@@ -699,7 +748,7 @@ fun AddCustomFoodDialog(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Çoklu İçerik",
+                                    text = str("Çoklu İçerik", "Multi-Ingredient"),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isMixMode) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isMixMode) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
@@ -753,7 +802,7 @@ fun AddCustomFoodDialog(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Kapat",
+                                        contentDescription = str("Kapat", "Close"),
                                         tint = HealthColors.Primary,
                                         modifier = Modifier.size(14.dp)
                                     )
@@ -798,7 +847,11 @@ fun AddCustomFoodDialog(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = if (isMixMode) "AI Karışım & Birim Analizi" else "AI ile Ürün & Besin Değeri Doldur",
+                                            text = if (isMixMode) {
+                                                str("AI Karışım & Birim Analizi", "AI Mix & Unit Analysis")
+                                            } else {
+                                                str("AI ile Ürün & Besin Değeri Doldur", "Fill Product & Nutrition with AI")
+                                            },
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface,
@@ -833,9 +886,15 @@ fun AddCustomFoodDialog(
                                     placeholder = {
                                         Text(
                                             text = if (isMixMode) {
-                                                "Örn: 150ml proteinli süt, 2 shot espresso, 1 ölçek protein tozu..."
+                                                str(
+                                                    "Örn: 150ml proteinli süt, 2 shot espresso, 1 ölçek protein tozu...",
+                                                    "E.g.: 150ml protein milk, 2 espresso shots, 1 scoop whey..."
+                                                )
                                             } else {
-                                                "Örn: 1 ölçek protein tozu 35 gr, veya 1 ölçek L-Carnitine 30ml..."
+                                                str(
+                                                    "Örn: 1 ölçek protein tozu 35 gr, veya 1 ölçek L-Carnitine 30ml...",
+                                                    "E.g.: 1 scoop whey protein 35g, or 1 serving L-Carnitine 30ml..."
+                                                )
                                             },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = placeholderColor
@@ -854,7 +913,7 @@ fun AddCustomFoodDialog(
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.Close,
-                                                        contentDescription = "Temizle",
+                                                        contentDescription = str("Temizle", "Clear"),
                                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.size(15.dp)
                                                     )
@@ -863,7 +922,9 @@ fun AddCustomFoodDialog(
                                             if (speechLauncher.isAvailable) {
                                                 IconButton(
                                                     onClick = {
-                                                        speechLauncher.launch("Ürün veya karışımı söyleyin...") { spoken ->
+                                                        speechLauncher.launch(
+                                                            trEn("Ürün veya karışımı söyleyin...", "Say the product or mix...", lang)
+                                                        ) { spoken ->
                                                             aiPromptText = if (aiPromptText.isBlank()) spoken else "$aiPromptText, $spoken"
                                                         }
                                                     },
@@ -875,7 +936,7 @@ fun AddCustomFoodDialog(
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.Mic,
-                                                        contentDescription = "Sesle Söyle",
+                                                        contentDescription = str("Sesle Söyle", "Voice Input"),
                                                         tint = HealthColors.Primary,
                                                         modifier = Modifier.size(16.dp)
                                                     )
@@ -901,7 +962,7 @@ fun AddCustomFoodDialog(
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.CameraAlt,
-                                                    contentDescription = "Etiket Çek ve Tara",
+                                                    contentDescription = str("Etiket Çek ve Tara", "Capture & Scan Label"),
                                                     tint = HealthColors.Primary,
                                                     modifier = Modifier.size(16.dp)
                                                 )
@@ -926,7 +987,7 @@ fun AddCustomFoodDialog(
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.PhotoLibrary,
-                                                    contentDescription = "Galeriden Etiket Seç",
+                                                    contentDescription = str("Galeriden Etiket Seç", "Choose Label from Gallery"),
                                                     tint = HealthColors.Primary,
                                                     modifier = Modifier.size(16.dp)
                                                 )
@@ -963,7 +1024,7 @@ fun AddCustomFoodDialog(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "AI Birim & Değerleri Analiz Ediyor...",
+                                            text = str("AI Birim & Değerleri Analiz Ediyor...", "AI Analyzing Units & Values..."),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -975,7 +1036,11 @@ fun AddCustomFoodDialog(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = if (isMixMode) "AI ile İçerikleri & Birimleri Doldur" else "AI ile Besin Değerlerini Doldur",
+                                            text = if (isMixMode) {
+                                                str("AI ile İçerikleri & Birimleri Doldur", "Fill Ingredients & Units with AI")
+                                            } else {
+                                                str("AI ile Besin Değerlerini Doldur", "Fill Nutrition Values with AI")
+                                            },
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -988,7 +1053,7 @@ fun AddCustomFoodDialog(
                     // Product / Mix Name
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = if (isMixMode) "Karışım / Öğün Adı *" else "Ürün / Besin Adı *",
+                            text = if (isMixMode) str("Karışım / Öğün Adı *", "Mix / Meal Name *") else str("Ürün / Besin Adı *", "Product / Food Name *"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1001,7 +1066,17 @@ fun AddCustomFoodDialog(
                             },
                             placeholder = {
                                 Text(
-                                    text = if (isMixMode) "Örn: Proteinli Sütlü Kahve, Sabah Yulaf Kasesi..." else "Örn: Kahveli Protein Süt, Kreatin...",
+                                    text = if (isMixMode) {
+                                        str(
+                                            "Örn: Proteinli Sütlü Kahve, Sabah Yulaf Kasesi...",
+                                            "E.g.: Protein Iced Latte, Morning Oats Bowl..."
+                                        )
+                                    } else {
+                                        str(
+                                            "Örn: Kahveli Protein Süt, Kreatin...",
+                                            "E.g.: Iced Protein Coffee, Creatine..."
+                                        )
+                                    },
                                     color = placeholderColor
                                 )
                             },
@@ -1018,7 +1093,7 @@ fun AddCustomFoodDialog(
                     // Brand (Optional)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Marka / Etiket (İsteğe Bağlı)",
+                            text = str("Marka / Etiket (İsteğe Bağlı)", "Brand / Label (Optional)"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1028,7 +1103,7 @@ fun AddCustomFoodDialog(
                             onValueChange = { brand = it },
                             placeholder = {
                                 Text(
-                                    "Örn: Kendi Tarifim, Hardline, Pınar...",
+                                    str("Örn: Kendi Tarifim, Hardline, Pınar...", "E.g.: Homemade, Optimum Nutrition..."),
                                     color = placeholderColor
                                 )
                             },
@@ -1050,14 +1125,14 @@ fun AddCustomFoodDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "İkon Seçimi (İsteğe Bağlı)",
+                                text = str("İkon Seçimi (İsteğe Bağlı)", "Icon (Optional)"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             if (selectedIconKey != null) {
                                 Text(
-                                    text = "İkonu Kaldır",
+                                    text = str("İkonu Kaldır", "Remove Icon"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = HealthColors.Primary,
                                     modifier = Modifier
@@ -1089,13 +1164,16 @@ fun AddCustomFoodDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Envanterimdeki Ürünlerden Ekle (${singleInventoryFoods.size})",
+                                        text = str(
+                                            "Envanterimdeki Ürünlerden Ekle (${singleInventoryFoods.size})",
+                                            "Add from My Inventory (${singleInventoryFoods.size})"
+                                        ),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Dokunarak Ekle",
+                                        text = str("Dokunarak Ekle", "Tap to Add"),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = HealthColors.Secondary
                                     )
@@ -1207,7 +1285,7 @@ fun AddCustomFoodDialog(
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Remove,
-                                                                contentDescription = "Azalt",
+                                                                contentDescription = str("Azalt", "Decrease"),
                                                                 tint = HealthColors.OnPrimary,
                                                                 modifier = Modifier
                                                                     .size(14.dp)
@@ -1231,7 +1309,7 @@ fun AddCustomFoodDialog(
                                                             )
                                                             Icon(
                                                                 imageVector = Icons.Default.Add,
-                                                                contentDescription = "Artır",
+                                                                contentDescription = str("Artır", "Increase"),
                                                                 tint = HealthColors.OnPrimary,
                                                                 modifier = Modifier
                                                                     .size(14.dp)
@@ -1244,7 +1322,7 @@ fun AddCustomFoodDialog(
                                                             color = HealthColors.Secondary.copy(alpha = 0.18f)
                                                         ) {
                                                             Text(
-                                                                text = "+ Ekle",
+                                                                text = str("+ Ekle", "+ Add"),
                                                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                                                 fontWeight = FontWeight.Bold,
                                                                 color = HealthColors.Secondary,
@@ -1266,8 +1344,10 @@ fun AddCustomFoodDialog(
                                                     maxLines = 1
                                                 )
                                                 Text(
-                                                    text = "${formatNumClean(invFood.proteinG * currentQty.coerceAtLeast(1))}g P • ${formatNumClean(invFood.carbsG * currentQty.coerceAtLeast(1))}g K • ${formatNumClean(invFood.fatG * currentQty.coerceAtLeast(1))}g Y" +
-                                                        (if (invFood.micronutrients.isNotEmpty()) " • +${invFood.micronutrients.size} içerik" else ""),
+                                                    text = str(
+                                                        "${formatNumClean(invFood.proteinG * currentQty.coerceAtLeast(1))}g P • ${formatNumClean(invFood.carbsG * currentQty.coerceAtLeast(1))}g K • ${formatNumClean(invFood.fatG * currentQty.coerceAtLeast(1))}g Y",
+                                                        "${formatNumClean(invFood.proteinG * currentQty.coerceAtLeast(1))}g P • ${formatNumClean(invFood.carbsG * currentQty.coerceAtLeast(1))}g C • ${formatNumClean(invFood.fatG * currentQty.coerceAtLeast(1))}g F"
+                                                    ) + (if (invFood.micronutrients.isNotEmpty()) str(" • +${invFood.micronutrients.size} içerik", " • +${invFood.micronutrients.size} micros") else ""),
                                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                                     color = HealthColors.Primary,
                                                     maxLines = 1
@@ -1292,7 +1372,7 @@ fun AddCustomFoodDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "İçerik Kalemleri ($uniqueIngredientCount)",
+                                    text = str("İçerik Kalemleri ($uniqueIngredientCount)", "Ingredient Items ($uniqueIngredientCount)"),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -1302,7 +1382,10 @@ fun AddCustomFoodDialog(
                                     color = HealthColors.Primary.copy(alpha = 0.15f)
                                 ) {
                                     Text(
-                                        text = "Toplam: $mixTotalCalories kcal • ${((mixTotalProtein * 10).roundToInt() / 10.0)}g P",
+                                        text = str(
+                                            "Toplam: $mixTotalCalories kcal • ${((mixTotalProtein * 10).roundToInt() / 10.0)}g P",
+                                            "Total: $mixTotalCalories kcal • ${((mixTotalProtein * 10).roundToInt() / 10.0)}g P"
+                                        ),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = HealthColors.Primary,
@@ -1331,7 +1414,7 @@ fun AddCustomFoodDialog(
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 Text(
-                                                    text = "${idx + 1}. İçerik Kalemi",
+                                                    text = str("${idx + 1}. İçerik Kalemi", "Ingredient #${idx + 1}"),
                                                     style = MaterialTheme.typography.labelMedium,
                                                     fontWeight = FontWeight.Bold,
                                                     color = HealthColors.Primary
@@ -1383,7 +1466,7 @@ fun AddCustomFoodDialog(
                                                     ) {
                                                         Icon(
                                                             imageVector = Icons.Default.Remove,
-                                                            contentDescription = "Azalt",
+                                                            contentDescription = str("Azalt", "Decrease"),
                                                             tint = if (ing.quantity > 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                                                             modifier = Modifier.size(13.dp)
                                                         )
@@ -1417,7 +1500,7 @@ fun AddCustomFoodDialog(
                                                     ) {
                                                         Icon(
                                                             imageVector = Icons.Default.DeleteOutline,
-                                                            contentDescription = "İçeriği Sil",
+                                                            contentDescription = str("İçeriği Sil", "Remove Ingredient"),
                                                             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                                                             modifier = Modifier.size(16.dp)
                                                         )
@@ -1429,8 +1512,13 @@ fun AddCustomFoodDialog(
                                         OutlinedTextField(
                                             value = ing.name,
                                             onValueChange = { draftIngredients[idx] = ing.copy(name = it) },
-                                            placeholder = { Text("Örn: Kahve, Protein Tozu, Süt...", color = placeholderColor) },
-                                            label = { Text("İçerik Adı") },
+                                            placeholder = {
+                                                Text(
+                                                    str("Örn: Kahve, Protein Tozu, Süt...", "E.g.: Coffee, Whey, Milk..."),
+                                                    color = placeholderColor
+                                                )
+                                            },
+                                            label = { Text(str("İçerik Adı", "Ingredient Name")) },
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
                                             colors = calmFieldColors,
@@ -1444,7 +1532,7 @@ fun AddCustomFoodDialog(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Birim:",
+                                                text = str("Birim:", "Unit:"),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -1481,7 +1569,7 @@ fun AddCustomFoodDialog(
                                                 value = ing.defaultAmountText,
                                                 onValueChange = { draftIngredients[idx] = ing.copy(defaultAmountText = it.replace(',', '.')) },
                                                 placeholder = { Text("1", color = placeholderColor) },
-                                                label = { Text("Varsayılan (${ing.unitLabel})") },
+                                                label = { Text(str("Varsayılan (${ing.unitLabel})", "Default (${ing.unitLabel})")) },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(12.dp),
@@ -1492,7 +1580,7 @@ fun AddCustomFoodDialog(
                                                 value = ing.caloriesText,
                                                 onValueChange = { draftIngredients[idx] = ing.copy(caloriesText = it.filter { ch -> ch.isDigit() }) },
                                                 placeholder = { Text("0", color = placeholderColor) },
-                                                label = { Text("Kalori (kcal)") },
+                                                label = { Text(str("Kalori (kcal)", "Calories (kcal)")) },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(12.dp),
@@ -1520,7 +1608,7 @@ fun AddCustomFoodDialog(
                                                 value = ing.carbsText,
                                                 onValueChange = { draftIngredients[idx] = ing.copy(carbsText = it.replace(',', '.')) },
                                                 placeholder = { Text("0", color = placeholderColor) },
-                                                label = { Text("Karb (g)") },
+                                                label = { Text(str("Karb (g)", "Carbs (g)")) },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(12.dp),
@@ -1531,7 +1619,7 @@ fun AddCustomFoodDialog(
                                                 value = ing.fatText,
                                                 onValueChange = { draftIngredients[idx] = ing.copy(fatText = it.replace(',', '.')) },
                                                 placeholder = { Text("0", color = placeholderColor) },
-                                                label = { Text("Yağ (g)") },
+                                                label = { Text(str("Yağ (g)", "Fat (g)")) },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(12.dp),
@@ -1549,7 +1637,7 @@ fun AddCustomFoodDialog(
                                         DraftIngredientRow(
                                             id = "ing_${currentTime()}_${draftIngredients.size}",
                                             name = "",
-                                            unitLabel = "Adet",
+                                            unitLabel = trEn("Adet", "Piece", lang),
                                             defaultAmountText = "1",
                                             caloriesText = ""
                                         )
@@ -1560,7 +1648,13 @@ fun AddCustomFoodDialog(
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Yeni İçerik Kalemi Ekle (Örn: Buz, Yulaf, Bal...)", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    str(
+                                        "Yeni İçerik Kalemi Ekle (Örn: Buz, Yulaf, Bal...)",
+                                        "Add Ingredient Item (E.g.: Ice, Oats, Honey...)"
+                                    ),
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     } else {
@@ -1570,7 +1664,7 @@ fun AddCustomFoodDialog(
                         // Portion Unit & Suggestions
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Porsiyon / Ambalaj Birimi *",
+                                text = str("Porsiyon / Ambalaj Birimi *", "Serving / Package Unit *"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -1581,7 +1675,12 @@ fun AddCustomFoodDialog(
                                     portionUnit = it
                                     errorMessage = null
                                 },
-                                placeholder = { Text("Örn: 500ml (1 Kutu), 100g, 1 Ölçek...", color = placeholderColor) },
+                                placeholder = {
+                                    Text(
+                                        str("Örn: 500ml (1 Kutu), 100g, 1 Ölçek...", "E.g.: 500ml (1 Bottle), 100g, 1 Scoop..."),
+                                        color = placeholderColor
+                                    )
+                                },
                                 leadingIcon = {
                                     Icon(Icons.Default.Straighten, contentDescription = null, tint = HealthColors.Secondary, modifier = Modifier.size(18.dp))
                                 },
@@ -1623,7 +1722,7 @@ fun AddCustomFoodDialog(
                         // Calorie (Required)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Porsiyon Kalorisi (kcal) *",
+                                text = str("Porsiyon Kalorisi (kcal) *", "Serving Calories (kcal) *"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -1634,7 +1733,7 @@ fun AddCustomFoodDialog(
                                     caloriesText = it.filter { ch -> ch.isDigit() }
                                     errorMessage = null
                                 },
-                                placeholder = { Text("Örn: 120", color = placeholderColor) },
+                                placeholder = { Text(str("Örn: 120", "E.g.: 120"), color = placeholderColor) },
                                 leadingIcon = {
                                     Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = HealthColors.Tertiary, modifier = Modifier.size(18.dp))
                                 },
@@ -1652,7 +1751,7 @@ fun AddCustomFoodDialog(
                         // Macros: Protein, Carbs, Fat
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Makro Değerleri (Porsiyon Başına)",
+                                text = str("Makro Değerleri (Porsiyon Başına)", "Macros (Per Serving)"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -1676,7 +1775,7 @@ fun AddCustomFoodDialog(
                                     value = carbsText,
                                     onValueChange = { carbsText = it.replace(',', '.') },
                                     placeholder = { Text("0", color = placeholderColor) },
-                                    label = { Text("Karb (g)") },
+                                    label = { Text(str("Karb (g)", "Carbs (g)")) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp),
@@ -1687,7 +1786,7 @@ fun AddCustomFoodDialog(
                                     value = fatText,
                                     onValueChange = { fatText = it.replace(',', '.') },
                                     placeholder = { Text("0", color = placeholderColor) },
-                                    label = { Text("Yağ (g)") },
+                                    label = { Text(str("Yağ (g)", "Fat (g)")) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp),
@@ -1701,7 +1800,7 @@ fun AddCustomFoodDialog(
                                 value = fiberText,
                                 onValueChange = { fiberText = it.replace(',', '.') },
                                 placeholder = { Text("0", color = placeholderColor) },
-                                label = { Text("Lif (g, İsteğe Bağlı)") },
+                                label = { Text(str("Lif (g, İsteğe Bağlı)", "Fiber (g, Optional)")) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
@@ -1759,13 +1858,23 @@ fun AddCustomFoodDialog(
 
                                     Column {
                                         Text(
-                                            text = "Mikro Besin & Vitamin Değerleri",
+                                            text = str("Mikro Besin & Vitamin Değerleri", "Micronutrients & Vitamins"),
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = if (totalEnteredMicros > 0) "$totalEnteredMicros mikro besin değeri girildi" else "İsteğe bağlı - D Vit, Magnezyum, Çinko vb.",
+                                            text = if (totalEnteredMicros > 0) {
+                                                str(
+                                                    "$totalEnteredMicros mikro besin değeri girildi",
+                                                    "$totalEnteredMicros micronutrient values entered"
+                                                )
+                                            } else {
+                                                str(
+                                                    "İsteğe bağlı - D Vit, Magnezyum, Çinko vb.",
+                                                    "Optional - Vit D, Magnesium, Zinc, etc."
+                                                )
+                                            },
                                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                             color = if (totalEnteredMicros > 0) HealthColors.Secondary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1797,7 +1906,7 @@ fun AddCustomFoodDialog(
                                     ) {
                                         Icon(
                                             imageVector = if (isMicrosExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                            contentDescription = if (isMicrosExpanded) "Gizle" else "Genişlet",
+                                            contentDescription = if (isMicrosExpanded) str("Gizle", "Hide") else str("Genişlet", "Expand"),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -1814,7 +1923,10 @@ fun AddCustomFoodDialog(
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Text(
-                                        text = "Porsiyon başına miktar giriniz. Boş bıraktığınız değerler sıfır kabul edilir.",
+                                        text = str(
+                                            "Porsiyon başına miktar giriniz. Boş bıraktığınız değerler sıfır kabul edilir.",
+                                            "Enter amount per serving. Blank fields default to zero."
+                                        ),
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1828,7 +1940,7 @@ fun AddCustomFoodDialog(
                                             value = vitDText,
                                             onValueChange = { vitDText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("D Vitamini (µg)") },
+                                            label = { Text(str("D Vitamini (µg)", "Vitamin D (µg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1839,7 +1951,7 @@ fun AddCustomFoodDialog(
                                             value = vitCText,
                                             onValueChange = { vitCText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("C Vitamini (mg)") },
+                                            label = { Text(str("C Vitamini (mg)", "Vitamin C (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1857,7 +1969,7 @@ fun AddCustomFoodDialog(
                                             value = vitB12Text,
                                             onValueChange = { vitB12Text = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("B12 Vitamini (µg)") },
+                                            label = { Text(str("B12 Vitamini (µg)", "Vitamin B12 (µg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1868,7 +1980,7 @@ fun AddCustomFoodDialog(
                                             value = ironText,
                                             onValueChange = { ironText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("Demir (mg)") },
+                                            label = { Text(str("Demir (mg)", "Iron (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1886,7 +1998,7 @@ fun AddCustomFoodDialog(
                                             value = magnesiumText,
                                             onValueChange = { magnesiumText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("Magnezyum (mg)") },
+                                            label = { Text(str("Magnezyum (mg)", "Magnesium (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1897,7 +2009,7 @@ fun AddCustomFoodDialog(
                                             value = calciumText,
                                             onValueChange = { calciumText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("Kalsiyum (mg)") },
+                                            label = { Text(str("Kalsiyum (mg)", "Calcium (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1915,7 +2027,7 @@ fun AddCustomFoodDialog(
                                             value = zincText,
                                             onValueChange = { zincText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("Çinko (mg)") },
+                                            label = { Text(str("Çinko (mg)", "Zinc (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1944,7 +2056,7 @@ fun AddCustomFoodDialog(
                                             value = potassiumText,
                                             onValueChange = { potassiumText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("Potasyum (mg)") },
+                                            label = { Text(str("Potasyum (mg)", "Potassium (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1955,7 +2067,7 @@ fun AddCustomFoodDialog(
                                             value = sodiumText,
                                             onValueChange = { sodiumText = it.replace(',', '.') },
                                             placeholder = { Text("0", color = placeholderColor) },
-                                            label = { Text("Sodyum (mg)") },
+                                            label = { Text(str("Sodyum (mg)", "Sodium (mg)")) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             modifier = Modifier.weight(1f),
                                             shape = RoundedCornerShape(12.dp),
@@ -1974,8 +2086,8 @@ fun AddCustomFoodDialog(
                                             OutlinedTextField(
                                                 value = item.name,
                                                 onValueChange = { dynamicMicros[index] = item.copy(name = it) },
-                                                placeholder = { Text("Örn: Kollajen", color = placeholderColor) },
-                                                label = { Text("Besin Adı") },
+                                                placeholder = { Text(str("Örn: Kollajen", "E.g.: Collagen"), color = placeholderColor) },
+                                                label = { Text(str("Besin Adı", "Nutrient Name")) },
                                                 modifier = Modifier.weight(1.3f),
                                                 shape = RoundedCornerShape(12.dp),
                                                 colors = calmFieldColors,
@@ -1985,7 +2097,7 @@ fun AddCustomFoodDialog(
                                                 value = item.amountText,
                                                 onValueChange = { dynamicMicros[index] = item.copy(amountText = it.replace(',', '.')) },
                                                 placeholder = { Text("0", color = placeholderColor) },
-                                                label = { Text("Miktar") },
+                                                label = { Text(str("Miktar", "Amount")) },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                                 modifier = Modifier.weight(0.9f),
                                                 shape = RoundedCornerShape(12.dp),
@@ -1996,7 +2108,7 @@ fun AddCustomFoodDialog(
                                                 value = item.unit,
                                                 onValueChange = { dynamicMicros[index] = item.copy(unit = it) },
                                                 placeholder = { Text("mg", color = placeholderColor) },
-                                                label = { Text("Birim") },
+                                                label = { Text(str("Birim", "Unit")) },
                                                 modifier = Modifier.weight(0.8f),
                                                 shape = RoundedCornerShape(12.dp),
                                                 colors = calmFieldColors,
@@ -2008,7 +2120,7 @@ fun AddCustomFoodDialog(
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.DeleteOutline,
-                                                    contentDescription = "Sil",
+                                                    contentDescription = str("Sil", "Remove"),
                                                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -2033,7 +2145,7 @@ fun AddCustomFoodDialog(
                                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "Farklı Bir Mikro Besin / Vitamin Ekle",
+                                            text = str("Farklı Bir Mikro Besin / Vitamin Ekle", "Add Another Micronutrient / Vitamin"),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.SemiBold,
                                             color = HealthColors.Secondary
@@ -2047,7 +2159,7 @@ fun AddCustomFoodDialog(
                     // Category Selector
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Kategori",
+                            text = str("Kategori", "Category"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -2076,7 +2188,7 @@ fun AddCustomFoodDialog(
                                         .bounceClick()
                                 ) {
                                     Text(
-                                        text = cat.labelTr,
+                                        text = cat.localizedLabel(lang),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2109,7 +2221,7 @@ fun AddCustomFoodDialog(
                                 modifier = Modifier.size(22.dp)
                             )
                             Text(
-                                text = "Favori Listeme de Ekle",
+                                text = str("Favori Listeme de Ekle", "Also Add to Favorites"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -2126,22 +2238,26 @@ fun AddCustomFoodDialog(
                         onClick = {
                             val trimmedName = name.trim()
                             if (trimmedName.isBlank()) {
-                                errorMessage = "Lütfen ürün veya karışım adını giriniz."
+                                errorMessage = trEn(
+                                    "Lütfen ürün veya karışım adını giriniz.",
+                                    "Please enter the product or mix name.",
+                                    lang
+                                )
                                 return@Button
                             }
 
                             // Collect all micronutrients
                             val microsList = mutableListOf<Micronutrient>()
-                            vitDText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("D Vitamini", it, "µg")) }
-                            vitCText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("C Vitamini", it, "mg")) }
-                            vitB12Text.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("B12 Vitamini", it, "µg")) }
-                            ironText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Demir", it, "mg")) }
-                            calciumText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Kalsiyum", it, "mg")) }
-                            magnesiumText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Magnezyum", it, "mg")) }
-                            zincText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Çinko", it, "mg")) }
-                            omega3Text.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Omega-3", it, "mg")) }
-                            potassiumText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Potasyum", it, "mg")) }
-                            sodiumText.toDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Sodyum", it, "mg")) }
+                            vitDText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("D Vitamini", "Vitamin D", lang), it, "µg")) }
+                            vitCText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("C Vitamini", "Vitamin C", lang), it, "mg")) }
+                            vitB12Text.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("B12 Vitamini", "Vitamin B12", lang), it, "µg")) }
+                            ironText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("Demir", "Iron", lang), it, "mg")) }
+                            calciumText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("Kalsiyum", "Calcium", lang), it, "mg")) }
+                            magnesiumText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("Magnezyum", "Magnesium", lang), it, "mg")) }
+                            zincText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("Çinko", "Zinc", lang), it, "mg")) }
+                            omega3Text.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient("Omega-3", it, "mg")) }
+                            potassiumText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("Potasyum", "Potassium", lang), it, "mg")) }
+                            sodiumText.toLocaleDoubleOrNull()?.takeIf { it > 0 }?.let { microsList.add(Micronutrient(trEn("Sodyum", "Sodium", lang), it, "mg")) }
 
                             dynamicMicros.forEach { extra ->
                                 val amt = extra.amountText.replace(',', '.').toDoubleOrNull()
@@ -2157,7 +2273,7 @@ fun AddCustomFoodDialog(
                                     .map { (_, group) ->
                                         val first = group.first()
                                         val rName = first.name.trim()
-                                        val uLabel = first.unitLabel.trim().ifBlank { "Porsiyon" }
+                                        val uLabel = first.unitLabel.trim().ifBlank { trEn("Porsiyon", "Serving", lang) }
                                         val totalDefAmt = group.sumOf {
                                             it.defaultAmountText.replace(',', '.').toDoubleOrNull() ?: 1.0
                                         }.coerceAtLeast(0.1)
@@ -2201,7 +2317,11 @@ fun AddCustomFoodDialog(
                                         )
                                     }
                                 if (builtIngredients.isEmpty()) {
-                                    errorMessage = "Lütfen karışıma en az 1 içerik kalemi ekleyiniz."
+                                    errorMessage = trEn(
+                                        "Lütfen karışıma en az 1 içerik kalemi ekleyiniz.",
+                                        "Please add at least 1 ingredient item to the mix.",
+                                        lang
+                                    )
                                     return@Button
                                 }
                                 val compactMixSummary = builtIngredients.joinToString(" • ") { ing ->
@@ -2220,7 +2340,7 @@ fun AddCustomFoodDialog(
                                 }
                                 onSave(
                                     trimmedName,
-                                    brand.trim().ifBlank { "Özel Karışım" },
+                                    brand.trim().ifBlank { trEn("Özel Karışım", "Custom Mix", lang) },
                                     portionUnit.trim().ifBlank { compactMixSummary },
                                     builtIngredients.sumOf { it.baseCalories },
                                     builtIngredients.sumOf { it.baseProteinG },
@@ -2237,17 +2357,25 @@ fun AddCustomFoodDialog(
                                 val trimmedPortion = portionUnit.trim()
                                 val cal = caloriesText.toIntOrNull()
                                 if (trimmedPortion.isBlank()) {
-                                    errorMessage = "Lütfen porsiyon veya ambalaj birimini giriniz (örn: 500ml, 100g, 1 Ölçek)."
+                                    errorMessage = trEn(
+                                        "Lütfen porsiyon veya ambalaj birimini giriniz (örn: 500ml, 100g, 1 Ölçek).",
+                                        "Please enter the serving or package unit (e.g. 500ml, 100g, 1 Scoop).",
+                                        lang
+                                    )
                                     return@Button
                                 }
                                 if (cal == null || cal < 0) {
-                                    errorMessage = "Lütfen geçerli bir kalori değeri giriniz (sıfır kalori için 0)."
+                                    errorMessage = trEn(
+                                        "Lütfen geçerli bir kalori değeri giriniz (sıfır kalori için 0).",
+                                        "Please enter a valid calorie value (0 for zero calories).",
+                                        lang
+                                    )
                                     return@Button
                                 }
-                                val prot = proteinText.toDoubleOrNull() ?: 0.0
-                                val carb = carbsText.toDoubleOrNull() ?: 0.0
-                                val fat = fatText.toDoubleOrNull() ?: 0.0
-                                val fib = fiberText.toDoubleOrNull() ?: 0.0
+                                val prot = proteinText.toLocaleDoubleOrNull() ?: 0.0
+                                val carb = carbsText.toLocaleDoubleOrNull() ?: 0.0
+                                val fat = fatText.toLocaleDoubleOrNull() ?: 0.0
+                                val fib = fiberText.toLocaleDoubleOrNull() ?: 0.0
 
                                 onSave(
                                     trimmedName,
@@ -2279,7 +2407,11 @@ fun AddCustomFoodDialog(
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isMixMode) "Karışımı Envantere Kaydet" else "Ürünü Envantere Kaydet",
+                            text = if (isMixMode) {
+                                str("Karışımı Envantere Kaydet", "Save Mix to Inventory")
+                            } else {
+                                str("Ürünü Envantere Kaydet", "Save Product to Inventory")
+                            },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )

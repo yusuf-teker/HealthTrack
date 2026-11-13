@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
@@ -103,6 +104,17 @@ fun WorkoutReminderDialogPreview() {
             currentFrequency = com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE,
             onDismiss = {},
             onSave = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun WorkoutScreenEnglishPreview() {
+    HealthTrackTheme(darkTheme = true, language = AppLanguage.EN) {
+        WorkoutScreen(
+            state = populatedWorkoutState,
+            onIntent = {}
         )
     }
 }

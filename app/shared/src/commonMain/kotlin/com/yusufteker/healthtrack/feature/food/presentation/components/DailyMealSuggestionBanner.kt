@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -89,7 +90,7 @@ fun DailyMealSuggestionBanner(
                         border = androidx.compose.foundation.BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.35f))
                     ) {
                         Text(
-                            text = "GÜNÜN ÖĞÜN ÖNERİSİ",
+                            text = str("GÜNÜN ÖĞÜN ÖNERİSİ", "DAILY MEAL SUGGESTION"),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             fontWeight = FontWeight.Black,
                             color = HealthColors.Primary,
@@ -109,7 +110,7 @@ fun DailyMealSuggestionBanner(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Bugünlük Kapat",
+                        contentDescription = str("Bugünlük Kapat", "Dismiss for Today"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp)
                     )
@@ -119,12 +120,15 @@ fun DailyMealSuggestionBanner(
             // Headline & Description
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 GradientText(
-                    text = "Günün 4 Öğünlük AI Menüsü 🥗",
+                    text = str("Günün 4 Öğünlük AI Menüsü 🥗", "Today's 4-Meal AI Menu 🥗"),
                     colors = listOf(HealthColors.Primary, Color(0xFF00E676)),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold)
                 )
                 Text(
-                    text = "Son günlerdeki beslenmenize göre eksik kalan protein, lif ve vitaminlerinizi kapatacak, markette kolayca bulunan malzemelerle pratik tarifler hazırlandı.",
+                    text = str(
+                        "Son günlerdeki beslenmenize göre eksik kalan protein, lif ve vitaminlerinizi kapatacak, markette kolayca bulunan malzemelerle pratik tarifler hazırlandı.",
+                        "Practical recipes with easy-to-find groceries tailored to fill your recent protein, fiber, and vitamin gaps."
+                    ),
                     style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -135,9 +139,9 @@ fun DailyMealSuggestionBanner(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                SuggestionFeatureChip("🎯 Eksik Odaklı", Color(0xFF00B4D8))
-                SuggestionFeatureChip("⏱️ 5-15 Dk Pratik", Color(0xFFFFB703))
-                SuggestionFeatureChip("🛒 Kolay Malzemeli", Color(0xFF00E676))
+                SuggestionFeatureChip(str("🎯 Eksik Odaklı", "🎯 Gap Focused"), Color(0xFF00B4D8))
+                SuggestionFeatureChip(str("⏱️ 5-15 Dk Pratik", "⏱️ 5-15 Min Quick"), Color(0xFFFFB703))
+                SuggestionFeatureChip(str("🛒 Kolay Malzemeli", "🛒 Easy Groceries"), Color(0xFF00E676))
             }
 
             // Bottom CTA Row
@@ -149,7 +153,7 @@ fun DailyMealSuggestionBanner(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Kahvaltı • Öğle • Akşam • Ara Öğün",
+                    text = str("Kahvaltı • Öğle • Akşam • Ara Öğün", "Breakfast • Lunch • Dinner • Snack"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
@@ -165,7 +169,7 @@ fun DailyMealSuggestionBanner(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Menüyü İncele",
+                            text = str("Menüyü İncele", "View Menu"),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black

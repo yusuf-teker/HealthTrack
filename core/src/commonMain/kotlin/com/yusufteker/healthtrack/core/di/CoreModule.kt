@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.core.di
 
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
 import com.yusufteker.healthtrack.core.model.PendingStoreBillingClient
 import com.yusufteker.healthtrack.core.model.StoreBillingClient
@@ -14,7 +15,7 @@ import com.yusufteker.healthtrack.core.sync.SyncEngine
 import org.koin.dsl.module
 
 val coreModule = module {
-    single { Settings() }
+    single { Settings().also { LocalizationManager.init(it) } }
     single { TokenStorage(get()) }
     single { HealthDatabase(get()) }
     single { HealthApiClient(get()) }

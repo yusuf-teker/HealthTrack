@@ -3,6 +3,8 @@
  * Connects to Render Backend (https://pulse-7b4z.onrender.com) and Neon PostgreSQL
  */
 
+import { getStoredWebLanguage, tWeb } from '../context/LanguageContext';
+
 const DEFAULT_REMOTE_URL = 'https://pulse-7b4z.onrender.com';
 
 // Automatically clean up any corrupted custom URL from earlier sessions
@@ -37,6 +39,7 @@ export function setCustomBaseUrl(url) {
 async function executeFetch(url, options) {
   const headers = {
     'Content-Type': 'application/json',
+    'Accept-Language': getStoredWebLanguage(),
     ...(options.headers || {}),
   };
 
@@ -63,7 +66,7 @@ async function executeFetch(url, options) {
       const errorMsg = (typeof data === 'object' && data?.message) || 
                        (typeof data === 'object' && data?.error) || 
                        (typeof data === 'string' && data) ||
-                       `HTTP Hatası: ${response.status} ${response.statusText}`;
+                       `${tWeb('HTTP Hatası', 'HTTP Error')}: ${response.status} ${response.statusText}`;
       throw new Error(errorMsg);
     }
 
@@ -71,7 +74,12 @@ async function executeFetch(url, options) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error('Sunucu yanıt vermedi (Zaman aşımı). Render sunucusu uyanıyor olabilir, lütfen birkaç saniye sonra tekrar deneyin.');
+      throw new Error(
+        tWeb(
+          'Sunucu yanıt vermedi (Zaman aşımı). Render sunucusu uyanıyor olabilir, lütfen birkaç saniye sonra tekrar deneyin.',
+          'Server timed out. The Render server may be waking up; please try again in a few seconds.'
+        )
+      );
     }
     throw err;
   }
@@ -89,7 +97,12 @@ async function request(path, options = {}) {
       const isAuthError = err.message?.includes('401') || err.message?.includes('403');
       if (isAuthError || attempt === retryDelays.length) {
         if (err.message === 'Failed to fetch' || err.message?.includes('NetworkError')) {
-          throw new Error('Sunucuya bağlanılamadı (Failed to fetch). Render sunucusu uyku modundan uyanıyor olabilir veya ağ/CORS engeli var. Lütfen 15-30 saniye sonra tekrar deneyin.');
+          throw new Error(
+            tWeb(
+              'Sunucuya bağlanılamadı (Failed to fetch). Render sunucusu uyku modundan uyanıyor olabilir veya ağ/CORS engeli var. Lütfen 15-30 saniye sonra tekrar deneyin.',
+              'Could not reach server (Failed to fetch). The Render server may be waking up or blocked by network/CORS. Please try again in 15-30 seconds.'
+            )
+          );
         }
         throw err;
       }
@@ -141,14 +154,17 @@ export async function seedSampleHealthData(token, targetDate = new Date().toISOS
       {
         id: `sample_food_breakfast_${now}`,
         date: targetDate,
-        rawText: '2 haşlanmış yumurta, 50g beyaz peynir, 5 zeytin, 1 dilim kızarmış tam buğday ekmeği ve açık çay',
-        summary: 'Zengin Proteinli Akdeniz Kahvaltısı',
+        rawText: tWeb(
+          '2 haşlanmış yumurta, 50g beyaz peynir, 5 zeytin, 1 dilim kızarmış tam buğday ekmeği ve açık çay',
+          '2 boiled eggs, 50g feta cheese, 5 olives, 1 slice toasted whole wheat bread, and black tea'
+        ),
+        summary: tWeb('Zengin Proteinli Akdeniz Kahvaltısı', 'High-Protein Mediterranean Breakfast'),
         totalCalories: 430,
         itemsJson: JSON.stringify([
-          { name: 'Haşlanmış Yumurta (2 adet)', calories: 150, protein: 13, carbs: 1, fat: 10 },
-          { name: 'Tam Yağlı Beyaz Peynir (50g)', calories: 130, protein: 8, carbs: 1, fat: 11 },
-          { name: 'Siyah Zeytin (5 adet)', calories: 45, protein: 0.5, carbs: 1, fat: 4.5 },
-          { name: 'Tam Buğday Ekmeği (1 dilim)', calories: 105, protein: 4, carbs: 21, fat: 1.5 }
+          { name: tWeb('Haşlanmış Yumurta (2 adet)', 'Boiled Eggs (2 pcs)'), calories: 150, protein: 13, carbs: 1, fat: 10 },
+          { name: tWeb('Tam Yağlı Beyaz Peynir (50g)', 'Feta Cheese (50g)'), calories: 130, protein: 8, carbs: 1, fat: 11 },
+          { name: tWeb('Siyah Zeytin (5 adet)', 'Black Olives (5 pcs)'), calories: 45, protein: 0.5, carbs: 1, fat: 4.5 },
+          { name: tWeb('Tam Buğday Ekmeği (1 dilim)', 'Whole Wheat Bread (1 slice)'), calories: 105, protein: 4, carbs: 21, fat: 1.5 }
         ]),
         updatedAt: now,
         isDeleted: false
@@ -156,13 +172,16 @@ export async function seedSampleHealthData(token, targetDate = new Date().toISOS
       {
         id: `sample_food_lunch_${now}`,
         date: targetDate,
-        rawText: '180g ızgara tavuk göğsü, mevsim salata zeytinyağlı, 1 kase mercimek çorbası ve maden suyu',
-        summary: 'Izgara Tavuk Göğsü & Mercimek Çorbası',
+        rawText: tWeb(
+          '180g ızgara tavuk göğsü, mevsim salata zeytinyağlı, 1 kase mercimek çorbası ve maden suyu',
+          '180g grilled chicken breast, seasonal salad with olive oil, 1 bowl lentil soup, sparkling water'
+        ),
+        summary: tWeb('Izgara Tavuk Göğsü & Mercimek Çorbası', 'Grilled Chicken Breast & Lentil Soup'),
         totalCalories: 620,
         itemsJson: JSON.stringify([
-          { name: 'Izgara Tavuk Göğsü (180g)', calories: 300, protein: 54, carbs: 0, fat: 6 },
-          { name: 'Mercimek Çorbası (1 kase)', calories: 180, protein: 10, carbs: 26, fat: 4 },
-          { name: 'Zeytinyağlı Akdeniz Salata', calories: 140, protein: 2, carbs: 7, fat: 12 }
+          { name: tWeb('Izgara Tavuk Göğsü (180g)', 'Grilled Chicken Breast (180g)'), calories: 300, protein: 54, carbs: 0, fat: 6 },
+          { name: tWeb('Mercimek Çorbası (1 kase)', 'Lentil Soup (1 bowl)'), calories: 180, protein: 10, carbs: 26, fat: 4 },
+          { name: tWeb('Zeytinyağlı Akdeniz Salata', 'Mediterranean Salad w/ Olive Oil'), calories: 140, protein: 2, carbs: 7, fat: 12 }
         ]),
         updatedAt: now,
         isDeleted: false
@@ -170,13 +189,16 @@ export async function seedSampleHealthData(token, targetDate = new Date().toISOS
       {
         id: `sample_food_dinner_${now}`,
         date: targetDate,
-        rawText: 'Fırında somon balığı, buharda brokoli ve havuç, 4 yemek kaşığı basmati pirinç pilavı',
-        summary: 'Omega-3 Fırın Somon & Buharda Sebzeler',
+        rawText: tWeb(
+          'Fırında somon balığı, buharda brokoli ve havuç, 4 yemek kaşığı basmati pirinç pilavı',
+          'Baked salmon fillet, steamed broccoli and carrots, 4 tbsp basmati rice'
+        ),
+        summary: tWeb('Omega-3 Fırın Somon & Buharda Sebzeler', 'Omega-3 Baked Salmon & Steamed Veggies'),
         totalCalories: 580,
         itemsJson: JSON.stringify([
-          { name: 'Fırın Somon Fileto (150g)', calories: 330, protein: 34, carbs: 0, fat: 20 },
-          { name: 'Basmati Pilavı (1 porsiyon)', calories: 170, protein: 3, carbs: 36, fat: 1.5 },
-          { name: 'Buharda Brokoli & Havuç', calories: 80, protein: 3, carbs: 14, fat: 0.5 }
+          { name: tWeb('Fırın Somon Fileto (150g)', 'Baked Salmon Fillet (150g)'), calories: 330, protein: 34, carbs: 0, fat: 20 },
+          { name: tWeb('Basmati Pilavı (1 porsiyon)', 'Basmati Rice (1 serving)'), calories: 170, protein: 3, carbs: 36, fat: 1.5 },
+          { name: tWeb('Buharda Brokoli & Havuç', 'Steamed Broccoli & Carrots'), calories: 80, protein: 3, carbs: 14, fat: 0.5 }
         ]),
         updatedAt: now,
         isDeleted: false
@@ -202,12 +224,18 @@ export async function seedSampleHealthData(token, targetDate = new Date().toISOS
       {
         id: `sample_workout_1_${now}`,
         date: targetDate,
-        rawText: '40 dakika tempolu kardiyo koşu ve 15 dakika esneme / core egzersizleri',
+        rawText: tWeb(
+          '40 dakika tempolu kardiyo koşu ve 15 dakika esneme / core egzersizleri',
+          '40 min brisk cardio run and 15 min stretching / core exercises'
+        ),
         caloriesBurned: 410,
         durationMinutes: 55,
         targetCalories: 350,
         targetDurationMinutes: 45,
-        aiAnalysis: 'Mükemmel aerobik dayanıklılık seansı. Hedef nabız aralığında yağ yakımı optimize edildi.',
+        aiAnalysis: tWeb(
+          'Mükemmel aerobik dayanıklılık seansı. Hedef nabız aralığında yağ yakımı optimize edildi.',
+          'Great aerobic endurance session. Fat burn optimized within your target heart rate zone.'
+        ),
         updatedAt: now,
         isDeleted: false
       }
@@ -218,7 +246,7 @@ export async function seedSampleHealthData(token, targetDate = new Date().toISOS
         date: targetDate,
         weightKg: 76.4,
         targetWeightKg: 73.5,
-        note: 'Sabah aç karnına akıllı tartı ölçümü',
+        note: tWeb('Sabah aç karnına akıllı tartı ölçümü', 'Morning fasted smart scale weigh-in'),
         updatedAt: now,
         isDeleted: false
       }
@@ -363,7 +391,7 @@ export async function checkServerPing() {
     }
   } catch (_) {}
 
-  return { ok: false, error: 'Sunucuya ulaşılamıyor' };
+  return { ok: false, error: tWeb('Sunucuya ulaşılamıyor', 'Server unreachable') };
 }
 
 export async function checkDbStatus(token) {

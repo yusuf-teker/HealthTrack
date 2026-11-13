@@ -21,7 +21,7 @@ import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.module
 
 val featureModule = module {
-    viewModel { AuthViewModel(get(), get(), get(), get()) }
+    viewModel { AuthViewModel(get(), get(), get(), get(), get<Settings>()) }
     viewModel { FoodViewModel(get(), get(), get(), get(), get()) }
     viewModel { WorkoutViewModel(get(), get(), get(), get(), get()) }
     viewModel { WeightViewModel(get(), get(), get(), get()) }

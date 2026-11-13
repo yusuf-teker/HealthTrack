@@ -1,9 +1,11 @@
 package com.yusufteker.healthtrack.core.sync
 
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.*
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +35,7 @@ class SyncEngine(
     suspend fun sync(forceFullPull: Boolean = false): Boolean = syncMutex.withLock {
         val userId = tokenStorage.getUserId()
         if (userId <= 0 || tokenStorage.getAccessToken().isNullOrBlank()) {
-            _syncState.value = SyncState.Error("Oturum açılmamış.")
+            _syncState.value = SyncState.Error(trEn("Oturum açılmamış.", "Not signed in."))
             return@withLock false
         }
 
@@ -86,9 +88,14 @@ class SyncEngine(
             // ── 3. PULL FULL STATE FROM BACKEND (Planora-style 0L pull avoids clock-skew/offline timestamp misses) ──
             val pullResult = apiClient.pullSync(0L)
             if (pullResult.isFailure) {
-                val err = pullResult.exceptionOrNull()?.message
-                Napier.e("SYNC: Pull hatası: $err", pullResult.exceptionOrNull(), tag = "SYNC_LOG")
-                _syncState.value = SyncState.Error(pushError?.let { "Push: $it, Pull: $err" } ?: "Pull hatası: $err")
+                val pullThrowable = pullResult.exceptionOrNull()
+                Napier.e("SYNC: Pull hatası: ${pullThrowable?.message}", pullThrowable, tag = "SYNC_LOG")
+                val friendlyPullErr = pullThrowable?.let {
+                    formatActionableApiError(it, "Senkronizasyon", "Sync")
+                } ?: trEn("Senkronizasyon başarısız.", "Sync failed.")
+                _syncState.value = SyncState.Error(
+                    pushError?.let { "Push: $it | $friendlyPullErr" } ?: friendlyPullErr
+                )
                 return@withLock false
             }
 
@@ -185,7 +192,7 @@ class SyncEngine(
                         ironMg = goalDto.ironMg,
                         calciumMg = goalDto.calciumMg,
                         magnesiumMg = goalDto.magnesiumMg,
-                        fitnessGoal = if (shouldApplyRemoteGoal) inferredGoal.id else (localGoal?.fitnessGoal ?: inferredGoal.id),
+                        fitnessGoal = if (shouldApplyRemoteGoal) inferredGoal.id else localGoal.fitnessGoal,
                         updatedAt = goalDto.updatedAt,
                         isDeleted = goalDto.isDeleted,
                         syncStatus = SyncStatus.SYNCED
@@ -284,16 +291,26 @@ class SyncEngine(
             }
 
             if (pushError != null) {
-                _syncState.value = SyncState.Error("Yerel değişiklikler iletilemedi ($pushError) ancak sunucu güncellemeleri alındı.")
+                _syncState.value = SyncState.Error(
+                    trEn(
+                        "Yerel değişiklikler iletilemedi ($pushError) ancak sunucu güncellemeleri alındı.",
+                        "Local changes could not be pushed ($pushError), but server updates were pulled."
+                    )
+                )
                 return@withLock false
             } else {
-                _syncState.value = SyncState.Success("Veriler başarıyla senkronize edildi.")
+                _syncState.value = SyncState.Success(
+                    trEn("Veriler başarıyla senkronize edildi.", "Data synced successfully.")
+                )
                 Napier.i("SYNC: Senkronizasyon başarıyla tamamlandı.", tag = "SYNC_LOG")
                 return@withLock true
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Napier.e("SYNC: Senkronizasyon hatası: ${e.message}", e, tag = "SYNC_LOG")
-            _syncState.value = SyncState.Error("Senkronizasyon hatası: ${e.message}")
+            _syncState.value = SyncState.Error(
+                formatActionableApiError(e, "Senkronizasyon", "Sync")
+            )
             return@withLock false
         }
     }

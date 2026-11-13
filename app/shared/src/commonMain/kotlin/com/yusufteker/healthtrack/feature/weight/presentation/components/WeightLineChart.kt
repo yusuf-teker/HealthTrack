@@ -27,6 +27,8 @@ import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import kotlin.math.abs
@@ -43,6 +45,7 @@ fun WeightLineChart(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     var selectedIndex by remember(entries, selectedPeriod) { mutableStateOf<Int?>(null) }
 
     val latestEntry = entries.lastOrNull()
@@ -73,13 +76,13 @@ fun WeightLineChart(
             ) {
                 Column {
                     Text(
-                        text = "Kilo Eğrisi",
+                        text = str("Kilo Eğrisi", "Weight Curve"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = if (selectedIndex != null) "Noktaya dokunuldu" else "Trend & İnterpolasyon",
+                        text = if (selectedIndex != null) str("Noktaya dokunuldu", "Point selected") else str("Trend & İnterpolasyon", "Trend & Interpolation"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = if (selectedIndex != null) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -94,7 +97,7 @@ fun WeightLineChart(
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     PeriodPill(
-                        label = "Hafta",
+                        label = str("Hafta", "Week"),
                         selected = selectedPeriod == WeightChartPeriod.WEEKLY,
                         onClick = {
                             selectedIndex = null
@@ -102,7 +105,7 @@ fun WeightLineChart(
                         }
                     )
                     PeriodPill(
-                        label = "Ay",
+                        label = str("Ay", "Month"),
                         selected = selectedPeriod == WeightChartPeriod.MONTHLY,
                         onClick = {
                             selectedIndex = null
@@ -110,7 +113,7 @@ fun WeightLineChart(
                         }
                     )
                     PeriodPill(
-                        label = "Yıl",
+                        label = str("Yıl", "Year"),
                         selected = selectedPeriod == WeightChartPeriod.YEARLY,
                         onClick = {
                             selectedIndex = null
@@ -118,7 +121,7 @@ fun WeightLineChart(
                         }
                     )
                     PeriodPill(
-                        label = "Tümü",
+                        label = str("Tümü", "All"),
                         selected = selectedPeriod == WeightChartPeriod.ALL,
                         onClick = {
                             selectedIndex = null
@@ -150,7 +153,11 @@ fun WeightLineChart(
                                 .background(HealthColors.Primary)
                         )
                         Text(
-                            text = if (selectedIndex != null) "Seçilen: ${formatDisplayDateTr(activeEntry.date)}" else "Son: ${formatDisplayDateTr(activeEntry.date)}",
+                            text = if (selectedIndex != null) {
+                                str("Seçilen: ${formatDisplayDateTr(activeEntry.date, lang)}", "Selected: ${formatDisplayDateTr(activeEntry.date, lang)}")
+                            } else {
+                                str("Son: ${formatDisplayDateTr(activeEntry.date, lang)}", "Latest: ${formatDisplayDateTr(activeEntry.date, lang)}")
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -169,11 +176,13 @@ fun WeightLineChart(
                         if (deltaToDisplay != null) {
                             val roundedDelta = ((deltaToDisplay * 10).toInt()) / 10.0
                             val sign = if (roundedDelta > 0) "+" else ""
-                            val suffix = if (selectedIndex != null) "önceki güne göre" else when (selectedPeriod) {
-                                WeightChartPeriod.WEEKLY -> "bu hafta"
-                                WeightChartPeriod.MONTHLY -> "bu ay"
-                                WeightChartPeriod.YEARLY -> "bu yıl"
-                                WeightChartPeriod.ALL -> "toplam"
+                            val suffix = if (selectedIndex != null) {
+                                str("önceki güne göre", "vs prev day")
+                            } else when (selectedPeriod) {
+                                WeightChartPeriod.WEEKLY -> str("bu hafta", "this week")
+                                WeightChartPeriod.MONTHLY -> str("bu ay", "this month")
+                                WeightChartPeriod.YEARLY -> str("bu yıl", "this year")
+                                WeightChartPeriod.ALL -> str("toplam", "overall")
                             }
                             Text(
                                 text = "($sign$roundedDelta kg $suffix)",
@@ -182,7 +191,7 @@ fun WeightLineChart(
                             )
                         } else if (selectedIndex == null && entries.size == 1) {
                             Text(
-                                text = "(Kayıtlı)",
+                                text = str("(Kayıtlı)", "(Logged)"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -199,7 +208,7 @@ fun WeightLineChart(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Grafik için henüz yeterli kilo kaydı yok.",
+                        text = str("Grafik için henüz yeterli kilo kaydı yok.", "Not enough weigh-ins for a chart yet."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -207,7 +216,7 @@ fun WeightLineChart(
             } else {
                 // Interactive SVG/Canvas Smooth Bezier Telemetry Chart
                 val primaryColor = HealthColors.Primary
-                val targetLineColor = HealthColors.TertiaryContainer
+                val targetLineColor = MaterialTheme.colorScheme.tertiary
                 val gridColor = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
 
                 val weights = entries.map { it.weightKg }
@@ -356,7 +365,7 @@ fun WeightLineChart(
                                 .background(primaryColor)
                         )
                         Text(
-                            text = "Kilo Takibi",
+                            text = str("Kilo Takibi", "Weight Trend"),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -373,7 +382,7 @@ fun WeightLineChart(
                                 .background(targetLineColor)
                         )
                         Text(
-                            text = "Hedef ($targetWeightKg kg)",
+                            text = str("Hedef ($targetWeightKg kg)", "Goal ($targetWeightKg kg)"),
                             style = MaterialTheme.typography.labelSmall,
                             color = targetLineColor,
                             fontWeight = FontWeight.Bold

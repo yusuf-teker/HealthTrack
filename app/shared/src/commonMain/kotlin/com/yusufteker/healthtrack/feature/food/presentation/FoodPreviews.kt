@@ -35,6 +35,7 @@ import com.yusufteker.healthtrack.feature.food.presentation.components.Inventory
 import com.yusufteker.healthtrack.feature.food.presentation.components.NutrientBarsView
 import com.yusufteker.healthtrack.feature.food.presentation.components.QuickFoodPresetsView
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 
 private val sampleFoodItems = listOf(
     FoodItem(
@@ -576,6 +577,23 @@ private val sampleDailyMealPlan = DailyMealPlan(
 @Composable
 fun DailyMealPlanBottomSheetPreviewDark() {
     HealthTrackTheme(darkTheme = true) {
+        DailyMealPlanBottomSheet(
+            plan = sampleDailyMealPlan,
+            isLoading = false,
+            addedMealSlotTypes = setOf(MealSlotType.BREAKFAST),
+            onAddSlot = {},
+            onAddEntirePlan = {},
+            onRegenerate = {},
+            onOpenGroceryForMeal = { _, _ -> },
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun DailyMealPlanBottomSheetPreviewEnglish() {
+    HealthTrackTheme(darkTheme = true, language = AppLanguage.EN) {
         DailyMealPlanBottomSheet(
             plan = sampleDailyMealPlan,
             isLoading = false,

@@ -1,5 +1,7 @@
 package com.yusufteker.healthtrack.core.utils
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import kotlin.time.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -15,6 +17,16 @@ private val TURKISH_MONTHS = listOf(
 private val TURKISH_MONTHS_SHORT = listOf(
     "", "Oca", "Şub", "Mar", "Nis", "May", "Haz",
     "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"
+)
+
+private val ENGLISH_MONTHS = listOf(
+    "", "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+)
+
+private val ENGLISH_MONTHS_SHORT = listOf(
+    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 )
 
 data class WeekDayItem(
@@ -61,8 +73,15 @@ fun shiftDateIso(isoDate: String, days: Int): String {
 /**
  * Returns the 7 days of the week containing [centerDate], starting with Monday.
  */
-fun getWeekDaysForDate(centerDate: String): List<WeekDayItem> {
-    val dayNames = listOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
+fun getWeekDaysForDate(
+    centerDate: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): List<WeekDayItem> {
+    val dayNames = if (language == AppLanguage.TR) {
+        listOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
+    } else {
+        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    }
     return try {
         val parsed = LocalDate.parse(centerDate.trim())
         val dayIndex = parsed.dayOfWeek.ordinal // Monday is 0, Sunday is 6
@@ -82,12 +101,16 @@ fun getWeekDaysForDate(centerDate: String): List<WeekDayItem> {
 }
 
 /**
- * Formats ISO date to Month Year (e.g. "Kasım 2026").
+ * Formats ISO date to Month Year (e.g. "Kasım 2026" or "November 2026").
  */
-fun formatMonthYearHeader(isoDate: String): String {
+fun formatMonthYearHeader(
+    isoDate: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
     return try {
         val parsed = LocalDate.parse(isoDate.trim())
-        val monthName = TURKISH_MONTHS.getOrElse(parsed.month.ordinal + 1) { "" }
+        val months = if (language == AppLanguage.TR) TURKISH_MONTHS else ENGLISH_MONTHS
+        val monthName = months.getOrElse(parsed.month.ordinal + 1) { "" }
         "$monthName ${parsed.year}"
     } catch (_: Exception) {
         isoDate
@@ -102,17 +125,14 @@ fun normalizeDateToIso(input: String): String {
     val trimmed = input.trim()
     if (trimmed.isBlank()) return getTodayIso()
 
-    // Check GG.AA.YYYY or GG-AA-YYYY or GG/AA/YYYY
     val dmyParts = trimmed.split('.', '-', '/')
     if (dmyParts.size == 3) {
         if (dmyParts[0].length == 4) {
-            // Already YYYY-MM-DD
             val y = dmyParts[0]
             val m = dmyParts[1].padStart(2, '0')
             val d = dmyParts[2].padStart(2, '0')
             return "$y-$m-$d"
         } else if (dmyParts[2].length == 4) {
-            // GG.AA.YYYY -> convert to YYYY-MM-DD
             val d = dmyParts[0].padStart(2, '0')
             val m = dmyParts[1].padStart(2, '0')
             val y = dmyParts[2]
@@ -123,13 +143,17 @@ fun normalizeDateToIso(input: String): String {
 }
 
 /**
- * Formats ISO date (YYYY-MM-DD) to Turkish Gün Ay Yıl format (Örn: "04 Kasım 2026").
+ * Formats ISO date (YYYY-MM-DD) to localized Day Month Year format (e.g. "04 Kasım 2026" / "04 November 2026").
  */
-fun formatDisplayDateTr(isoDate: String): String {
+fun formatDisplayDateTr(
+    isoDate: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
     return try {
         val parts = isoDate.split("-").map { it.toInt() }
         val day = if (parts[2] < 10) "0${parts[2]}" else "${parts[2]}"
-        val month = TURKISH_MONTHS.getOrElse(parts[1]) { "" }
+        val months = if (language == AppLanguage.TR) TURKISH_MONTHS else ENGLISH_MONTHS
+        val month = months.getOrElse(parts[1]) { "" }
         val year = parts[0]
         "$day $month $year"
     } catch (_: Exception) {
@@ -138,28 +162,35 @@ fun formatDisplayDateTr(isoDate: String): String {
 }
 
 /**
- * Formats ISO date (YYYY-MM-DD) to numeric Gün.Ay.Yıl format (Örn: "04.11.2026").
+ * Formats ISO date (YYYY-MM-DD) to numeric DD.MM.YYYY (TR) or MM/DD/YYYY (EN).
  */
-fun formatShortDateTr(isoDate: String): String {
+fun formatShortDateTr(
+    isoDate: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
     return try {
         val parts = isoDate.split("-").map { it.toInt() }
         val day = if (parts[2] < 10) "0${parts[2]}" else "${parts[2]}"
         val month = if (parts[1] < 10) "0${parts[1]}" else "${parts[1]}"
         val year = parts[0]
-        "$day.$month.$year"
+        if (language == AppLanguage.TR) "$day.$month.$year" else "$month/$day/$year"
     } catch (_: Exception) {
         isoDate
     }
 }
 
 /**
- * Formats ISO date (YYYY-MM-DD) to compact Gün Ay Yıl format (Örn: "04 Kas 2026").
+ * Formats ISO date (YYYY-MM-DD) to compact Day Month Year format (e.g. "04 Kas 2026" / "04 Nov 2026").
  */
-fun formatDayMonthYear(isoDate: String): String {
+fun formatDayMonthYear(
+    isoDate: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
     return try {
         val parts = isoDate.split("-").map { it.toInt() }
         val day = if (parts[2] < 10) "0${parts[2]}" else "${parts[2]}"
-        val month = TURKISH_MONTHS_SHORT.getOrElse(parts[1]) { "" }
+        val monthsShort = if (language == AppLanguage.TR) TURKISH_MONTHS_SHORT else ENGLISH_MONTHS_SHORT
+        val month = monthsShort.getOrElse(parts[1]) { "" }
         val year = parts[0]
         "$day $month $year"
     } catch (_: Exception) {
@@ -183,16 +214,21 @@ fun getWeekBoundsIso(referenceDateIso: String): Pair<String, String> {
 }
 
 /**
- * Formats a Monday..Sunday ISO date range into a compact Turkish label (e.g. "02 Kas - 08 Kas 2026").
+ * Formats a Monday..Sunday ISO date range into a compact localized label (e.g. "02 - 08 Kas 2026" / "02 - 08 Nov 2026").
  */
-fun formatWeekRangeTr(mondayIso: String, sundayIso: String): String {
+fun formatWeekRangeTr(
+    mondayIso: String,
+    sundayIso: String,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
     return try {
         val mParts = mondayIso.split("-").map { it.toInt() }
         val sParts = sundayIso.split("-").map { it.toInt() }
         val mDay = if (mParts[2] < 10) "0${mParts[2]}" else "${mParts[2]}"
         val sDay = if (sParts[2] < 10) "0${sParts[2]}" else "${sParts[2]}"
-        val mMonth = TURKISH_MONTHS_SHORT.getOrElse(mParts[1]) { "" }
-        val sMonth = TURKISH_MONTHS_SHORT.getOrElse(sParts[1]) { "" }
+        val monthsShort = if (language == AppLanguage.TR) TURKISH_MONTHS_SHORT else ENGLISH_MONTHS_SHORT
+        val mMonth = monthsShort.getOrElse(mParts[1]) { "" }
+        val sMonth = monthsShort.getOrElse(sParts[1]) { "" }
         val year = sParts[0]
         if (mParts[1] == sParts[1]) {
             "$mDay - $sDay $sMonth $year"
@@ -206,7 +242,6 @@ fun formatWeekRangeTr(mondayIso: String, sundayIso: String): String {
 
 /**
  * Returns difference in days between [earlierDateIso] and [laterDateIso] (later - earlier).
- * Example: calculateDaysBetween("2026-11-09", "2026-11-12") -> 3.
  */
 fun calculateDaysBetween(earlierDateIso: String, laterDateIso: String): Int {
     return try {
@@ -217,5 +252,3 @@ fun calculateDaysBetween(earlierDateIso: String, laterDateIso: String): Int {
         0
     }
 }
-
-

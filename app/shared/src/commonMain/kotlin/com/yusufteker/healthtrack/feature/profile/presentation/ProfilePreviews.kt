@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.profile.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.theme.AppThemeColor
@@ -63,6 +64,43 @@ fun ProfileScreenEmeraldPreview() {
     HealthTrackTheme(darkTheme = true, themeAccent = AppThemeColor.EMERALD) {
         ProfileScreen(
             state = populatedProfileState.copy(themeAccent = AppThemeColor.EMERALD),
+            onIntent = {},
+            onBack = {},
+            onLogout = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun ProfileScreenEmptyPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        ProfileScreen(
+            state = ProfileState(
+                userId = 1,
+                name = "",
+                username = "yenikullanici",
+                weightKg = 0.0,
+                targetWeightKg = 0.0,
+                heightCm = 0.0,
+                age = 0,
+                latestWeightDate = null,
+                nutritionGoal = NutritionGoal(id = "default", userId = 1),
+                isDarkMode = true
+            ),
+            onIntent = {},
+            onBack = {},
+            onLogout = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun ProfileScreenEnglishPreview() {
+    HealthTrackTheme(darkTheme = true, themeAccent = AppThemeColor.TEAL, language = AppLanguage.EN) {
+        ProfileScreen(
+            state = populatedProfileState.copy(language = AppLanguage.EN),
             onIntent = {},
             onBack = {},
             onLogout = {}

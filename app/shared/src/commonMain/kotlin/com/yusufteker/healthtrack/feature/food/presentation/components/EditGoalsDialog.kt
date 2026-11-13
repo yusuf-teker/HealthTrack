@@ -35,8 +35,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
@@ -83,6 +86,7 @@ fun EditGoalsDialog(
     var showMicros by remember { mutableStateOf(false) }
 
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val scrollState = rememberScrollState()
 
     Dialog(
@@ -144,13 +148,13 @@ fun EditGoalsDialog(
 
                         Column {
                             Text(
-                                text = "Besin Hedefleri",
+                                text = str("Besin Hedefleri", "Nutrition Goals"),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Günlük kalori ve makro hedefleri",
+                                text = str("Günlük kalori ve makro hedefleri", "Daily calorie & macro targets"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -163,7 +167,7 @@ fun EditGoalsDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = str("Kapat", "Close"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -178,13 +182,13 @@ fun EditGoalsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Fitness & Beslenme Hedefi",
+                        text = str("Fitness & Beslenme Hedefi", "Fitness & Nutrition Goal"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = HealthColors.Primary
                     )
                     Text(
-                        text = "Kilo: ${currentWeight.toInt()} kg",
+                        text = str("Kilo: ${currentWeight.toInt()} kg", "Weight: ${currentWeight.toInt()} kg"),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -196,7 +200,7 @@ fun EditGoalsDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     GoalPresetChip(
-                        title = "Kilo Verme",
+                        title = FitnessGoal.LOSE_WEIGHT.localizedTitle(lang),
                         sub = "1.2x (${(currentWeight * 1.2).toInt()}g)",
                         isSelected = selectedFitnessGoal == FitnessGoal.LOSE_WEIGHT,
                         onClick = {
@@ -210,7 +214,7 @@ fun EditGoalsDialog(
                         modifier = Modifier.weight(1f)
                     )
                     GoalPresetChip(
-                        title = "Sabit Kalma",
+                        title = FitnessGoal.MAINTAIN.localizedTitle(lang),
                         sub = "1.0x (${(currentWeight * 1.0).toInt()}g)",
                         isSelected = selectedFitnessGoal == FitnessGoal.MAINTAIN,
                         onClick = {
@@ -224,7 +228,7 @@ fun EditGoalsDialog(
                         modifier = Modifier.weight(1f)
                     )
                     GoalPresetChip(
-                        title = "Kaslanma",
+                        title = FitnessGoal.BUILD_MUSCLE.localizedTitle(lang),
                         sub = "1.4x (${(currentWeight * 1.4).toInt()}g)",
                         isSelected = selectedFitnessGoal == FitnessGoal.BUILD_MUSCLE,
                         onClick = {
@@ -253,12 +257,18 @@ fun EditGoalsDialog(
                     ) {
                         Column {
                             Text(
-                                text = "Aktif Hedef: ${selectedFitnessGoal.title}",
+                                text = str(
+                                    "Aktif Hedef: ${selectedFitnessGoal.localizedTitle(lang)}",
+                                    "Active Goal: ${selectedFitnessGoal.localizedTitle(lang)}"
+                                ),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = HealthColors.NutrientProtein
                             )
                             Text(
-                                text = "${currentWeight.toInt()} kg × ${selectedFitnessGoal.proteinMultiplier}x = ${(currentWeight * selectedFitnessGoal.proteinMultiplier).toInt()}g protein/gün",
+                                text = str(
+                                    "${currentWeight.toInt()} kg × ${selectedFitnessGoal.proteinMultiplier}x = ${(currentWeight * selectedFitnessGoal.proteinMultiplier).toInt()}g protein/gün",
+                                    "${currentWeight.toInt()} kg × ${selectedFitnessGoal.proteinMultiplier}x = ${(currentWeight * selectedFitnessGoal.proteinMultiplier).toInt()}g protein/day"
+                                ),
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -298,7 +308,7 @@ fun EditGoalsDialog(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Günlük Hedef Kalori",
+                                    text = str("Günlük Hedef Kalori", "Daily Calorie Target"),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -348,7 +358,7 @@ fun EditGoalsDialog(
 
                 // Macro Grid (Protein, Carbs, Fat, Fiber)
                 Text(
-                    text = "Makro Besinler (Günlük Gram)",
+                    text = str("Makro Besinler (Günlük Gram)", "Macronutrients (Daily Grams)"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = HealthColors.Primary
@@ -367,7 +377,7 @@ fun EditGoalsDialog(
                         modifier = Modifier.weight(1f)
                     )
                     MacroInputCard(
-                        title = "Karbonhidrat",
+                        title = str("Karbonhidrat", "Carbohydrates"),
                         value = carbsText,
                         onValueChange = { carbsText = it },
                         color = HealthColors.NutrientCarbs,
@@ -381,7 +391,7 @@ fun EditGoalsDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     MacroInputCard(
-                        title = "Yağ",
+                        title = str("Yağ", "Fat"),
                         value = fatText,
                         onValueChange = { fatText = it },
                         color = HealthColors.NutrientLipids,
@@ -389,7 +399,7 @@ fun EditGoalsDialog(
                         modifier = Modifier.weight(1f)
                     )
                     MacroInputCard(
-                        title = "Lif",
+                        title = str("Lif", "Fiber"),
                         value = fiberText,
                         onValueChange = { fiberText = it },
                         color = HealthColors.NutrientFiber,
@@ -425,7 +435,7 @@ fun EditGoalsDialog(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Mikro Besinler & Vitaminler",
+                                text = str("Mikro Besinler & Vitaminler", "Micronutrients & Vitamins"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -452,13 +462,13 @@ fun EditGoalsDialog(
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             MicroInputField(
-                                label = "C Vit (mg)",
+                                label = str("C Vit (mg)", "Vit C (mg)"),
                                 value = vitCText,
                                 onValueChange = { vitCText = it },
                                 modifier = Modifier.weight(1f)
                             )
                             MicroInputField(
-                                label = "D Vit (µg)",
+                                label = str("D Vit (µg)", "Vit D (µg)"),
                                 value = vitDText,
                                 onValueChange = { vitDText = it },
                                 modifier = Modifier.weight(1f)
@@ -466,13 +476,13 @@ fun EditGoalsDialog(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             MicroInputField(
-                                label = "B12 Vit (µg)",
+                                label = str("B12 Vit (µg)", "Vit B12 (µg)"),
                                 value = vitB12Text,
                                 onValueChange = { vitB12Text = it },
                                 modifier = Modifier.weight(1f)
                             )
                             MicroInputField(
-                                label = "Demir (mg)",
+                                label = str("Demir (mg)", "Iron (mg)"),
                                 value = ironText,
                                 onValueChange = { ironText = it },
                                 modifier = Modifier.weight(1f)
@@ -480,13 +490,13 @@ fun EditGoalsDialog(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             MicroInputField(
-                                label = "Kalsiyum (mg)",
+                                label = str("Kalsiyum (mg)", "Calcium (mg)"),
                                 value = calciumText,
                                 onValueChange = { calciumText = it },
                                 modifier = Modifier.weight(1f)
                             )
                             MicroInputField(
-                                label = "Magnezyum (mg)",
+                                label = str("Magnezyum (mg)", "Magnesium (mg)"),
                                 value = magnesiumText,
                                 onValueChange = { magnesiumText = it },
                                 modifier = Modifier.weight(1f)
@@ -513,7 +523,7 @@ fun EditGoalsDialog(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Text(
-                            text = "İptal",
+                            text = str("İptal", "Cancel"),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -522,17 +532,17 @@ fun EditGoalsDialog(
                     Button(
                         onClick = {
                             val updated = currentGoal.copy(
-                                calories = caloriesText.toIntOrNull() ?: currentGoal.calories,
-                                proteinG = proteinText.toDoubleOrNull() ?: currentGoal.proteinG,
-                                carbsG = carbsText.toDoubleOrNull() ?: currentGoal.carbsG,
-                                fatG = fatText.toDoubleOrNull() ?: currentGoal.fatG,
-                                fiberG = fiberText.toDoubleOrNull() ?: currentGoal.fiberG,
-                                vitaminCMg = vitCText.toDoubleOrNull() ?: currentGoal.vitaminCMg,
-                                vitaminDUg = vitDText.toDoubleOrNull() ?: currentGoal.vitaminDUg,
-                                vitaminB12Ug = vitB12Text.toDoubleOrNull() ?: currentGoal.vitaminB12Ug,
-                                ironMg = ironText.toDoubleOrNull() ?: currentGoal.ironMg,
-                                calciumMg = calciumText.toDoubleOrNull() ?: currentGoal.calciumMg,
-                                magnesiumMg = magnesiumText.toDoubleOrNull() ?: currentGoal.magnesiumMg,
+                                calories = caloriesText.trim().toIntOrNull() ?: currentGoal.calories,
+                                proteinG = proteinText.toLocaleDoubleOrNull() ?: currentGoal.proteinG,
+                                carbsG = carbsText.toLocaleDoubleOrNull() ?: currentGoal.carbsG,
+                                fatG = fatText.toLocaleDoubleOrNull() ?: currentGoal.fatG,
+                                fiberG = fiberText.toLocaleDoubleOrNull() ?: currentGoal.fiberG,
+                                vitaminCMg = vitCText.toLocaleDoubleOrNull() ?: currentGoal.vitaminCMg,
+                                vitaminDUg = vitDText.toLocaleDoubleOrNull() ?: currentGoal.vitaminDUg,
+                                vitaminB12Ug = vitB12Text.toLocaleDoubleOrNull() ?: currentGoal.vitaminB12Ug,
+                                ironMg = ironText.toLocaleDoubleOrNull() ?: currentGoal.ironMg,
+                                calciumMg = calciumText.toLocaleDoubleOrNull() ?: currentGoal.calciumMg,
+                                magnesiumMg = magnesiumText.toLocaleDoubleOrNull() ?: currentGoal.magnesiumMg,
                                 fitnessGoal = selectedFitnessGoal.id
                             )
                             onSave(updated, selectedFitnessGoal)
@@ -552,7 +562,7 @@ fun EditGoalsDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Hedefleri Kaydet",
+                                text = str("Hedefleri Kaydet", "Save Targets"),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

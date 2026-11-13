@@ -44,6 +44,8 @@ import com.yusufteker.healthtrack.feature.weight.presentation.components.EditTar
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
@@ -60,7 +62,6 @@ fun WeightScreen(
 ) {
     val deviceHealthBridge = rememberDeviceHealthBridge()
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
-    var showAddWeightDialog by remember { mutableStateOf(false) }
 
     // Auto-sync smart scale & weight silently on screen entry if permissions are already authorized
     LaunchedEffect(Unit) {
@@ -97,11 +98,11 @@ fun WeightScreen(
         )
     }
 
-    if (showAddWeightDialog) {
+    if (state.isAddDialogOpen) {
         AddWeightDialog(
             state = state,
             onIntent = onIntent,
-            onDismiss = { showAddWeightDialog = false }
+            onDismiss = { onIntent(WeightIntent.OnSetAddDialogOpen(false)) }
         )
     }
 
@@ -131,7 +132,7 @@ fun WeightScreen(
                 state = state,
                 showScaleSync = deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED,
                 onEditTarget = { onIntent(WeightIntent.OnSetEditingTarget(true)) },
-                onOpenAddWeight = { showAddWeightDialog = true },
+                onOpenAddWeight = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
                 onOpenReminder = { onIntent(WeightIntent.OnSetReminderDialogOpen(true)) },
                 onSyncScale = {
                     if (!state.isSyncingScale) {
@@ -161,7 +162,7 @@ fun WeightScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Kilo Geçmişi",
+                    text = str("Kilo Geçmişi", "Weight History"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -173,7 +174,7 @@ fun WeightScreen(
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "${state.entries.size} Kayıt",
+                        text = str("${state.entries.size} Kayıt", "${state.entries.size} Entries"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -194,18 +195,18 @@ fun WeightScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Henüz tartım kaydı bulunmuyor.",
+                            text = str("Henüz tartım kaydı bulunmuyor.", "No weigh-in entries yet."),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         OutlinedButton(
-                            onClick = { showAddWeightDialog = true },
+                            onClick = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
                             shape = RoundedCornerShape(999.dp),
                             modifier = Modifier.bounceClick()
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("İlk Kilonuzu Ekleyin", fontWeight = FontWeight.SemiBold)
+                            Text(str("İlk Kilonuzu Ekleyin", "Add Your First Weigh-in"), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -225,7 +226,7 @@ fun WeightScreen(
 
         // ── Floating Action Button: Clean '+' FAB ──
         FloatingActionButton(
-            onClick = { showAddWeightDialog = true },
+            onClick = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 16.dp, end = 16.dp)
@@ -238,7 +239,7 @@ fun WeightScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Kilo Ekle",
+                contentDescription = str("Kilo Ekle", "Add Weight"),
                 tint = HealthColors.OnPrimary,
                 modifier = Modifier.size(28.dp)
             )
@@ -317,13 +318,13 @@ private fun AddWeightDialog(
                         }
                         Column {
                             Text(
-                                text = "Kilo Kaydet",
+                                text = str("Kilo Kaydet", "Log Weight"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Günlük tartım verinizi girin",
+                                text = str("Günlük tartım verinizi girin", "Enter your daily weigh-in"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -335,7 +336,7 @@ private fun AddWeightDialog(
                     ) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = str("Kapat", "Close"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -348,8 +349,10 @@ private fun AddWeightDialog(
                 OutlinedTextField(
                     value = state.inputWeight,
                     onValueChange = { onIntent(WeightIntent.OnInputWeightChanged(it)) },
-                    label = { Text("Kilo (kg)") },
-                    placeholder = { Text("Örn: 74.5") },
+                    label = { Text(str("Kilo (kg)", "Weight (kg)")) },
+                    placeholder = { Text(str("Örn: 74.5", "e.g. 74.5")) },
+                    isError = state.errorMessage != null,
+                    supportingText = state.errorMessage?.let { err -> { Text(err) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -369,12 +372,12 @@ private fun AddWeightDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📅 Tarih: ${state.inputDate}",
+                            text = str("📅 Tarih: ${state.inputDate}", "📅 Date: ${state.inputDate}"),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = if (showExtraFields) "Gizle" else "Tarih / Not Değiştir",
+                            text = if (showExtraFields) str("Gizle", "Hide") else str("Tarih / Not Değiştir", "Edit Date / Note"),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = HealthColors.Primary
                         )
@@ -386,7 +389,7 @@ private fun AddWeightDialog(
                         OutlinedTextField(
                             value = state.inputDate,
                             onValueChange = { onIntent(WeightIntent.OnInputDateChanged(it)) },
-                            label = { Text("Tarih (GG.AA.YYYY)") },
+                            label = { Text(str("Tarih (GG.AA.YYYY)", "Date (DD.MM.YYYY)")) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
@@ -394,8 +397,8 @@ private fun AddWeightDialog(
                         OutlinedTextField(
                             value = state.inputNote,
                             onValueChange = { onIntent(WeightIntent.OnInputNoteChanged(it)) },
-                            label = { Text("Not (Opsiyonel)") },
-                            placeholder = { Text("Aç karna, antrenman sonrası...") },
+                            label = { Text(str("Not (Opsiyonel)", "Note (Optional)")) },
+                            placeholder = { Text(str("Aç karna, antrenman sonrası...", "Fasted morning, post-workout...")) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
@@ -415,13 +418,12 @@ private fun AddWeightDialog(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Vazgeç")
+                        Text(str("Vazgeç", "Cancel"))
                     }
 
                     Button(
                         onClick = {
                             onIntent(WeightIntent.OnSaveWeightClicked)
-                            onDismiss()
                         },
                         modifier = Modifier.weight(1.3f).height(48.dp).bounceClick(),
                         shape = RoundedCornerShape(14.dp),
@@ -432,7 +434,7 @@ private fun AddWeightDialog(
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kaydet", fontWeight = FontWeight.Bold)
+                        Text(str("Kaydet", "Save"), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -502,7 +504,7 @@ private fun CurrentBioMassHeroCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Vücut Ağırlığı",
+                        text = str("Vücut Ağırlığı", "Body Weight"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -535,7 +537,7 @@ private fun CurrentBioMassHeroCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Timer,
-                                contentDescription = "Tartı Hatırlatıcısı",
+                                contentDescription = str("Tartı Hatırlatıcısı", "Weigh-in Reminder"),
                                 tint = if (isReminderOff) {
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 } else {
@@ -602,7 +604,7 @@ private fun CurrentBioMassHeroCard(
                         )
                     }
                     Text(
-                        text = "Güncel Kilo",
+                        text = str("Güncel Kilo", "Current Weight"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -621,14 +623,14 @@ private fun CurrentBioMassHeroCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Hedef: $target kg",
+                                text = str("Hedef: $target kg", "Goal: $target kg"),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = HealthColors.Primary
                             )
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Hedefi Düzenle",
+                                contentDescription = str("Hedefi Düzenle", "Edit Goal"),
                                 tint = HealthColors.Primary,
                                 modifier = Modifier.size(13.dp)
                             )
@@ -636,7 +638,7 @@ private fun CurrentBioMassHeroCard(
                     }
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = if (percentage > 0) "%$percentage tamamlandı" else "Hedef belirlendi",
+                        text = if (percentage > 0) str("%$percentage tamamlandı", "$percentage% completed") else str("Hedef belirlendi", "Goal set"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -670,12 +672,12 @@ private fun CurrentBioMassHeroCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Başlangıç: ${initial ?: "–"} kg",
+                        text = str("Başlangıç: ${initial ?: "–"} kg", "Start: ${initial ?: "–"} kg"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Hedef: $target kg",
+                        text = str("Hedef: $target kg", "Goal: $target kg"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = HealthColors.Primary
@@ -704,7 +706,7 @@ private fun CurrentBioMassHeroCard(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Kilo Ekle", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(str("Kilo Ekle", "Add Weight"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
 
                 if (showScaleSync) {
@@ -726,7 +728,7 @@ private fun CurrentBioMassHeroCard(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
-                            text = if (state.isSyncingScale) "Okunuyor..." else "⚖️ Tartıdan Çek",
+                            text = if (state.isSyncingScale) str("Okunuyor...", "Reading...") else str("⚖️ Tartıdan Çek", "⚖️ Sync Scale"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = HealthColors.Primary
@@ -739,7 +741,7 @@ private fun CurrentBioMassHeroCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.HelpOutline,
-                            contentDescription = "Tartı Nasıl Bağlanır?",
+                            contentDescription = str("Tartı Nasıl Bağlanır?", "How to Connect Scale?"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -786,9 +788,10 @@ private fun LuxuryWeightHistoryItem(
                     )
                 }
 
+                val lang = appLang()
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = formatDisplayDateTr(entry.date),
+                        text = formatDisplayDateTr(entry.date, lang),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -819,7 +822,7 @@ private fun LuxuryWeightHistoryItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Sil",
+                        contentDescription = str("Sil", "Delete"),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                         modifier = Modifier.size(18.dp)
                     )

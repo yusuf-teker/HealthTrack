@@ -31,9 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.model.AppVersionConfigDto
 import com.yusufteker.healthtrack.getPlatform
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 
 @Composable
 fun ForceUpdateDialog(
@@ -42,16 +45,30 @@ fun ForceUpdateDialog(
     onDismiss: () -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
+    val lang = appLang()
     val isIos = getPlatform().name.contains("iOS", ignoreCase = true)
     val targetStoreUrl = if (isIos) config.storeUrlIos else config.storeUrlAndroid
 
-    val titleText = config.forceUpdateTitleTr?.takeIf { it.isNotBlank() }
-        ?: if (isForceUpdate) "Zorunlu Güncelleme" else "Yeni Güncelleme Mevcut"
-    val messageText = config.forceUpdateMessageTr?.takeIf { it.isNotBlank() }
+    val localizedConfigTitle = if (lang == AppLanguage.TR) config.forceUpdateTitleTr else config.forceUpdateTitleEn
+    val localizedConfigMessage = if (lang == AppLanguage.TR) config.forceUpdateMessageTr else config.forceUpdateMessageEn
+
+    val titleText = localizedConfigTitle?.takeIf { it.isNotBlank() }
         ?: if (isForceUpdate) {
-            "HealthTrack'i kullanmaya devam edebilmek için lütfen uygulamayı son sürüme güncelleyin."
+            str("Zorunlu Güncelleme", "Update Required")
         } else {
-            "HealthTrack'in yeni bir sürümü yayınlandı. En iyi deneyim için güncelleyebilirsiniz."
+            str("Yeni Güncelleme Mevcut", "New Update Available")
+        }
+    val messageText = localizedConfigMessage?.takeIf { it.isNotBlank() }
+        ?: if (isForceUpdate) {
+            str(
+                "HealthTrack'i kullanmaya devam edebilmek için lütfen uygulamayı son sürüme güncelleyin.",
+                "Please update HealthTrack to the latest version to keep using the app."
+            )
+        } else {
+            str(
+                "HealthTrack'in yeni bir sürümü yayınlandı. En iyi deneyim için güncelleyebilirsiniz.",
+                "A new version of HealthTrack has been released. Update now for the best experience."
+            )
         }
 
     Dialog(
@@ -132,7 +149,7 @@ fun ForceUpdateDialog(
                     modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
                     Text(
-                        text = "Şimdi Güncelle",
+                        text = str("Şimdi Güncelle", "Update Now"),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -144,7 +161,7 @@ fun ForceUpdateDialog(
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth().height(46.dp)
                     ) {
-                        Text(text = "Daha Sonra")
+                        Text(text = str("Daha Sonra", "Later"))
                     }
                 }
             }

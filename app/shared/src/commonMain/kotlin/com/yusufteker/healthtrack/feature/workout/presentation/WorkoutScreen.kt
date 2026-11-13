@@ -45,6 +45,8 @@ import com.yusufteker.healthtrack.core.utils.rememberSpeechToTextLauncher
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.CrossedBarbellPlusIcon
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
@@ -70,6 +72,7 @@ fun WorkoutScreen(
 
     val todayIso = remember { getTodayIso() }
     val isSelectedToday = state.selectedDate == todayIso
+    val lang = appLang()
     val markedWorkoutDates = remember(state.allWorkouts) {
         state.allWorkouts.map { it.date }.toSet()
     }
@@ -163,18 +166,18 @@ fun WorkoutScreen(
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(CircleShape)
-                                .background(HealthColors.TertiaryContainer.copy(alpha = 0.2f)),
+                                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = HealthColors.TertiaryContainer,
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                         Text(
-                            text = "Egzersiz Ekle (AI)",
+                            text = str("Egzersiz Ekle (AI)", "Add Workout (AI)"),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -185,7 +188,7 @@ fun WorkoutScreen(
                         onClick = { showManualFields = !showManualFields },
                         shape = RoundedCornerShape(999.dp),
                         color = if (showManualFields) {
-                            HealthColors.TertiaryContainer.copy(alpha = 0.22f)
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.22f)
                         } else {
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                         },
@@ -199,14 +202,14 @@ fun WorkoutScreen(
                             Icon(
                                 imageVector = if (showManualFields) Icons.Default.Close else Icons.Default.Edit,
                                 contentDescription = null,
-                                tint = if (showManualFields) HealthColors.TertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (showManualFields) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = if (showManualFields) "Manuel Gizle" else "Manuel Giriş",
+                                text = if (showManualFields) str("Manuel Gizle", "Hide Manual") else str("Manuel Giriş", "Manual Entry"),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (showManualFields) HealthColors.TertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (showManualFields) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -218,7 +221,10 @@ fun WorkoutScreen(
                     onValueChange = { onIntent(WorkoutIntent.OnRawTextChanged(it)) },
                     placeholder = {
                         Text(
-                            "Hangi sporu yaptınız? Örn: 45 dk koşu, ağırlık...",
+                            str(
+                                "Hangi sporu yaptınız? Örn: 45 dk koşu, ağırlık...",
+                                "What workout did you do? e.g. 45 min run, weights..."
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
@@ -236,16 +242,20 @@ fun WorkoutScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Temizle",
+                                        contentDescription = str("Temizle", "Clear"),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
                             if (speechLauncher.isAvailable) {
+                                val voicePrompt = str(
+                                    "Hangi antrenmanı yaptınız? Sesinizle söyleyin...",
+                                    "What workout did you do? Speak now..."
+                                )
                                 IconButton(
                                     onClick = {
-                                        speechLauncher.launch("Hangi antrenmanı yaptınız? Sesinizle söyleyin...") { spokenText ->
+                                        speechLauncher.launch(voicePrompt) { spokenText ->
                                             val current = state.rawText.trim()
                                             val updated = if (current.isBlank()) spokenText else "$current, $spokenText"
                                             onIntent(WorkoutIntent.OnRawTextChanged(updated))
@@ -259,7 +269,7 @@ fun WorkoutScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Mic,
-                                        contentDescription = "Sesle Söyle",
+                                        contentDescription = str("Sesle Söyle", "Voice Input"),
                                         tint = HealthColors.Primary,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -270,7 +280,7 @@ fun WorkoutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = HealthColors.TertiaryContainer,
+                        focusedBorderColor = MaterialTheme.colorScheme.tertiary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                         focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
@@ -280,26 +290,30 @@ fun WorkoutScreen(
                 )
 
                 // Quick Logging Chips (No duplicate mic chip)
+                val runChipText = str("30 dk koşu", "30 min run")
+                val weightsChipText = str("45 dk ağırlık antrenmanı", "45 min weight training")
+                val hiitChipText = str("20 dk HIIT kardiyo", "20 min HIIT cardio")
+                val walkChipText = str("40 dk tempolu yürüyüş", "40 min brisk walk")
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    WorkoutQuickChip(label = "+ 30 dk Koşu") {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, 30 dk koşu" else "30 dk koşu"
+                    WorkoutQuickChip(label = str("+ 30 dk Koşu", "+ 30 min Run")) {
+                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $runChipText" else runChipText
                         onIntent(WorkoutIntent.OnRawTextChanged(current))
                     }
-                    WorkoutQuickChip(label = "+ 45 dk Ağırlık") {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, 45 dk ağırlık antrenmanı" else "45 dk ağırlık antrenmanı"
+                    WorkoutQuickChip(label = str("+ 45 dk Ağırlık", "+ 45 min Weights")) {
+                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $weightsChipText" else weightsChipText
                         onIntent(WorkoutIntent.OnRawTextChanged(current))
                     }
-                    WorkoutQuickChip(label = "+ 20 dk HIIT") {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, 20 dk yüksek yoğunluklu kardiyo" else "20 dk HIIT kardiyo"
+                    WorkoutQuickChip(label = str("+ 20 dk HIIT", "+ 20 min HIIT")) {
+                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $hiitChipText" else hiitChipText
                         onIntent(WorkoutIntent.OnRawTextChanged(current))
                     }
-                    WorkoutQuickChip(label = "+ 40 dk Yürüyüş") {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, 40 dk tempolu yürüyüş" else "40 dk tempolu yürüyüş"
+                    WorkoutQuickChip(label = str("+ 40 dk Yürüyüş", "+ 40 min Walk")) {
+                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $walkChipText" else walkChipText
                         onIntent(WorkoutIntent.OnRawTextChanged(current))
                     }
                 }
@@ -314,17 +328,23 @@ fun WorkoutScreen(
                     ) {
                         Text(
                             text = if (workoutAiQuota.isPremium) {
-                                "Premium AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
+                                str(
+                                    "Premium AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}",
+                                    "Premium AI Quota: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
+                                )
                             } else {
-                                "Günlük AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
+                                str(
+                                    "Günlük AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}",
+                                    "Daily AI Quota: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
+                                )
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (isExhausted) HealthColors.Error else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (isExhausted) {
                             Text(
-                                text = "Profil > Özel API Key ile sınırsız",
+                                text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = HealthColors.Primary
                             )
@@ -356,7 +376,7 @@ fun WorkoutScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Yakılan Kalori Hesaplanıyor...",
+                            str("Yakılan Kalori Hesaplanıyor...", "Calculating Calories Burned..."),
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
@@ -369,7 +389,10 @@ fun WorkoutScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
+                            str(
+                                "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
+                                "Calculate with AI (${state.userWeightKg} kg)"
+                            ),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = Color.White
@@ -396,7 +419,7 @@ fun WorkoutScreen(
                             OutlinedTextField(
                                 value = state.manualCalories,
                                 onValueChange = { onIntent(WorkoutIntent.OnManualCaloriesChanged(it)) },
-                                label = { Text("Kalori (kcal)") },
+                                label = { Text(str("Kalori (kcal)", "Calories (kcal)")) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
@@ -405,7 +428,7 @@ fun WorkoutScreen(
                             OutlinedTextField(
                                 value = state.manualDuration,
                                 onValueChange = { onIntent(WorkoutIntent.OnManualDurationChanged(it)) },
-                                label = { Text("Süre (dk)") },
+                                label = { Text(str("Süre (dk)", "Duration (min)")) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
@@ -424,13 +447,13 @@ fun WorkoutScreen(
                                 .bounceClick(),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = HealthColors.TertiaryContainer,
-                                contentColor = HealthColors.OnTertiary
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary
                             )
                         ) {
                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Elle Kaydet", fontWeight = FontWeight.SemiBold)
+                            Text(str("Elle Kaydet", "Save Manually"), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -448,7 +471,11 @@ fun WorkoutScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = if (isSelectedToday) "Bugünkü Aktiviteler" else "${formatDisplayDateTr(state.selectedDate)} Aktiviteleri",
+                    text = if (isSelectedToday) {
+                        str("Bugünkü Aktiviteler", "Today's Activities")
+                    } else {
+                        str("${formatDisplayDateTr(state.selectedDate, lang)} Aktiviteleri", "${formatDisplayDateTr(state.selectedDate, lang)} Activities")
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -460,7 +487,7 @@ fun WorkoutScreen(
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "${state.workouts.size} Kayıt",
+                        text = str("${state.workouts.size} Kayıt", "${state.workouts.size} Logged"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -482,7 +509,7 @@ fun WorkoutScreen(
                             }
                         },
                         shape = RoundedCornerShape(999.dp),
-                        color = HealthColors.TertiaryContainer.copy(alpha = 0.16f),
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f),
                         modifier = Modifier.bounceClick()
                     ) {
                         Row(
@@ -494,14 +521,14 @@ fun WorkoutScreen(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(12.dp),
                                     strokeWidth = 1.5.dp,
-                                    color = HealthColors.TertiaryContainer
+                                    color = MaterialTheme.colorScheme.tertiary
                                 )
                             }
                             Text(
-                                text = if (state.isSyncingWatch) "Saat Okunuyor..." else "⌚ Saatten Çek",
+                                text = if (state.isSyncingWatch) str("Saat Okunuyor...", "Reading Watch...") else str("⌚ Saatten Çek", "⌚ Sync Watch"),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = HealthColors.TertiaryContainer
+                                color = MaterialTheme.colorScheme.tertiary
                             )
                         }
                     }
@@ -513,7 +540,7 @@ fun WorkoutScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.HelpOutline,
-                        contentDescription = "Saat Nasıl Bağlanır?",
+                        contentDescription = str("Saat Nasıl Bağlanır?", "How to Connect Watch?"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
@@ -544,7 +571,14 @@ fun WorkoutScreen(
                             modifier = Modifier.size(30.dp)
                         )
                         Text(
-                            text = if (isSelectedToday) "Bugün için henüz egzersiz kaydedilmedi." else "${formatDisplayDateTr(state.selectedDate)} için egzersiz kaydı yok.",
+                            text = if (isSelectedToday) {
+                                str("Bugün için henüz egzersiz kaydedilmedi.", "No workouts logged for today yet.")
+                            } else {
+                                str(
+                                    "${formatDisplayDateTr(state.selectedDate, lang)} için egzersiz kaydı yok.",
+                                    "No workouts logged for ${formatDisplayDateTr(state.selectedDate, lang)}."
+                                )
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -619,11 +653,11 @@ private fun WorkoutStrainHeroCard(
                     Icon(
                         imageVector = Icons.Default.LocalFireDepartment,
                         contentDescription = null,
-                        tint = HealthColors.TertiaryContainer,
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Egzersiz & Efor",
+                        text = str("Egzersiz & Efor", "Exercise & Effort"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -637,11 +671,11 @@ private fun WorkoutStrainHeroCard(
                     // Reminder Frequency Pill Button
                     val isReminderOff = state.reminderFrequency == com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF
                     val reminderLabel = when (state.reminderFrequency) {
-                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF -> "Hatırlatıcı: Kapalı"
-                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE -> "Hatırlatıcı: Akıllı"
-                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.EVERY_2_DAYS -> "Hatırlatıcı: 2 Günde 1"
-                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.THREE_DAYS_WEEK -> "Hatırlatıcı: Haftada 3"
-                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.EVERY_DAY -> "Hatırlatıcı: Her Gün"
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF -> str("Kapalı", "Off")
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.SMART_CADENCE -> str("Akıllı", "Smart")
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.EVERY_2_DAYS -> str("2 Günde 1", "Every 2 Days")
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.THREE_DAYS_WEEK -> str("Haftada 3", "3x / Week")
+                        com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.EVERY_DAY -> str("Her Gün", "Daily")
                     }
 
                     Surface(
@@ -663,7 +697,7 @@ private fun WorkoutStrainHeroCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Timer,
-                                contentDescription = "Hatırlatıcı Ayarları",
+                                contentDescription = str("Hatırlatıcı Ayarları", "Reminder Settings"),
                                 tint = if (isReminderOff) {
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 } else {
@@ -687,14 +721,14 @@ private fun WorkoutStrainHeroCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(HealthColors.TertiaryContainer.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "%$percentage Hedef",
+                            text = str("%$percentage Hedef", "$percentage% Goal"),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = HealthColors.TertiaryContainer
+                            color = MaterialTheme.colorScheme.tertiary
                         )
                     }
                 }
@@ -710,10 +744,10 @@ private fun WorkoutStrainHeroCard(
                 val ringBackground = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.4f) else HealthColors.SurfaceVariantLight
                 val flameGradient = Brush.sweepGradient(
                     listOf(
-                        HealthColors.TertiaryContainer,
+                        MaterialTheme.colorScheme.tertiary,
                         Color(0xFFFF7043),
                         HealthColors.Primary,
-                        HealthColors.TertiaryContainer
+                        MaterialTheme.colorScheme.tertiary
                     )
                 )
 
@@ -751,10 +785,10 @@ private fun WorkoutStrainHeroCard(
                 // Centered Telemetry
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "YAKILAN",
+                        text = str("YAKILAN", "BURNED"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
-                        color = HealthColors.TertiaryContainer,
+                        color = MaterialTheme.colorScheme.tertiary,
                         letterSpacing = 1.sp
                     )
                     Row(
@@ -775,7 +809,7 @@ private fun WorkoutStrainHeroCard(
                         )
                     }
                     Text(
-                        text = "kcal hedefi",
+                        text = str("kcal hedefi", "kcal goal"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -797,20 +831,20 @@ private fun WorkoutStrainHeroCard(
                 // Active Time
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "AKTİF SÜRE",
+                        text = str("AKTİF SÜRE", "ACTIVE TIME"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${state.totalDurationMinutes} dk",
+                        text = str("${state.totalDurationMinutes} dk", "${state.totalDurationMinutes} min"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "hedef ${state.targetDurationMinutes} dk",
+                        text = str("hedef ${state.targetDurationMinutes} dk", "goal ${state.targetDurationMinutes} min"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -826,7 +860,7 @@ private fun WorkoutStrainHeroCard(
                 // Net Calorie
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "NET KALORİ",
+                        text = str("NET KALORİ", "NET CALORIES"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -836,10 +870,10 @@ private fun WorkoutStrainHeroCard(
                         text = "${state.netCalories} kcal",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (state.netCalories <= 0) HealthColors.Primary else HealthColors.TertiaryContainer
+                        color = if (state.netCalories <= 0) HealthColors.Primary else MaterialTheme.colorScheme.tertiary
                     )
                     Text(
-                        text = "alınan − yakılan",
+                        text = str("alınan − yakılan", "intake − burned"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -855,7 +889,7 @@ private fun WorkoutStrainHeroCard(
                 // Total Burned
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "TOPLAM YAKILAN",
+                        text = str("TOPLAM YAKILAN", "TOTAL BURNED"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -865,7 +899,7 @@ private fun WorkoutStrainHeroCard(
                         text = "-${state.totalCaloriesBurned}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = HealthColors.TertiaryContainer
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                     Text(
                         text = "kcal",
@@ -1045,7 +1079,7 @@ private fun LuxuryWorkoutItem(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "${workout.durationMinutes} dakika",
+                                text = str("${workout.durationMinutes} dakika", "${workout.durationMinutes} min"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = HealthColors.Primary,
                                 fontWeight = FontWeight.SemiBold
@@ -1063,20 +1097,20 @@ private fun LuxuryWorkoutItem(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(HealthColors.TertiaryContainer.copy(alpha = 0.15f))
+                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f))
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = null,
-                            tint = HealthColors.TertiaryContainer,
+                            tint = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "-${workout.caloriesBurned} kcal",
-                            color = HealthColors.TertiaryContainer,
+                            color = MaterialTheme.colorScheme.tertiary,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -1089,7 +1123,7 @@ private fun LuxuryWorkoutItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Sil",
+                        contentDescription = str("Sil", "Delete"),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -1182,7 +1216,7 @@ private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "adım",
+                                text = str("adım", "steps"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = 2.dp)
@@ -1205,7 +1239,7 @@ private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                             Text(
-                                text = "~${dailySteps.durationMinutes} dk hareket",
+                                text = str("~${dailySteps.durationMinutes} dk hareket", "~${dailySteps.durationMinutes} min active"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1219,7 +1253,7 @@ private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
                                     text = "${dailySteps.netCaloriesBurned} kcal",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = HealthColors.TertiaryContainer
+                                    color = MaterialTheme.colorScheme.tertiary
                                 )
                             }
                         }
@@ -1253,12 +1287,12 @@ private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Hedef ${dailySteps.stepTarget} adım",
+                        text = str("Hedef ${dailySteps.stepTarget} adım", "Goal ${dailySteps.stepTarget} steps"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = "%$percentage",
+                        text = str("%$percentage", "$percentage%"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = HealthColors.Primary

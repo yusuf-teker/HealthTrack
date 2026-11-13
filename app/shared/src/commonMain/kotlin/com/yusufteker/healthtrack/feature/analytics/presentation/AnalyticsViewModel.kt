@@ -3,12 +3,16 @@ package com.yusufteker.healthtrack.feature.analytics.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.HealthReportAiGenerator
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.getWeekBoundsIso
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -43,18 +47,20 @@ class AnalyticsViewModel(
 
     init {
         viewModelScope.launch {
-            tokenStorage.sessionFlow.collect { session ->
-                if (session.isLoggedIn && session.userId > 0) {
-                    _state.update {
-                        it.copy(
-                            userName = session.name.ifBlank { session.username },
-                            whatsAppPhone = tokenStorage.getWhatsAppNumber(),
-                            autoWeeklyWhatsApp = tokenStorage.isAutoWeeklyWhatsAppEnabled()
-                        )
+            tokenStorage.sessionFlow
+                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .collect { session ->
+                    if (session.isLoggedIn && session.userId > 0) {
+                        _state.update {
+                            it.copy(
+                                userName = session.name.ifBlank { session.username },
+                                whatsAppPhone = tokenStorage.getWhatsAppNumber(),
+                                autoWeeklyWhatsApp = tokenStorage.isAutoWeeklyWhatsAppEnabled()
+                            )
+                        }
+                        observeAllTelemetry(session.userId)
                     }
-                    observeAllTelemetry(session.userId)
                 }
-            }
         }
     }
 
@@ -163,7 +169,7 @@ class AnalyticsViewModel(
             is AnalyticsIntent.OnDeleteReport -> {
                 viewModelScope.launch {
                     database.deleteAiReport(intent.reportId)
-                    _state.update { it.copy(infoMessage = "Rapor silindi.") }
+                    _state.update { it.copy(infoMessage = trEn("Rapor silindi.", "Report deleted.")) }
                 }
             }
             is AnalyticsIntent.OnWhatsAppPhoneChanged -> {
@@ -175,9 +181,15 @@ class AnalyticsViewModel(
                     it.copy(
                         autoWeeklyWhatsApp = intent.enabled,
                         infoMessage = if (intent.enabled) {
-                            "Otomatik haftalık rapor oluşturma aktif edildi."
+                            trEn(
+                                "Otomatik haftalık rapor oluşturma aktif edildi.",
+                                "Automatic weekly report generation enabled."
+                            )
                         } else {
-                            "Otomatik haftalık rapor kapatıldı."
+                            trEn(
+                                "Otomatik haftalık rapor kapatıldı.",
+                                "Automatic weekly report disabled."
+                            )
                         }
                     )
                 }
@@ -188,9 +200,15 @@ class AnalyticsViewModel(
                 _state.update {
                     it.copy(
                         infoMessage = if (phone.isNotBlank()) {
-                            "WhatsApp rapor numarası ($phone) kaydedildi."
+                            trEn(
+                                "WhatsApp rapor numarası ($phone) kaydedildi.",
+                                "WhatsApp report number ($phone) saved."
+                            )
                         } else {
-                            "WhatsApp kişi seçici modu aktif edildi."
+                            trEn(
+                                "WhatsApp kişi seçici modu aktif edildi.",
+                                "WhatsApp contact picker mode enabled."
+                            )
                         }
                     )
                 }
@@ -296,6 +314,7 @@ class AnalyticsViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isGenerating = true, errorMessage = null, infoMessage = null) }
             try {
+                val lang = LocalizationManager.currentLanguage
                 val report = if (s.periodType == AnalysisPeriodType.DAILY) {
                     reportGenerator.generateDailyReport(
                         userId = userId,
@@ -306,7 +325,8 @@ class AnalyticsViewModel(
                         goal = cachedGoal,
                         fitnessGoal = fitnessGoal,
                         userWeightKg = userWeight,
-                        targetWeightKg = targetWeight
+                        targetWeightKg = targetWeight,
+                        language = lang
                     )
                 } else {
                     reportGenerator.generateWeeklyReport(
@@ -320,7 +340,8 @@ class AnalyticsViewModel(
                         fitnessGoal = fitnessGoal,
                         userWeightKg = userWeight,
                         targetWeightKg = targetWeight,
-                        isAutoGenerated = false
+                        isAutoGenerated = false,
+                        language = lang
                     )
                 }
 
@@ -329,14 +350,23 @@ class AnalyticsViewModel(
                     it.copy(
                         isGenerating = false,
                         currentReport = report,
-                        infoMessage = "${report.periodLabel} AI analizi oluşturuldu (Skor: ${report.score}/100)."
+                        infoMessage = trEn(
+                            "${report.periodLabel} AI analizi oluşturuldu (Skor: ${report.score}/100).",
+                            "${report.periodLabel} AI analysis created (Score: ${report.score}/100)."
+                        )
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
                         isGenerating = false,
-                        errorMessage = "Analiz sırasında hata: ${e.message}"
+                        errorMessage = formatActionableApiError(
+                            error = e,
+                            operationTr = "Sağlık raporu analizi",
+                            operationEn = "Health report analysis"
+                        )
                     )
                 }
             }
@@ -377,6 +407,7 @@ class AnalyticsViewModel(
         val userWeight = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 72.0
         val targetWeight = tokenStorage.getUserTargetWeight().takeIf { it > 0.0 } ?: 70.0
 
+        val lang = LocalizationManager.currentLanguage
         val autoReport = reportGenerator.generateWeeklyReport(
             userId = userId,
             mondayIso = prevWeekMonday,
@@ -388,7 +419,8 @@ class AnalyticsViewModel(
             fitnessGoal = fitnessGoal,
             userWeightKg = userWeight,
             targetWeightKg = targetWeight,
-            isAutoGenerated = true
+            isAutoGenerated = true,
+            language = lang
         )
 
         tokenStorage.setLastAutoWeeklyReportMonday(prevWeekMonday)
@@ -396,7 +428,10 @@ class AnalyticsViewModel(
         _state.update {
             it.copy(
                 pendingAutoWeeklyReport = autoReport,
-                infoMessage = "Geçen haftanın (${autoReport.periodLabel}) AI raporu otomatik oluşturuldu!"
+                infoMessage = trEn(
+                    "Geçen haftanın (${autoReport.periodLabel}) AI raporu otomatik oluşturuldu!",
+                    "Last week's (${autoReport.periodLabel}) AI report was automatically generated!"
+                )
             )
         }
     }

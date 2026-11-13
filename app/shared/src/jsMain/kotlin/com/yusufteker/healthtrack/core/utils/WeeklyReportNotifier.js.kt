@@ -12,6 +12,7 @@ actual fun rememberWeeklyReportNotifier(): WeeklyReportNotifier {
             override fun requestPermission(onResult: (Boolean) -> Unit) { onResult(false) }
             override fun sendReportNotification(report: HealthAiReport, whatsAppPhone: String?, userName: String) {}
             override fun scheduleSundayEveningReminder(hour: Int, minute: Int) {}
+            override fun cancelSundayEveningReminder() {}
         }
     }
 }

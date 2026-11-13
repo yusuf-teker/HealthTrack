@@ -1,5 +1,8 @@
 package com.yusufteker.healthtrack.core.sync
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.ScheduledReminderPayload
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
@@ -133,54 +136,91 @@ object WorkoutIncentiveEngine {
      */
     fun buildWorkoutReminderPayload(
         favoriteSport: String?,
-        userName: String = ""
+        userName: String = "",
+        language: AppLanguage = LocalizationManager.currentLanguage
     ): ScheduledReminderPayload {
         val greeting = if (userName.isNotBlank()) "Hey $userName! " else ""
 
         val (title, body) = when (favoriteSport) {
             "eliptik" -> Pair(
-                "🚴‍♂️ Eliptik Bisiklet Seni Bekliyor!",
-                "${greeting}Günü eliptik bisiklet üzerinde hareketle kapatmaya ne dersin? 25-30 dakikalık tempolu bir seans tüm günün yorgunluğunu alır."
+                trEn("🚴‍♂️ Eliptik Bisiklet Seni Bekliyor!", "🚴‍♂️ Your Elliptical Session Awaits!", language),
+                trEn(
+                    "${greeting}Günü eliptik bisiklet üzerinde hareketle kapatmaya ne dersin? 25-30 dakikalık tempolu bir seans tüm günün yorgunluğunu alır.",
+                    "${greeting}How about finishing the day on the elliptical? A brisk 25-30 minute session melts away the day's fatigue.",
+                    language
+                )
             )
 
             "kürek" -> Pair(
-                "🚣‍♂️ Kürek Seansı Zamanı!",
-                "${greeting}Günü kürek başında geride bırakalım mı? 20 dakikalık bir kürek antrenmanı zihnini de açar."
+                trEn("🚣‍♂️ Kürek Seansı Zamanı!", "🚣‍♂️ Time for a Rowing Session!", language),
+                trEn(
+                    "${greeting}Günü kürek başında geride bırakalım mı? 20 dakikalık bir kürek antrenmanı zihnini de açar.",
+                    "${greeting}Ready to wrap up the day on the rower? Even a 20-minute rowing workout clears your mind.",
+                    language
+                )
             )
 
             "yürüyüş" -> Pair(
-                "🚶‍♂️ Akşam Yürüyüşü Vakti!",
-                "${greeting}Temiz bir akşam havası alıp 30 dakika tempolu yürümeye ne dersin? Adım hedefine çok yaklaştın."
+                trEn("🚶‍♂️ Akşam Yürüyüşü Vakti!", "🚶‍♂️ Time for an Evening Walk!", language),
+                trEn(
+                    "${greeting}Temiz bir akşam havası alıp 30 dakika tempolu yürümeye ne dersin? Adım hedefine çok yaklaştın.",
+                    "${greeting}How about getting some fresh evening air with a 30-minute brisk walk? You're close to your step goal!",
+                    language
+                )
             )
 
             "koşu" -> Pair(
-                "🏃‍♂️ Koşu Ayakkabılarını Hazırla!",
-                "${greeting}Günün stresini tempolu bir koşuyla geride bırak. 20-25 dakikalık bir koşu enerjini tazeler."
+                trEn("🏃‍♂️ Koşu Ayakkabılarını Hazırla!", "🏃‍♂️ Lace Up Your Running Shoes!", language),
+                trEn(
+                    "${greeting}Günün stresini tempolu bir koşuyla geride bırak. 20-25 dakikalık bir koşu enerjini tazeler.",
+                    "${greeting}Leave the day's stress behind with a brisk run. A 20-25 minute run will recharge your energy.",
+                    language
+                )
             )
 
             "bisiklet" -> Pair(
-                "🚲 Pedal Çevirme Zamanı!",
-                "${greeting}Akşam serinliğinde keyifli bir bisiklet turu ile kalorini yak ve gününü zinde tamamla."
+                trEn("🚲 Pedal Çevirme Zamanı!", "🚲 Time to Hit the Pedals!", language),
+                trEn(
+                    "${greeting}Akşam serinliğinde keyifli bir bisiklet turu ile kalorini yak ve gününü zinde tamamla.",
+                    "${greeting}Burn calories with a refreshing evening bike ride and finish your day feeling energized.",
+                    language
+                )
             )
 
             "ağırlık" -> Pair(
-                "🏋️ Kaslar Hareketi Özledi!",
-                "${greeting}Günü kısa ve etkili bir güç antrenmanıyla taçlandır. Güçlü bir kapanış yapmaya hazır mısın?"
+                trEn("🏋️ Kaslar Hareketi Özledi!", "🏋️ Your Muscles Miss Moving!", language),
+                trEn(
+                    "${greeting}Günü kısa ve etkili bir güç antrenmanıyla taçlandır. Güçlü bir kapanış yapmaya hazır mısın?",
+                    "${greeting}Cap off the day with a short, effective strength session. Ready for a strong finish?",
+                    language
+                )
             )
 
             "pilates" -> Pair(
-                "🧘‍♀️ Esneme & Pilates Vakti",
-                "${greeting}Vücuduna hak ettiği esnekliği ver. 20 dakikalık hafif bir pilates/esneme seansı seni bekliyor."
+                trEn("🧘‍♀️ Esneme & Pilates Vakti", "🧘‍♀️ Stretch & Pilates Time", language),
+                trEn(
+                    "${greeting}Vücuduna hak ettiği esnekliği ver. 20 dakikalık hafif bir pilates/esneme seansı seni bekliyor.",
+                    "${greeting}Give your body the mobility it deserves. A gentle 20-minute pilates or stretching session awaits.",
+                    language
+                )
             )
 
             "yüzme" -> Pair(
-                "🏊‍♂️ Su Seni Çağırıyor!",
-                "${greeting}Harika bir yüzme seansıyla tüm kaslarını çalıştırmaya ve rahatlamaya ne dersin?"
+                trEn("🏊‍♂️ Su Seni Çağırıyor!", "🏊‍♂️ The Pool Is Calling!", language),
+                trEn(
+                    "${greeting}Harika bir yüzme seansıyla tüm kaslarını çalıştırmaya ve rahatlamaya ne dersin?",
+                    "${greeting}How about engaging your full body and unwinding with a refreshing swim session?",
+                    language
+                )
             )
 
             else -> Pair(
-                "🔥 Bugün Kendine 20 Dakika Ayır!",
-                "${greeting}Akşam oldu, vücudunu harekete geçirme zamanı! Hafif bir yürüyüş veya antrenmanla günü zinde bitir."
+                trEn("🔥 Bugün Kendine 20 Dakika Ayır!", "🔥 Take 20 Minutes for Yourself Today!", language),
+                trEn(
+                    "${greeting}Akşam oldu, vücudunu harekete geçirme zamanı! Hafif bir yürüyüş veya antrenmanla günü zinde bitir.",
+                    "${greeting}Evening is here — time to get moving! Finish the day strong with a light walk or workout.",
+                    language
+                )
             )
         }
 

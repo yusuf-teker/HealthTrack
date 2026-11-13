@@ -34,12 +34,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.utils.CapturedPhoto
 import com.yusufteker.healthtrack.core.utils.CropRect
 import com.yusufteker.healthtrack.core.utils.rememberCameraPhotoLauncher
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScanTarget
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.ImageCropDialog
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -53,6 +56,7 @@ fun FoodPhotoScanBottomSheet(
     onDismiss: () -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val cameraLauncher = rememberCameraPhotoLauncher()
 
@@ -61,7 +65,7 @@ fun FoodPhotoScanBottomSheet(
     var isCropDialogOpen by remember { mutableStateOf(false) }
 
     var labelInputText by remember { mutableStateOf("") }
-    var labelPortionInfo by remember { mutableStateOf("1 paket / 1 porsiyon") }
+    var labelPortionInfo by remember { mutableStateOf(trEn("1 paket / 1 porsiyon", "1 pack / 1 serving", lang)) }
     var ocrFailedNoText by remember { mutableStateOf(false) }
 
     // Interactive Crop Dialog
@@ -79,7 +83,11 @@ fun FoodPhotoScanBottomSheet(
                         ocrFailedNoText = false
                     } else {
                         if (labelInputText.isBlank()) {
-                            labelInputText = "Fotoğraftaki besin/ürün tablosu analizi"
+                            labelInputText = trEn(
+                                "Fotoğraftaki besin/ürün tablosu analizi",
+                                "Nutrition/product table analysis from photo",
+                                lang
+                            )
                         }
                         ocrFailedNoText = false
                     }
@@ -95,7 +103,11 @@ fun FoodPhotoScanBottomSheet(
                         ocrFailedNoText = false
                     } else {
                         if (labelInputText.isBlank()) {
-                            labelInputText = "Fotoğraftaki besin/ürün tablosu analizi"
+                            labelInputText = trEn(
+                                "Fotoğraftaki besin/ürün tablosu analizi",
+                                "Nutrition/product table analysis from photo",
+                                lang
+                            )
                         }
                         ocrFailedNoText = false
                     }
@@ -152,13 +164,27 @@ fun FoodPhotoScanBottomSheet(
                     }
                     Column {
                         Text(
-                            text = if (selectedTarget == FoodScanTarget.INVENTORY) "Envanter & Etiket Okuyucu 🏷️" else "Besin Etiketi / Fiş Okuyucu 📸",
+                            text = if (selectedTarget == FoodScanTarget.INVENTORY) {
+                                str("Envanter & Etiket Okuyucu 🏷️", "Inventory & Label Scanner 🏷️")
+                            } else {
+                                str("Besin Etiketi / Fiş Okuyucu 📸", "Nutrition Label / Receipt Scanner 📸")
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (selectedTarget == FoodScanTarget.INVENTORY) "Etiketi kırparak tarayın, envanterinize tam besin değerleriyle ekleyin" else "Besin tablosu veya fişi kırparak tarayın",
+                            text = if (selectedTarget == FoodScanTarget.INVENTORY) {
+                                str(
+                                    "Etiketi kırparak tarayın, envanterinize tam besin değerleriyle ekleyin",
+                                    "Crop & scan the label to save it to your inventory with full nutrition values"
+                                )
+                            } else {
+                                str(
+                                    "Besin tablosu veya fişi kırparak tarayın",
+                                    "Crop & scan a nutrition facts table or receipt"
+                                )
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -171,7 +197,7 @@ fun FoodPhotoScanBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = str("Kapat", "Close"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -191,15 +217,15 @@ fun FoodPhotoScanBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     TargetSegmentTab(
-                        title = "📅 Günlük Öğün",
-                        subtitle = "Bugünün günlüğüne ekle",
+                        title = str("📅 Günlük Öğün", "📅 Daily Meal"),
+                        subtitle = str("Bugünün günlüğüne ekle", "Add to today's log"),
                         isSelected = selectedTarget == FoodScanTarget.DAILY_MEAL,
                         modifier = Modifier.weight(1f),
                         onClick = { selectedTarget = FoodScanTarget.DAILY_MEAL }
                     )
                     TargetSegmentTab(
-                        title = "🏷️ Envanterim",
-                        subtitle = "Kalıcı ürün olarak ekle",
+                        title = str("🏷️ Envanterim", "🏷️ Inventory"),
+                        subtitle = str("Kalıcı ürün olarak ekle", "Save as reusable item"),
                         isSelected = selectedTarget == FoodScanTarget.INVENTORY,
                         modifier = Modifier.weight(1f),
                         onClick = { selectedTarget = FoodScanTarget.INVENTORY }
@@ -231,13 +257,23 @@ fun FoodPhotoScanBottomSheet(
                         )
                         Column {
                             Text(
-                                text = "Yapay Zeka Analiz Ediyor...",
+                                text = str("Yapay Zeka Analiz Ediyor...", "AI Is Analyzing..."),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (selectedTarget == FoodScanTarget.INVENTORY) "Ürün isimleri, paket birimleri ve tüm makrolar envanter formatına dönüştürülüyor..." else "Etiketteki besin değerleri günlüğünüze aktarılıyor...",
+                                text = if (selectedTarget == FoodScanTarget.INVENTORY) {
+                                    str(
+                                        "Ürün isimleri, paket birimleri ve tüm makrolar envanter formatına dönüştürülüyor...",
+                                        "Converting product names, package units, and macros into inventory format..."
+                                    )
+                                } else {
+                                    str(
+                                        "Etiketteki besin değerleri günlüğünüze aktarılıyor...",
+                                        "Extracting nutrition values from the label into your log..."
+                                    )
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -282,7 +318,7 @@ fun FoodPhotoScanBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Fotoğraf Çek",
+                        str("Fotoğraf Çek", "Take Photo"),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -318,7 +354,7 @@ fun FoodPhotoScanBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Galeriden Seç",
+                        str("Galeriden Seç", "Choose from Gallery"),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -347,7 +383,10 @@ fun FoodPhotoScanBottomSheet(
                             color = HealthColors.Primary
                         )
                         Text(
-                            text = "Besin tablosu yüksek çözünürlükle taranıyor (ML Kit OCR)...",
+                            text = str(
+                                "Besin tablosu yüksek çözünürlükle taranıyor (ML Kit OCR)...",
+                                "Scanning nutrition table in high resolution (ML Kit OCR)..."
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
@@ -371,7 +410,7 @@ fun FoodPhotoScanBottomSheet(
                     ) {
                         Image(
                             bitmap = capturedPhoto!!.imageBitmap!!,
-                            contentDescription = "Çekilen Etiket",
+                            contentDescription = str("Çekilen Etiket", "Captured Label"),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(64.dp)
@@ -391,14 +430,21 @@ fun FoodPhotoScanBottomSheet(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = if (capturedPhoto?.isCropped == true) "Kırpılmış Alan Okundu ✓" else "Besin Tablosu Okundu ✓",
+                                        text = if (capturedPhoto?.isCropped == true) {
+                                            str("Kırpılmış Alan Okundu ✓", "Cropped Area Read ✓")
+                                        } else {
+                                            str("Besin Tablosu Okundu ✓", "Nutrition Table Read ✓")
+                                        },
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF10B981)
                                     )
                                 }
                                 Text(
-                                    text = "Değerler aşağıdaki alana aktarıldı. Kontrol edip onaylayabilirsiniz.",
+                                    text = str(
+                                        "Değerler aşağıdaki alana aktarıldı. Kontrol edip onaylayabilirsiniz.",
+                                        "Values transferred below. Review and confirm."
+                                    ),
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -414,14 +460,17 @@ fun FoodPhotoScanBottomSheet(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "Tablo Metni Bulunamadı",
+                                        text = str("Tablo Metni Bulunamadı", "No Table Text Found"),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
                                 Text(
-                                    text = "Görsel net okunamadı. 'Alanı Kırp' butonuna basarak sadece tabloyu çerçeveleyin.",
+                                    text = str(
+                                        "Görsel net okunamadı. 'Alanı Kırp' butonuna basarak sadece tabloyu çerçeveleyin.",
+                                        "Image couldn't be read clearly. Tap 'Crop Area' to frame only the table."
+                                    ),
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -439,7 +488,7 @@ fun FoodPhotoScanBottomSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Crop,
-                                contentDescription = "Alanı Kırp",
+                                contentDescription = str("Alanı Kırp", "Crop Area"),
                                 tint = HealthColors.Primary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -450,7 +499,7 @@ fun FoodPhotoScanBottomSheet(
 
             // ── Quick Samples Chips for Labels ──
             Text(
-                text = "Hızlı Örnekler:",
+                text = str("Hızlı Örnekler:", "Quick Examples:"),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -462,24 +511,40 @@ fun FoodPhotoScanBottomSheet(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SampleChip("🍫 Fellas Protein Bar (45g)") {
-                    labelInputText = "Fellas Protein Bar (45g): 100g'da 375 kcal, 33g protein, 24g karb, 11g yağ, 16g lif, magnezyum 90mg"
-                    labelPortionInfo = "1 adet (45g)"
+                SampleChip(str("🍫 Fellas Protein Bar (45g)", "🍫 Protein Bar (45g)")) {
+                    labelInputText = trEn(
+                        "Fellas Protein Bar (45g): 100g'da 375 kcal, 33g protein, 24g karb, 11g yağ, 16g lif, magnezyum 90mg",
+                        "Protein Bar (45g): per 100g 375 kcal, 33g protein, 24g carbs, 11g fat, 16g fiber, magnesium 90mg",
+                        lang
+                    )
+                    labelPortionInfo = trEn("1 adet (45g)", "1 bar (45g)", lang)
                     ocrFailedNoText = false
                 }
-                SampleChip("🥣 Yulaf Ezmesi (50g)") {
-                    labelInputText = "Eti Lifalif Yulaf: 100g için 356 kcal, 12.5g protein, 60g karb, 7g yağ, 10g lif, 120mg magnezyum"
-                    labelPortionInfo = "50 gram"
+                SampleChip(str("🥣 Yulaf Ezmesi (50g)", "🥣 Rolled Oats (50g)")) {
+                    labelInputText = trEn(
+                        "Eti Lifalif Yulaf: 100g için 356 kcal, 12.5g protein, 60g karb, 7g yağ, 10g lif, 120mg magnezyum",
+                        "Rolled Oats: per 100g 356 kcal, 12.5g protein, 60g carbs, 7g fat, 10g fiber, 120mg magnesium",
+                        lang
+                    )
+                    labelPortionInfo = trEn("50 gram", "50g", lang)
                     ocrFailedNoText = false
                 }
-                SampleChip("🥛 Proteinli Süt (330ml)") {
-                    labelInputText = "Pınar Protein Süt: 100ml'de 52 kcal, 7.8g protein, 4.8g karb, 0.1g yağ, 150mg kalsiyum, 1.2ug B12"
-                    labelPortionInfo = "1 şişe (330ml)"
+                SampleChip(str("🥛 Proteinli Süt (330ml)", "🥛 Protein Milk (330ml)")) {
+                    labelInputText = trEn(
+                        "Pınar Protein Süt: 100ml'de 52 kcal, 7.8g protein, 4.8g karb, 0.1g yağ, 150mg kalsiyum, 1.2ug B12",
+                        "Protein Milk: per 100ml 52 kcal, 7.8g protein, 4.8g carbs, 0.1g fat, 150mg calcium, 1.2ug B12",
+                        lang
+                    )
+                    labelPortionInfo = trEn("1 şişe (330ml)", "1 bottle (330ml)", lang)
                     ocrFailedNoText = false
                 }
-                SampleChip("🧾 Market Fişi (3 Kalem)") {
-                    labelInputText = "MİGROS TİC. A.Ş.\n1x Pınar Protein Süt 500ml\n1x Eti Lifalif Yulaf 500g\n1x Muz İthal 1kg"
-                    labelPortionInfo = "1 paket / adet"
+                SampleChip(str("🧾 Market Fişi (3 Kalem)", "🧾 Grocery Receipt (3 Items)")) {
+                    labelInputText = trEn(
+                        "MİGROS TİC. A.Ş.\n1x Pınar Protein Süt 500ml\n1x Eti Lifalif Yulaf 500g\n1x Muz İthal 1kg",
+                        "FRESH MARKET RECEIPT\n1x High-Protein Milk 500ml\n1x Rolled Oats 500g\n1x Bananas 1kg",
+                        lang
+                    )
+                    labelPortionInfo = trEn("1 paket / adet", "1 pack / unit", lang)
                     ocrFailedNoText = false
                 }
             }
@@ -491,10 +556,21 @@ fun FoodPhotoScanBottomSheet(
                     labelInputText = it
                     if (it.isNotBlank()) ocrFailedNoText = false
                 },
-                label = { Text(if (selectedTarget == FoodScanTarget.INVENTORY) "Taranan Envanter / Ürün Metni" else "Taranan / Girilen Besin Tablosu Metni") },
+                label = {
+                    Text(
+                        if (selectedTarget == FoodScanTarget.INVENTORY) {
+                            str("Taranan Envanter / Ürün Metni", "Scanned Inventory / Product Text")
+                        } else {
+                            str("Taranan / Girilen Besin Tablosu Metni", "Scanned / Entered Nutrition Label Text")
+                        }
+                    )
+                },
                 placeholder = {
                     Text(
-                        "Kameradan taranan veya elle girilen metin: 100g için 280 kcal, 22g protein, 18g karb, 9g yağ...",
+                        str(
+                            "Kameradan taranan veya elle girilen metin: 100g için 280 kcal, 22g protein, 18g karb, 9g yağ...",
+                            "Text scanned from camera or entered manually: per 100g 280 kcal, 22g protein, 18g carbs, 9g fat..."
+                        ),
                         style = MaterialTheme.typography.bodySmall
                     )
                 },
@@ -509,8 +585,15 @@ fun FoodPhotoScanBottomSheet(
                 OutlinedTextField(
                     value = labelPortionInfo,
                     onValueChange = { labelPortionInfo = it },
-                    label = { Text("Tükettiğiniz Miktar / Porsiyon") },
-                    placeholder = { Text("Örn: 1 paket (45g), yarım kutu veya 1 porsiyon") },
+                    label = { Text(str("Tükettiğiniz Miktar / Porsiyon", "Consumed Amount / Serving")) },
+                    placeholder = {
+                        Text(
+                            str(
+                                "Örn: 1 paket (45g), yarım kutu veya 1 porsiyon",
+                                "E.g.: 1 pack (45g), half carton, or 1 serving"
+                            )
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
@@ -522,9 +605,19 @@ fun FoodPhotoScanBottomSheet(
             // ── Primary Action Button: Extract & Calculate with AI ──
             Button(
                 onClick = {
-                    val promptBase = labelInputText.ifBlank { "Görseldeki ürün/besin değerleri ve kalori analizi" }
+                    val promptBase = labelInputText.ifBlank {
+                        trEn(
+                            "Görseldeki ürün/besin değerleri ve kalori analizi",
+                            "Product/nutrition values and calorie analysis from image",
+                            lang
+                        )
+                    }
                     val fullPrompt = if (selectedTarget == FoodScanTarget.DAILY_MEAL) {
-                        "$promptBase (Tüketilen porsiyon: $labelPortionInfo)"
+                        trEn(
+                            "$promptBase (Tüketilen porsiyon: $labelPortionInfo)",
+                            "$promptBase (Consumed serving: $labelPortionInfo)",
+                            lang
+                        )
                     } else {
                         promptBase
                     }
@@ -549,7 +642,11 @@ fun FoodPhotoScanBottomSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (selectedTarget == FoodScanTarget.INVENTORY) "AI ile Envanterime Çıkar ve Kaydet" else "AI ile Besin Değerlerini Çıkar ve Ekle",
+                    text = if (selectedTarget == FoodScanTarget.INVENTORY) {
+                        str("AI ile Envanterime Çıkar ve Kaydet", "Extract & Save to Inventory with AI")
+                    } else {
+                        str("AI ile Besin Değerlerini Çıkar ve Ekle", "Extract & Add Nutrition with AI")
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

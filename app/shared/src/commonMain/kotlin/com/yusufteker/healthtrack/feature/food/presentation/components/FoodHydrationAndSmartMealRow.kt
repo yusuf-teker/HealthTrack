@@ -32,6 +32,7 @@ import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.model.NutrientSynergyTip
 import com.yusufteker.healthtrack.core.model.WaterEntry
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -108,7 +109,7 @@ fun FoodHydrationAndSmartMealRow(
                                 )
                             }
                             Text(
-                                text = "Hidrasyon",
+                                text = str("Hidrasyon", "Hydration"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -122,7 +123,7 @@ fun FoodHydrationAndSmartMealRow(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Sıfırla",
+                                    contentDescription = str("Sıfırla", "Reset"),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     modifier = Modifier.size(13.dp)
                                 )
@@ -246,11 +247,14 @@ fun FoodHydrationAndSmartMealRow(
                 .filter { it.key != "calories" }
                 .sortedBy { it.percentage }
                 .take(2)
-                .map { it.label }
+                .map { localizedNutrientLabel(it) }
             val deficitHeadline = when {
-                weakestMicros.isNotEmpty() -> weakestMicros.joinToString(" & ") + " Açığı"
-                remainingCalories > 200 -> "$remainingCalories kcal Kalan"
-                else -> "Dengeli Beslenme"
+                weakestMicros.isNotEmpty() -> str(
+                    "${weakestMicros.joinToString(" & ")} Açığı",
+                    "Low ${weakestMicros.joinToString(" & ")}"
+                )
+                remainingCalories > 200 -> str("$remainingCalories kcal Kalan", "$remainingCalories kcal Left")
+                else -> str("Dengeli Beslenme", "Balanced Nutrition")
             }
 
             GlassCard(
@@ -293,7 +297,7 @@ fun FoodHydrationAndSmartMealRow(
                                 )
                             }
                             Text(
-                                text = "Ne Yesem?",
+                                text = str("Ne Yesem?", "What to Eat?"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -305,7 +309,7 @@ fun FoodHydrationAndSmartMealRow(
                             color = HealthColors.Primary.copy(alpha = 0.14f)
                         ) {
                             Text(
-                                text = "AI Koç",
+                                text = str("AI Koç", "AI Coach"),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 fontWeight = FontWeight.Bold,
                                 color = HealthColors.Primary,
@@ -324,7 +328,10 @@ fun FoodHydrationAndSmartMealRow(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Eksik makro & mikrona göre öğün önerisi al",
+                            text = str(
+                                "Eksik makro & mikrona göre öğün önerisi al",
+                                "Get meal ideas based on missing macros & micros"
+                            ),
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             maxLines = 2,
@@ -338,7 +345,7 @@ fun FoodHydrationAndSmartMealRow(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Öğün Önerisi Gör →",
+                            text = str("Öğün Önerisi Gör →", "See Meal Ideas →"),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -403,7 +410,7 @@ fun FoodHydrationAndSmartMealRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = str("Kapat", "Close"),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.size(14.dp)
                             )

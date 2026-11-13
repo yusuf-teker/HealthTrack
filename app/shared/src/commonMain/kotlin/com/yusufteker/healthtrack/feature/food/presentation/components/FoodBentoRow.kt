@@ -38,6 +38,7 @@ import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import kotlin.math.roundToInt
@@ -127,14 +128,14 @@ private fun MicronutrientsBentoCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "MİKROLAR",
+                        text = str("MİKROLAR", "MICROS"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Genel Mikrolar",
+                        contentDescription = str("Genel Mikrolar", "General Micros"),
                         tint = HealthColors.Primary,
                         modifier = Modifier.size(12.dp)
                     )
@@ -156,13 +157,13 @@ private fun MicronutrientsBentoCard(
                 verticalAlignment = Alignment.Bottom
             ) {
                 MicroCapsule(
-                    label = "Lif",
+                    label = str("Lif", "Fiber"),
                     percentage = fiberPct,
                     color = HealthColors.Primary,
                     isDark = isDark
                 )
                 MicroCapsule(
-                    label = "Demir",
+                    label = str("Demir", "Iron"),
                     percentage = ironPct,
                     color = HealthColors.Secondary,
                     isDark = isDark
@@ -182,12 +183,12 @@ private fun MicronutrientsBentoCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Genel Mikrolar",
+                    text = str("Genel Mikrolar", "General Micros"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Tümünü Gör",
+                    text = str("Tümünü Gör", "See All"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     fontWeight = FontWeight.Bold,
                     color = HealthColors.Primary
@@ -214,7 +215,7 @@ private fun MicroCapsule(
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         Text(
-            text = "%$percentage",
+            text = str("%$percentage", "$percentage%"),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
@@ -264,7 +265,7 @@ private fun WeightScaleBentoCard(
 ) {
     val displayWeight = latestWeightKg
     val isToday = selectedDate == getTodayIso()
-    val cardTitle = if (isToday) "GÜNCEL KİLO" else "O GÜNÜN KİLOSU"
+    val cardTitle = if (isToday) str("GÜNCEL KİLO", "CURRENT WEIGHT") else str("O GÜNÜN KİLOSU", "WEIGHT ON DAY")
     val displayDiff = if (isToday) weightDifferenceKg else null
     val isDrop = (displayDiff ?: 0.0) <= 0.0
 
@@ -316,7 +317,7 @@ private fun WeightScaleBentoCard(
                     if (onClick != null) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Kilo Detayı",
+                            contentDescription = str("Kilo Detayı", "Weight Details"),
                             tint = HealthColors.Primary,
                             modifier = Modifier.size(12.dp)
                         )
@@ -371,7 +372,7 @@ private fun WeightScaleBentoCard(
                                 modifier = Modifier.size(11.dp)
                             )
                             Text(
-                                text = "$sign$diffRounded kg bu hafta",
+                                text = str("$sign$diffRounded kg bu hafta", "$sign$diffRounded kg this week"),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                 fontWeight = FontWeight.Bold,
                                 color = badgeColor
@@ -380,10 +381,10 @@ private fun WeightScaleBentoCard(
                     }
                 } else {
                     val badgeText = when {
-                        isWeightExactForDate -> if (isToday) "Bugün Tartıldı" else "📅 Tartım Kaydı"
-                        weightRecordDate != null -> "Son: $weightRecordDate"
-                        displayWeight != null -> "Profil Kilosu"
-                        else -> "Kayıt Bekleniyor"
+                        isWeightExactForDate -> if (isToday) str("Bugün Tartıldı", "Weighed Today") else str("📅 Tartım Kaydı", "📅 Weigh-in Log")
+                        weightRecordDate != null -> str("Son: $weightRecordDate", "Last: $weightRecordDate")
+                        displayWeight != null -> str("Profil Kilosu", "Profile Weight")
+                        else -> str("Kayıt Bekleniyor", "Waiting for Log")
                     }
                     val badgeBg = if (isWeightExactForDate) {
                         HealthColors.Primary.copy(alpha = 0.15f)

@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import com.yusufteker.healthtrack.core.i18n.trEn
 import org.jetbrains.skia.Image
 import platform.UIKit.*
 import platform.Foundation.*
@@ -161,12 +162,12 @@ class IosCameraPhotoLauncher : CameraPhotoLauncher {
             preferredStyle = UIAlertControllerStyleAlert
         )
         val cancelAction = UIAlertAction.actionWithTitle(
-            title = "Vazgeç",
+            title = trEn("Vazgeç", "Cancel"),
             style = UIAlertActionStyleCancel,
             handler = null
         )
         val settingsAction = UIAlertAction.actionWithTitle(
-            title = "Ayarlar'ı Aç",
+            title = trEn("Ayarlar'ı Aç", "Open Settings"),
             style = UIAlertActionStyleDefault,
             handler = {
                 val settingsUrl = NSURL.URLWithString(UIApplicationOpenSettingsURLString)
@@ -209,8 +210,11 @@ class IosCameraPhotoLauncher : CameraPhotoLauncher {
             AVAuthorizationStatusDenied, AVAuthorizationStatusRestricted -> {
                 _isScanning = false
                 showPermissionDeniedAlert(
-                    title = "Kamera İzni Gerekli",
-                    message = "Yemek ve besin etiketi fotoğraflarını çekip analiz etmek için kamera iznine ihtiyaç vardır. Lütfen Ayarlar'dan kameraya izin verin."
+                    title = trEn("Kamera İzni Gerekli", "Camera Permission Required"),
+                    message = trEn(
+                        "Yemek ve besin etiketi fotoğraflarını çekip analiz etmek için kamera iznine ihtiyaç vardır. Lütfen Ayarlar'dan kameraya izin verin.",
+                        "Camera access is required to capture and analyze food and nutrition label photos. Please allow camera access in Settings."
+                    )
                 )
             }
             else -> {
@@ -242,8 +246,11 @@ class IosCameraPhotoLauncher : CameraPhotoLauncher {
             PHAuthorizationStatusDenied, PHAuthorizationStatusRestricted -> {
                 _isScanning = false
                 showPermissionDeniedAlert(
-                    title = "Galeri İzni Gerekli",
-                    message = "Besin tablosu ve yemek fotoğraflarını seçip analiz etmek için galeri erişimine ihtiyaç vardır. Lütfen Ayarlar'dan fotoğraflara erişim izni verin."
+                    title = trEn("Galeri İzni Gerekli", "Photo Library Permission Required"),
+                    message = trEn(
+                        "Besin tablosu ve yemek fotoğraflarını seçip analiz etmek için galeri erişimine ihtiyaç vardır. Lütfen Ayarlar'dan fotoğraflara erişim izni verin.",
+                        "Photo library access is required to choose and analyze nutrition label and food photos. Please allow access in Settings."
+                    )
                 )
             }
             else -> {

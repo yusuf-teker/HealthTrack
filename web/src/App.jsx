@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
+import { useLanguage } from './context/LanguageContext';
 import Navbar from './components/Navbar';
 import LoginView from './views/LoginView';
 import AppSelectorView from './views/AppSelectorView';
@@ -19,6 +20,7 @@ function getLegalRoute(pathname) {
 
 export default function App() {
   const { user, loading, activeWorkspace, isAdmin } = useAuth();
+  const { t } = useLanguage();
   const [legalRoute, setLegalRoute] = useState(() =>
     typeof window !== 'undefined' ? getLegalRoute(window.location.pathname) : null
   );
@@ -55,7 +57,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs text-gray-400 font-medium tracking-wider uppercase">
-            Yükleniyor...
+            {t('Yükleniyor...', 'Loading...')}
           </span>
         </div>
       </div>
@@ -89,31 +91,31 @@ export default function App() {
 
       <footer className="border-t border-white/5 py-6 text-center text-xs text-gray-500 no-print">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>HealthTrack & Planora Ekosistemi © 2026</span>
+          <span>{t('HealthTrack & Planora Ekosistemi © 2026', 'HealthTrack & Planora Ecosystem © 2026')}</span>
           <div className="flex items-center gap-4 text-[11px] text-gray-400">
             <a
               href="/privacy"
               onClick={(e) => { e.preventDefault(); navigateTo('/privacy'); }}
               className="hover:text-emerald-400 transition-colors"
             >
-              Gizlilik Politikası
+              {t('Gizlilik Politikası', 'Privacy Policy')}
             </a>
             <a
               href="/terms"
               onClick={(e) => { e.preventDefault(); navigateTo('/terms'); }}
               className="hover:text-emerald-400 transition-colors"
             >
-              Kullanım Koşulları
+              {t('Kullanım Koşulları', 'Terms of Service')}
             </a>
             <a
               href="/delete-account"
               onClick={(e) => { e.preventDefault(); navigateTo('/delete-account'); }}
               className="hover:text-rose-400 transition-colors"
             >
-              Hesap Silme
+              {t('Hesap Silme', 'Delete Account')}
             </a>
           </div>
-          <span className="text-[11px] text-gray-600">Render Cloud & Neon PostgreSQL Senkronizasyonu</span>
+          <span className="text-[11px] text-gray-600">{t('Render Cloud & Neon PostgreSQL Senkronizasyonu', 'Render Cloud & Neon PostgreSQL Sync')}</span>
         </div>
       </footer>
     </div>

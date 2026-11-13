@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -21,7 +22,8 @@ data class WorkoutLog(
     val isDailySteps: Boolean
         get() = id.endsWith("_steps") ||
             id.contains("daily_steps") ||
-            rawText.contains("Adım • Günlük Hareket", ignoreCase = true)
+            rawText.contains("Adım • Günlük Hareket", ignoreCase = true) ||
+            rawText.contains("Steps • Daily Activity", ignoreCase = true)
 }
 
 @Serializable
@@ -31,7 +33,7 @@ data class DailyStepTelemetry(
     val durationMinutes: Int = 0,
     val caloriesBurned: Int = 0,
     val netCaloriesBurned: Int = 0,
-    val sourceName: String = "Akıllı Saat",
+    val sourceName: String = trEn("Akıllı Saat", "Smartwatch"),
     val stepTarget: Int = 10_000
 ) {
     val progress: Float

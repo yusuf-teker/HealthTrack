@@ -13,6 +13,7 @@ import androidx.health.connect.client.records.*
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.*
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
@@ -67,7 +68,10 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
             callback(
                 Result.failure(
                     IllegalStateException(
-                        "Health Connect okuma izni verilmedi. Lütfen Kilo veya Egzersiz okuma izinlerini onaylayın."
+                        trEn(
+                            "Health Connect okuma izni verilmedi. Lütfen Kilo veya Egzersiz okuma izinlerini onaylayın.",
+                            "Health Connect read permission was not granted. Please allow Weight or Exercise read permissions."
+                        )
                     )
                 )
             )
@@ -101,7 +105,10 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                     onResult(
                         Result.failure(
                             IllegalStateException(
-                                "Health Connect uygulaması yüklü veya güncel değil. Play Store sayfası açıldı."
+                                trEn(
+                                    "Health Connect uygulaması yüklü veya güncel değil. Play Store sayfası açıldı.",
+                                    "Health Connect is not installed or up to date. Opening the Play Store page."
+                                )
                             )
                         )
                     )
@@ -110,7 +117,12 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 if (currentStatus == HealthPlatformStatus.NOT_SUPPORTED) {
                     onResult(
                         Result.failure(
-                            IllegalStateException("Cihazınız Android Health Connect özelliğini desteklemiyor.")
+                            IllegalStateException(
+                                trEn(
+                                    "Cihazınız Android Health Connect özelliğini desteklemiyor.",
+                                    "Your device does not support Android Health Connect."
+                                )
+                            )
                         )
                     )
                     return
@@ -478,7 +490,10 @@ private suspend fun readHealthConnectData(
                     externalId = "hc_steps_$isoDate",
                     date = isoDate,
                     category = DeviceExerciseCategory.DAILY_STEPS,
-                    customTitle = "$remainingSteps Adım • Günlük Hareket",
+                    customTitle = trEn(
+                        "$remainingSteps Adım • Günlük Hareket",
+                        "$remainingSteps Steps • Daily Movement"
+                    ),
                     durationMinutes = estimatedDurationMinutes,
                     caloriesBurned = remainingActiveKcal, // 0 triggers weight-adjusted step calorie calculation in DeviceHealthSyncManager
                     distanceMeters = remainingDistanceMeters,
@@ -504,9 +519,9 @@ private fun resolveFriendlySourceName(packageName: String, isScale: Boolean): St
     val pkg = packageName.lowercase()
     return when {
         pkg.contains("xiaomi.hm.health") || pkg.contains("huami") || pkg.contains("zepp") ->
-            if (isScale) "Zepp Life (Xiaomi Tartı)" else "Zepp Life (Xiaomi)"
+            if (isScale) trEn("Zepp Life (Xiaomi Tartı)", "Zepp Life (Xiaomi Scale)") else "Zepp Life (Xiaomi)"
         pkg.contains("xiaomi.wearable") || pkg.contains("mi.health") || pkg.contains("mifitness") ->
-            if (isScale) "Mi Fitness (Xiaomi Tartı)" else "Mi Fitness (Xiaomi)"
+            if (isScale) trEn("Mi Fitness (Xiaomi Tartı)", "Mi Fitness (Xiaomi Scale)") else "Mi Fitness (Xiaomi)"
         pkg.contains("huawei.health") || pkg.contains("huawei") ->
             "Huawei Health"
         pkg.contains("healthsync") || pkg.contains("appyhapps") ->
@@ -521,7 +536,7 @@ private fun resolveFriendlySourceName(packageName: String, isScale: Boolean): St
             "Withings"
         pkg.contains("fitbit") ->
             "Fitbit"
-        else -> if (isScale) "Health Connect Tartı" else "Health Connect Saat"
+        else -> if (isScale) trEn("Health Connect Tartı", "Health Connect Scale") else trEn("Health Connect Saat", "Health Connect Watch")
     }
 }
 

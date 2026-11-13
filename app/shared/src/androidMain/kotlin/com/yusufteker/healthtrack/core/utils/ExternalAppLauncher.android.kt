@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.yusufteker.healthtrack.core.i18n.trEn
 
 class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLauncher {
     override fun isAppInstalled(app: ExternalApp): Boolean {
@@ -85,7 +86,7 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, text)
                         },
-                        "Raporu Paylaş"
+                        trEn("Raporu Paylaş", "Share Report")
                     ).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
@@ -157,7 +158,7 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
                     putExtra(Intent.EXTRA_SUBJECT, title)
                     putExtra(Intent.EXTRA_TEXT, formattedBody)
                 },
-                "Listeyi Paylaş"
+                trEn("Listeyi Paylaş", "Share List")
             ).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }

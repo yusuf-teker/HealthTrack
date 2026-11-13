@@ -1,6 +1,9 @@
 package com.yusufteker.healthtrack.core.utils
 
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.network.TokenStorage
 
@@ -49,22 +52,41 @@ object HealthReminderLogic {
      */
     fun buildWeightReminderContent(
         freq: WeightReminderFrequency,
-        daysSinceLastWeight: Int?
+        daysSinceLastWeight: Int?,
+        language: AppLanguage = LocalizationManager.currentLanguage
     ): Pair<String, String> {
-        val title = "Tartıldın mı? ⚖️"
+        val title = trEn("Tartıldın mı? ⚖️", "Time to Weigh In? ⚖️", language)
         val body = when {
-            daysSinceLastWeight != null && daysSinceLastWeight >= 2 ->
-                "$daysSinceLastWeight gündür kilonu güncellemedin. Hedefine olan gelişimini görmek için tartıya çıkma zamanı!"
-            freq == WeightReminderFrequency.DAILY ->
-                "Günaydın! Sabah kilonu kaydetmeyi unutma. Güncel kilonu ekleyerek hedefine bir adım daha yaklaş."
-            freq == WeightReminderFrequency.WEEKLY ->
-                "Haftalık tartılma günün geldi! Güncel kilonu kaydederek haftalık değişimini gör."
-            freq == WeightReminderFrequency.EVERY_3_DAYS ->
-                "3 gündür tartılmadın. Kilonu kaydederek gelişimini takip etmeyi unutma!"
-            freq == WeightReminderFrequency.EVERY_2_DAYS ->
-                "2 gündür tartılmadın. Güncel kilonu kaydederek ilerlemeni güncel tut."
-            else ->
-                "Bugün tartılma günün! Kilonu kaydederek hedefine olan gelişimini takip etmeyi unutma."
+            daysSinceLastWeight != null && daysSinceLastWeight >= 2 -> trEn(
+                "$daysSinceLastWeight gündür kilonu güncellemedin. Hedefine olan gelişimini görmek için tartıya çıkma zamanı!",
+                "You haven't updated your weight for $daysSinceLastWeight days. Step on the scale to track your progress toward your goal!",
+                language
+            )
+            freq == WeightReminderFrequency.DAILY -> trEn(
+                "Günaydın! Sabah kilonu kaydetmeyi unutma. Güncel kilonu ekleyerek hedefine bir adım daha yaklaş.",
+                "Good morning! Don't forget to log your morning weight and get one step closer to your goal.",
+                language
+            )
+            freq == WeightReminderFrequency.WEEKLY -> trEn(
+                "Haftalık tartılma günün geldi! Güncel kilonu kaydederek haftalık değişimini gör.",
+                "It's your weekly weigh-in day! Log your current weight to see your weekly progress.",
+                language
+            )
+            freq == WeightReminderFrequency.EVERY_3_DAYS -> trEn(
+                "3 gündür tartılmadın. Kilonu kaydederek gelişimini takip etmeyi unutma!",
+                "You haven't weighed in for 3 days. Don't forget to log your weight to track your progress!",
+                language
+            )
+            freq == WeightReminderFrequency.EVERY_2_DAYS -> trEn(
+                "2 gündür tartılmadın. Güncel kilonu kaydederek ilerlemeni güncel tut.",
+                "You haven't weighed in for 2 days. Log your current weight to keep your progress up to date.",
+                language
+            )
+            else -> trEn(
+                "Bugün tartılma günün! Kilonu kaydederek hedefine olan gelişimini takip etmeyi unutma.",
+                "Today is your weigh-in day! Log your weight to stay on track with your goal.",
+                language
+            )
         }
         return title to body
     }
@@ -92,9 +114,15 @@ object HealthReminderLogic {
     /**
      * Builds localized headline and body for the food reminder notification.
      */
-    fun buildFoodReminderContent(): Pair<String, String> {
-        val title = "Bugün Ne Yedin? 🥗"
-        val body = "Saat 13:30 oldu ve henüz bir öğün kaydetmedin. Besin ve kalori hedeflerini tutturmak için yediklerini eklemeyi unutma!"
+    fun buildFoodReminderContent(
+        language: AppLanguage = LocalizationManager.currentLanguage
+    ): Pair<String, String> {
+        val title = trEn("Bugün Ne Yedin? 🥗", "What Did You Eat Today? 🥗", language)
+        val body = trEn(
+            "Saat 13:30 oldu ve henüz bir öğün kaydetmedin. Besin ve kalori hedeflerini tutturmak için yediklerini eklemeyi unutma!",
+            "It's 1:30 PM and you haven't logged a meal yet. Don't forget to log your food to hit your calorie and macro goals!",
+            language
+        )
         return title to body
     }
 }

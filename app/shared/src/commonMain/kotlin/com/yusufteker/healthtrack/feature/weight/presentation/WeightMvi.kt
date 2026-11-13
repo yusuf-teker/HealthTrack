@@ -17,6 +17,7 @@ data class WeightState(
     val inputDate: String = formatShortDateTr(getTodayIso()),
     val inputWeight: String = "",
     val inputNote: String = "",
+    val isAddDialogOpen: Boolean = false,
     val isEditingTarget: Boolean = false,
     val isSaving: Boolean = false,
     val isSyncingScale: Boolean = false,
@@ -38,6 +39,7 @@ sealed interface WeightIntent {
         val isSilent: Boolean = false
     ) : WeightIntent
     data class OnDeleteWeight(val id: String) : WeightIntent
+    data class OnSetAddDialogOpen(val isOpen: Boolean) : WeightIntent
     data class OnSetEditingTarget(val isEditing: Boolean) : WeightIntent
     data class OnSaveTargetWeight(val newTargetWeight: Double) : WeightIntent
     data class OnReminderFrequencyChanged(val frequency: com.yusufteker.healthtrack.core.model.WeightReminderFrequency) : WeightIntent

@@ -3,6 +3,8 @@ package com.yusufteker.healthtrack.feature.weight.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
@@ -11,6 +13,7 @@ import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.normalizeDateToIso
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -40,11 +43,13 @@ class WeightViewModel(
 
     init {
         viewModelScope.launch {
-            tokenStorage.sessionFlow.collect { session ->
-                if (session.isLoggedIn) {
-                    observeWeights(session.userId)
+            tokenStorage.sessionFlow
+                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .collect { session ->
+                    if (session.isLoggedIn && session.userId > 0) {
+                        observeWeights(session.userId)
+                    }
                 }
-            }
         }
     }
 
@@ -57,8 +62,11 @@ class WeightViewModel(
                 }
             }
             is WeightIntent.OnInputDateChanged -> _state.update { it.copy(inputDate = intent.date) }
-            is WeightIntent.OnInputWeightChanged -> _state.update { it.copy(inputWeight = intent.weight) }
+            is WeightIntent.OnInputWeightChanged -> _state.update { it.copy(inputWeight = intent.weight, errorMessage = null) }
             is WeightIntent.OnInputNoteChanged -> _state.update { it.copy(inputNote = intent.note) }
+            is WeightIntent.OnSetAddDialogOpen -> _state.update {
+                it.copy(isAddDialogOpen = intent.isOpen, errorMessage = if (intent.isOpen) null else it.errorMessage)
+            }
             is WeightIntent.OnSetEditingTarget -> _state.update { it.copy(isEditingTarget = intent.isEditing) }
             is WeightIntent.OnSaveTargetWeight -> saveTargetWeight(intent.newTargetWeight)
             is WeightIntent.OnSaveWeightClicked -> saveWeight()
@@ -67,9 +75,10 @@ class WeightViewModel(
             }
             is WeightIntent.OnScaleSnapshotReceived -> {
                 viewModelScope.launch {
+                    val lang = LocalizationManager.currentLanguage
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
-                        val msg = summary.toUserMessage()
+                        val msg = summary.toUserMessage(lang)
                         if (!intent.isSilent || summary.totalChanges > 0) {
                             _state.update { it.copy(isSyncingScale = false, infoMessage = msg) }
                             _effects.send(WeightEffect.ShowToast(msg))
@@ -81,7 +90,7 @@ class WeightViewModel(
                             _state.update {
                                 it.copy(
                                     isSyncingScale = false,
-                                    errorMessage = err.message ?: "Tartı verileri alınamadı."
+                                    errorMessage = err.message ?: trEn("Tartı verileri alınamadı.", "Could not read scale data.", lang)
                                 )
                             }
                         } else {
@@ -94,10 +103,15 @@ class WeightViewModel(
             is WeightIntent.OnReminderFrequencyChanged -> {
                 tokenStorage.setWeightReminderFrequency(intent.frequency)
                 _state.update { it.copy(reminderFrequency = intent.frequency, isReminderDialogOpen = false) }
+                val lang = LocalizationManager.currentLanguage
                 val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
-                    "Tartı hatırlatıcısı kapatıldı."
+                    trEn("Tartı hatırlatıcısı kapatıldı.", "Weigh-in reminder turned off.", lang)
                 } else {
-                    "Tartı hatırlatıcısı güncellendi: ${intent.frequency.title}"
+                    trEn(
+                        "Tartı hatırlatıcısı güncellendi: ${intent.frequency.localizedTitle(lang)}",
+                        "Weigh-in reminder updated: ${intent.frequency.localizedTitle(lang)}",
+                        lang
+                    )
                 }
                 _state.update { it.copy(infoMessage = msg) }
             }
@@ -150,14 +164,23 @@ class WeightViewModel(
     }
 
     private fun saveWeight() {
-        val weight = _state.value.inputWeight.toDoubleOrNull()
+        val weight = _state.value.inputWeight.toLocaleDoubleOrNull()
         val target = _state.value.targetWeightKg
         val date = normalizeDateToIso(_state.value.inputDate)
         val note = _state.value.inputNote.trim().ifBlank { null }
         val userId = tokenStorage.getUserId()
 
-        if (weight == null || weight <= 0) {
-            _state.update { it.copy(errorMessage = "Lütfen geçerli bir kilo değeri giriniz (Örn: 74.5).") }
+        val lang = LocalizationManager.currentLanguage
+        if (weight == null || weight <= 20.0 || weight > 350.0) {
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Lütfen geçerli bir kilo değeri giriniz (Örn: 74.5).",
+                        "Please enter a valid weight value (e.g. 74.5).",
+                        lang
+                    )
+                )
+            }
             return
         }
 
@@ -181,23 +204,38 @@ class WeightViewModel(
 
             database.upsertWeight(entry)
             tokenStorage.setUserWeight(weight)
-            _state.update { it.copy(inputWeight = "", inputNote = "", infoMessage = "Kilo kaydedildi.") }
-            _effects.send(WeightEffect.ShowToast("Kilo kaydedildi."))
+            val savedMsg = trEn("Kilo kaydedildi.", "Weight saved.", lang)
+            _state.update {
+                it.copy(
+                    inputWeight = "",
+                    inputNote = "",
+                    isAddDialogOpen = false,
+                    errorMessage = null,
+                    infoMessage = savedMsg
+                )
+            }
+            _effects.send(WeightEffect.ShowToast(savedMsg))
             launch { syncEngine.sync() }
         }
     }
 
     private fun saveTargetWeight(newTarget: Double) {
+        val lang = LocalizationManager.currentLanguage
         if (newTarget <= 0 || newTarget > 350) {
-            _state.update { it.copy(errorMessage = "Lütfen geçerli bir hedef kilo giriniz.") }
+            _state.update {
+                it.copy(
+                    errorMessage = trEn("Lütfen geçerli bir hedef kilo giriniz.", "Please enter a valid target weight.", lang)
+                )
+            }
             return
         }
         tokenStorage.setUserTargetWeight(newTarget)
+        val updatedMsg = trEn("Hedef kilo güncellendi: $newTarget kg", "Target weight updated: $newTarget kg", lang)
         _state.update {
             it.copy(
                 targetWeightKg = newTarget,
                 isEditingTarget = false,
-                infoMessage = "Hedef kilo güncellendi: $newTarget kg"
+                infoMessage = updatedMsg
             )
         }
 
@@ -212,7 +250,7 @@ class WeightViewModel(
                 database.upsertWeight(updated)
                 launch { syncEngine.sync() }
             }
-            _effects.send(WeightEffect.ShowToast("Hedef kilo güncellendi: $newTarget kg"))
+            _effects.send(WeightEffect.ShowToast(updatedMsg))
         }
     }
 

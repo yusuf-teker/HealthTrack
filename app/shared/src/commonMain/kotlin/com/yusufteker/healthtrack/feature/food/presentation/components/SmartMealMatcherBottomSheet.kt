@@ -38,6 +38,7 @@ import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.model.SmartMealSuggestion
 import com.yusufteker.healthtrack.feature.food.presentation.SmartMealFilterType
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -109,13 +110,16 @@ fun SmartMealMatcherBottomSheet(
                     }
                     Column {
                         Text(
-                            text = "Ne Yesem? 🥗",
+                            text = str("Ne Yesem? 🥗", "What Should I Eat? 🥗"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Eksik makro & mikrolarınıza göre akıllı öneriler",
+                            text = str(
+                                "Eksik makro & mikrolarınıza göre akıllı öneriler",
+                                "Smart picks for your missing macros & micros"
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -128,7 +132,7 @@ fun SmartMealMatcherBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = str("Kapat", "Close"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -139,7 +143,11 @@ fun SmartMealMatcherBottomSheet(
                 .filter { it.key != "calories" }
                 .sortedBy { it.percentage }
                 .take(3)
-                .map { "${it.label} (%${it.percentage.toInt()})" }
+                .map {
+                    val label = localizedNutrientLabel(it)
+                    val pct = it.percentage.toInt()
+                    str("$label (%$pct)", "$label ($pct%)")
+                }
 
             Surface(
                 shape = RoundedCornerShape(14.dp),
@@ -161,16 +169,19 @@ fun SmartMealMatcherBottomSheet(
                     )
                     Column {
                         Text(
-                            text = "Günün Açık Hedefleri",
+                            text = str("Günün Açık Hedefleri", "Open Targets Today"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = HealthColors.Primary
                         )
                         Text(
                             text = if (lowestMicros.isNotEmpty()) {
-                                "Düşük kalanlar: ${lowestMicros.joinToString(", ")} • Kalan: $remainingCalories kcal"
+                                str(
+                                    "Düşük kalanlar: ${lowestMicros.joinToString(", ")} • Kalan: $remainingCalories kcal",
+                                    "Running low: ${lowestMicros.joinToString(", ")} • Remaining: $remainingCalories kcal"
+                                )
                             } else {
-                                "Kalan Kalori: $remainingCalories kcal"
+                                str("Kalan Kalori: $remainingCalories kcal", "Remaining Calories: $remainingCalories kcal")
                             },
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurface
@@ -187,27 +198,27 @@ fun SmartMealMatcherBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterPill(
-                    label = "📦 Kendi Ürünlerim",
+                    label = str("📦 Kendi Ürünlerim", "📦 My Inventory"),
                     selected = isFromUserDb,
                     onClick = { onToggleFilter(SmartMealFilterType.FROM_USER_DB) }
                 )
                 FilterPill(
-                    label = "⚡ Kolay (<10 dk)",
+                    label = str("⚡ Kolay (<10 dk)", "⚡ Quick (<10 min)"),
                     selected = isOnlyQuick,
                     onClick = { onToggleFilter(SmartMealFilterType.QUICK) }
                 )
                 FilterPill(
-                    label = "🥣 Az Malzemeli (≤4)",
+                    label = str("🥣 Az Malzemeli (≤4)", "🥣 Few Ingredients (≤4)"),
                     selected = isOnlyFewIngredients,
                     onClick = { onToggleFilter(SmartMealFilterType.FEW_INGREDIENTS) }
                 )
                 FilterPill(
-                    label = "🔄 Son 3 Gün Yemediklerim",
+                    label = str("🔄 Son 3 Gün Yemediklerim", "🔄 Not Eaten Last 3 Days"),
                     selected = isExcludeRecent3Days,
                     onClick = { onToggleFilter(SmartMealFilterType.EXCLUDE_RECENT_3_DAYS) }
                 )
                 FilterPill(
-                    label = "💪 Yüksek Protein",
+                    label = str("💪 Yüksek Protein", "💪 High Protein"),
                     selected = isHighProtein,
                     onClick = { onToggleFilter(SmartMealFilterType.HIGH_PROTEIN) }
                 )
@@ -231,7 +242,7 @@ fun SmartMealMatcherBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Gemini AI Size Özel Yeni Tarif Hazırlıyor...",
+                        str("Gemini AI Size Özel Yeni Tarif Hazırlıyor...", "Gemini AI is crafting a custom recipe..."),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -244,7 +255,7 @@ fun SmartMealMatcherBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "Yapay Zekadan Yeni Kişisel Tarif İste",
+                        str("Yapay Zekadan Yeni Kişisel Tarif İste", "Ask AI for a New Personal Recipe"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -280,13 +291,16 @@ fun SmartMealMatcherBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "Seçili filtrelere uygun öğün bulunamadı",
+                            text = str("Seçili filtrelere uygun öğün bulunamadı", "No meals match the selected filters"),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Filtreleri gevşetebilir veya AI ile yeni tarif üretebilirsiniz.",
+                            text = str(
+                                "Filtreleri gevşetebilir veya AI ile yeni tarif üretebilirsiniz.",
+                                "You can relax the filters or generate a new recipe with AI."
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -401,9 +415,9 @@ private fun SmartMealCard(
                         modifier = Modifier.size(13.dp)
                     )
                     val timeText = when {
-                        meal.prepTimeMinutes <= 0 -> "Aç Ye"
-                        meal.prepTimeMinutes == 1 -> "1 dk"
-                        else -> "${meal.prepTimeMinutes} dk"
+                        meal.prepTimeMinutes <= 0 -> str("Aç Ye", "Ready to Eat")
+                        meal.prepTimeMinutes == 1 -> str("1 dk", "1 min")
+                        else -> str("${meal.prepTimeMinutes} dk", "${meal.prepTimeMinutes} min")
                     }
                     Text(
                         text = timeText,
@@ -438,9 +452,9 @@ private fun SmartMealCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MacroMiniPill("Kalori", "${meal.calories} kcal", Color(0xFFFF5722))
+                MacroMiniPill(str("Kalori", "Calories"), "${meal.calories} kcal", Color(0xFFFF5722))
                 MacroMiniPill("Protein", "${meal.proteinG.toInt()}g", Color(0xFF8E24AA))
-                MacroMiniPill("Lif", "${meal.fiberG.toInt()}g", Color(0xFF43A047))
+                MacroMiniPill(str("Lif", "Fiber"), "${meal.fiberG.toInt()}g", Color(0xFF43A047))
                 if (meal.keyMicros.isNotEmpty()) {
                     val firstMicro = meal.keyMicros.first()
                     MacroMiniPill(firstMicro.name, "${firstMicro.amount.toInt()}${firstMicro.unit}", Color(0xFF00B4D8))
@@ -449,7 +463,11 @@ private fun SmartMealCard(
 
             // Ingredients toggle
             Text(
-                text = if (expanded) "▲ Malzemeleri Gizle (${meal.ingredients.size})" else "▼ Malzemeleri Gör (${meal.ingredients.size})",
+                text = if (expanded) {
+                    str("▲ Malzemeleri Gizle (${meal.ingredients.size})", "▲ Hide Ingredients (${meal.ingredients.size})")
+                } else {
+                    str("▼ Malzemeleri Gör (${meal.ingredients.size})", "▼ View Ingredients (${meal.ingredients.size})")
+                },
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -520,7 +538,7 @@ private fun SmartMealCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Yedim Olarak Ekle",
+                        text = str("Yedim Olarak Ekle", "Log as Eaten"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -621,7 +639,7 @@ private fun AiRecipeSpotlightCard(
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "YAPAY ZEKA ÖZEL TARİFİ",
+                            text = str("YAPAY ZEKA ÖZEL TARİFİ", "AI CUSTOM RECIPE"),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             fontWeight = FontWeight.Black,
                             color = HealthColors.Primary
@@ -635,7 +653,7 @@ private fun AiRecipeSpotlightCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Gizle",
+                        contentDescription = str("Gizle", "Hide"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
@@ -664,18 +682,22 @@ private fun AiRecipeSpotlightCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                MacroMiniPill("Kalori", "${meal.calories} kcal", Color(0xFFFF5722))
+                MacroMiniPill(str("Kalori", "Calories"), "${meal.calories} kcal", Color(0xFFFF5722))
                 MacroMiniPill("Protein", "${meal.proteinG.toInt()}g", Color(0xFF8E24AA))
-                MacroMiniPill("Lif", "${meal.fiberG.toInt()}g", Color(0xFF43A047))
+                MacroMiniPill(str("Lif", "Fiber"), "${meal.fiberG.toInt()}g", Color(0xFF43A047))
                 if (meal.carbsG > 0) {
-                    MacroMiniPill("Karb", "${meal.carbsG.toInt()}g", Color(0xFFFB923C))
+                    MacroMiniPill(str("Karb", "Carbs"), "${meal.carbsG.toInt()}g", Color(0xFFFB923C))
                 }
             }
 
             // Ingredients toggle
             if (meal.ingredients.isNotEmpty()) {
                 Text(
-                    text = if (expanded) "▲ Malzemeleri Gizle (${meal.ingredients.size})" else "▼ Malzemeleri Gör (${meal.ingredients.size})",
+                    text = if (expanded) {
+                        str("▲ Malzemeleri Gizle (${meal.ingredients.size})", "▲ Hide Ingredients (${meal.ingredients.size})")
+                    } else {
+                        str("▼ Malzemeleri Gör (${meal.ingredients.size})", "▼ View Ingredients (${meal.ingredients.size})")
+                    },
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     fontWeight = FontWeight.Bold,
                     color = HealthColors.Primary,
@@ -734,7 +756,7 @@ private fun AiRecipeSpotlightCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Bu Tarifi Günlüğe Ekle",
+                        text = str("Bu Tarifi Günlüğe Ekle", "Add Recipe to Log"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

@@ -27,6 +27,8 @@ import com.yusufteker.healthtrack.core.utils.getWeekDaysForDate
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 
 typealias DayItem = WeekDayItem
 
@@ -44,9 +46,10 @@ fun DaysStripSelector(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val todayIso = remember { getTodayIso() }
     val isSelectedToday = selectedDate == todayIso
-    val weekDays = remember(selectedDate) { getWeekDaysForDate(selectedDate) }
+    val weekDays = remember(selectedDate, lang) { getWeekDaysForDate(selectedDate, lang) }
 
     Column(
         modifier = modifier
@@ -70,7 +73,7 @@ fun DaysStripSelector(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = formatMonthYearHeader(selectedDate),
+                    text = formatMonthYearHeader(selectedDate, lang),
                     style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -90,7 +93,7 @@ fun DaysStripSelector(
                         .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = if (isSelectedToday) "BUGÜN" else "Bugüne Git",
+                        text = if (isSelectedToday) str("BUGÜN", "TODAY") else str("Bugüne Git", "Go to Today"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = if (isSelectedToday) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -113,7 +116,7 @@ fun DaysStripSelector(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "Önceki Gün",
+                        contentDescription = str("Önceki Gün", "Previous Day"),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -131,7 +134,7 @@ fun DaysStripSelector(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Sonraki Gün",
+                        contentDescription = str("Sonraki Gün", "Next Day"),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -191,7 +194,7 @@ fun DaysStripSelector(
                             modifier = Modifier
                                 .size(if (isSelected) 3.dp else 4.dp)
                                 .clip(CircleShape)
-                                .background(if (isSelected) HealthColors.OnPrimary else HealthColors.TertiaryContainer)
+                                .background(if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.tertiary)
                         )
                     }
                 }

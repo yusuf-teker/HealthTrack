@@ -72,6 +72,10 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name="com.yusufteker.healthtrack.core.utils.HealthReminderReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

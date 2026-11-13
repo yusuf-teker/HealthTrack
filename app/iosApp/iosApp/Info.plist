@@ -18,6 +18,8 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>planora</string>
+		<string>whatsapp</string>
+		<string>x-apple-health</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Yemek ve besin etiketi fotoğraflarını çekip analiz etmek için kameranıza erişim gereklidir.</string>

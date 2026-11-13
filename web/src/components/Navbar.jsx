@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 import { checkServerPing } from '../api/client';
 import { 
   Heart, 
@@ -17,6 +19,7 @@ import {
 
 export default function Navbar() {
   const { user, isAdmin, activeWorkspace, setActiveWorkspace, logout } = useAuth();
+  const { t } = useLanguage();
   const [pingStatus, setPingStatus] = useState({ ok: true, latency: null });
 
   useEffect(() => {
@@ -67,7 +70,7 @@ export default function Navbar() {
               </span>
             </div>
             <p className="text-[11px] text-gray-400 leading-none">
-              Merkezi Sağlık, Görev & Admin Platformu
+              {t('Merkezi Sağlık, Görev & Admin Platformu', 'Unified Health, Task & Admin Hub')}
             </p>
           </div>
         </div>
@@ -83,7 +86,7 @@ export default function Navbar() {
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Merkez</span>
+            <span>{t('Merkez', 'Hub')}</span>
           </button>
 
           <button
@@ -121,7 +124,7 @@ export default function Navbar() {
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Admin Konsolu</span>
+              <span>{t('Admin Konsolu', 'Admin Console')}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             </button>
           )}
@@ -131,15 +134,17 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {/* Server Uptime / Ping Indicator */}
           <div 
-            title={pingStatus.ok ? `Render Sunucu: Aktif (${pingStatus.latency}ms)` : 'Sunucu kontrol ediliyor...'}
+            title={pingStatus.ok ? t(`Render Sunucu: Aktif (${pingStatus.latency}ms)`, `Render Server: Online (${pingStatus.latency}ms)`) : t('Sunucu kontrol ediliyor...', 'Checking server...')}
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/5 text-[11px]"
           >
             <span className={`w-2 h-2 rounded-full ${pingStatus.ok ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
             <span className="text-gray-400">Render:</span>
             <span className={pingStatus.ok ? 'text-gray-200 font-mono font-medium' : 'text-amber-400'}>
-              {pingStatus.ok ? (pingStatus.latency ? `${pingStatus.latency}ms` : 'Canlı') : 'Bağlanıyor...'}
+              {pingStatus.ok ? (pingStatus.latency ? `${pingStatus.latency}ms` : t('Canlı', 'Live')) : t('Bağlanıyor...', 'Connecting...')}
             </span>
           </div>
+
+          <LanguageToggle />
 
           {/* User Badge & Profile */}
           <div className="flex items-center gap-2 pl-2 border-l border-white/10">
@@ -149,7 +154,7 @@ export default function Navbar() {
                   {user?.name || user?.username}
                 </span>
                 {user?.isPremium && (
-                  <Crown className="w-3 h-3 text-amber-400" title="Premium Üye" />
+                  <Crown className="w-3 h-3 text-amber-400" title={t('Premium Üye', 'Premium Member')} />
                 )}
               </div>
               <div className="flex items-center justify-end gap-1 mt-0.5">
@@ -167,7 +172,7 @@ export default function Navbar() {
 
             <button
               onClick={logout}
-              title="Güvenli Çıkış Yap"
+              title={t('Güvenli Çıkış Yap', 'Sign Out')}
               className="p-2 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors border border-transparent hover:border-rose-500/20"
             >
               <LogOut className="w-4 h-4" />
@@ -185,7 +190,7 @@ export default function Navbar() {
             activeWorkspace === 'selector' ? 'text-white bg-white/10' : 'text-gray-400'
           }`}
         >
-          Merkez
+          {t('Merkez', 'Hub')}
         </button>
         <button
           onClick={() => setActiveWorkspace('healthtrack')}

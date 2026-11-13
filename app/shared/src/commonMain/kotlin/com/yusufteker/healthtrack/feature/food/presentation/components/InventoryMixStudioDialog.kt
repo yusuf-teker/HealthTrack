@@ -38,8 +38,13 @@ import com.yusufteker.healthtrack.core.model.CustomFoodIngredient
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -50,7 +55,9 @@ import kotlin.math.roundToInt
  * with intelligent unit detection (ml, g, Ölçek, Shot, Adet, Porsiyon) so every single
  * inventory item also gets the interactive level controller widget!
  */
-fun CustomFoodItem.toEffectiveIngredients(): List<CustomFoodIngredient> {
+fun CustomFoodItem.toEffectiveIngredients(
+    language: AppLanguage = LocalizationManager.currentLanguage
+): List<CustomFoodIngredient> {
     if (ingredients.isNotEmpty()) {
         // Deduplicate & merge any duplicate ingredients with the same name
         // (e.g., if 4 Süt rows + 2 Espresso rows were saved earlier -> merges into 2 unique ingredients: Süt 4x, Espresso 2x)
@@ -100,7 +107,7 @@ fun CustomFoodItem.toEffectiveIngredients(): List<CustomFoodIngredient> {
         lower.contains("ölçek") || lower.contains("olcek") || lower.contains("scoop") -> {
             val num = Regex("""(\d+(?:[.,]\d+)?)\s*(?:ölçek|olcek|scoop)""").find(lower)
                 ?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull() ?: 1.0
-            Quad(num, "Ölçek", 0.5, listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0))
+            Quad(num, trEn("Ölçek", "Scoop", language), 0.5, listOf(0.5, 1.0, 1.5, 2.0, 2.5, 3.0))
         }
         lower.contains("shot") -> {
             val num = Regex("""(\d+(?:[.,]\d+)?)\s*shot""").find(lower)
@@ -115,18 +122,18 @@ fun CustomFoodItem.toEffectiveIngredients(): List<CustomFoodIngredient> {
             val num = Regex("""(\d+)""").find(lower)?.groupValues?.get(1)?.toDoubleOrNull() ?: 100.0
             Quad(num, "g", 25.0, listOf(25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0))
         }
-        lower.contains("kaşık") || lower.contains("kasik") -> {
+        lower.contains("kaşık") || lower.contains("kasik") || lower.contains("spoon") -> {
             val num = Regex("""(\d+(?:[.,]\d+)?)""").find(lower)?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull() ?: 1.0
-            Quad(num, "Kaşık", 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0))
+            Quad(num, trEn("Kaşık", "Spoon", language), 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0))
         }
-        lower.contains("adet") -> {
-            Quad(1.0, "Adet", 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0, 4.0))
+        lower.contains("adet") || lower.contains("piece") -> {
+            Quad(1.0, trEn("Adet", "Piece", language), 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0, 4.0))
         }
-        lower.contains("dilim") -> {
-            Quad(1.0, "Dilim", 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0))
+        lower.contains("dilim") || lower.contains("slice") -> {
+            Quad(1.0, trEn("Dilim", "Slice", language), 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0))
         }
         else -> {
-            Quad(1.0, rawUnit.ifBlank { "Porsiyon" }, 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0))
+            Quad(1.0, rawUnit.ifBlank { trEn("Porsiyon", "Serving", language) }, 0.5, listOf(0.5, 1.0, 1.5, 2.0, 3.0))
         }
     }
 
@@ -181,13 +188,14 @@ fun InventoryMixStudioDialog(
     onAddItemsToMeal: (items: List<FoodItem>, summaryNote: String) -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
 
     var selectedItem by remember(customFoods, initialSelectedItem) {
         mutableStateOf(initialSelectedItem)
     }
 
-    val effectiveIngredients = remember(selectedItem) {
-        selectedItem?.toEffectiveIngredients() ?: emptyList()
+    val effectiveIngredients = remember(selectedItem, lang) {
+        selectedItem?.toEffectiveIngredients(lang) ?: emptyList()
     }
 
     // Per-ingredient selected amount & enabled state
@@ -305,7 +313,7 @@ fun InventoryMixStudioDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Kapat",
+                                    contentDescription = str("Kapat", "Close"),
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -313,7 +321,7 @@ fun InventoryMixStudioDialog(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Envanterim",
+                                    text = str("Envanterim", "My Inventory"),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -321,7 +329,7 @@ fun InventoryMixStudioDialog(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "${customFoods.size} Ürün / Karışım",
+                                    text = str("${customFoods.size} Ürün / Karışım", "${customFoods.size} Products / Mixes"),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     color = HealthColors.Primary,
                                     fontWeight = FontWeight.SemiBold
@@ -349,7 +357,7 @@ fun InventoryMixStudioDialog(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Yeni Ekle",
+                                    text = str("Yeni Ekle", "Add New"),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = HealthColors.Primary
@@ -394,13 +402,16 @@ fun InventoryMixStudioDialog(
                                         )
                                     }
                                     Text(
-                                        text = "Envanteriniz Henüz Boş",
+                                        text = str("Envanteriniz Henüz Boş", "Your Inventory Is Empty"),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Kendi tükettiğiniz ürünleri veya çoklu içerikli öğünlerinizi (örn: kahve + protein tozu + süt) envanterinize ekleyerek her seferinde seviyelerini (1 shot, 2 ölçek, 100ml vb.) tek dokunuşla seçebilirsiniz.",
+                                        text = str(
+                                            "Kendi tükettiğiniz ürünleri veya çoklu içerikli öğünlerinizi (örn: kahve + protein tozu + süt) envanterinize ekleyerek her seferinde seviyelerini (1 shot, 2 ölçek, 100ml vb.) tek dokunuşla seçebilirsiniz.",
+                                            "Add your custom products or multi-ingredient mixes (e.g. coffee + protein powder + milk) to pick serving levels (1 shot, 2 scoops, 100ml) with one tap."
+                                        ),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -419,7 +430,10 @@ fun InventoryMixStudioDialog(
                                     ) {
                                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Envanterime Ürün / Öğün Ekle", fontWeight = FontWeight.Bold)
+                                        Text(
+                                            str("Envanterime Ürün / Öğün Ekle", "Add Product / Meal to Inventory"),
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
                             }
@@ -472,7 +486,7 @@ fun InventoryMixStudioDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Listeye Dön",
+                                    contentDescription = str("Listeye Dön", "Back to List"),
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -488,7 +502,7 @@ fun InventoryMixStudioDialog(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Seviye & Porsiyon Ayarı",
+                                    text = str("Seviye & Porsiyon Ayarı", "Level & Serving Adjustment"),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     color = HealthColors.Primary,
                                     fontWeight = FontWeight.SemiBold
@@ -508,7 +522,7 @@ fun InventoryMixStudioDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = str("Kapat", "Close"),
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -585,7 +599,11 @@ fun InventoryMixStudioDialog(
                                                     }
                                                 ) {
                                                     Text(
-                                                        text = if (effectiveIngredients.size > 1) "⚡ ${effectiveIngredients.size} İçerik" else "🏷️ Tekli",
+                                                        text = if (effectiveIngredients.size > 1) {
+                                                            str("⚡ ${effectiveIngredients.size} İçerik", "⚡ ${effectiveIngredients.size} Items")
+                                                        } else {
+                                                            str("🏷️ Tekli", "🏷️ Single")
+                                                        },
                                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                                         fontWeight = FontWeight.Bold,
                                                         color = if (effectiveIngredients.size > 1) {
@@ -609,7 +627,7 @@ fun InventoryMixStudioDialog(
 
                                             Text(
                                                 text = if (activeScaledIngredients.isEmpty()) {
-                                                    "En az 1 içerik seçin"
+                                                    str("En az 1 içerik seçin", "Select at least 1 item")
                                                 } else {
                                                     activeScaledIngredients.joinToString(" • ") {
                                                         "${it.ingredient.name.substringBefore(" ")}: ${it.formattedPortion}"
@@ -663,19 +681,19 @@ fun InventoryMixStudioDialog(
                                         modifier = Modifier.weight(1f)
                                     )
                                     StudioMacroPill(
-                                        label = "Karb",
+                                        label = str("Karb", "Carbs"),
                                         value = "${totalCarbs}g",
                                         color = HealthColors.NutrientCarbs,
                                         modifier = Modifier.weight(1f)
                                     )
                                     StudioMacroPill(
-                                        label = "Yağ",
+                                        label = str("Yağ", "Fat"),
                                         value = "${totalFat}g",
                                         color = HealthColors.NutrientLipids,
                                         modifier = Modifier.weight(1f)
                                     )
                                     StudioMacroPill(
-                                        label = "Lif",
+                                        label = str("Lif", "Fiber"),
                                         value = "${totalFiber}g",
                                         color = HealthColors.Secondary,
                                         modifier = Modifier.weight(1f)
@@ -691,13 +709,13 @@ fun InventoryMixStudioDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Seviye Ayarı",
+                                text = str("Seviye Ayarı", "Level Adjustment"),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Seviye butonlarına dokunarak ölçeklendirin",
+                                text = str("Seviye butonlarına dokunarak ölçeklendirin", "Tap level buttons to scale"),
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -743,7 +761,7 @@ fun InventoryMixStudioDialog(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "Günlük Tabloya Ekleme Biçimi",
+                                        text = str("Günlük Tabloya Ekleme Biçimi", "Log Table Entry Mode"),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -753,15 +771,21 @@ fun InventoryMixStudioDialog(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         ModeOptionChip(
-                                            title = "Tek Satır Olarak Ekle",
-                                            subtitle = "${currentSelected.name} adıyla tek satır",
+                                            title = str("Tek Satır Olarak Ekle", "Add as Single Row"),
+                                            subtitle = str(
+                                                "${currentSelected.name} adıyla tek satır",
+                                                "Single row named ${currentSelected.name}"
+                                            ),
                                             selected = !addSeparately,
                                             onClick = { addSeparately = false },
                                             modifier = Modifier.weight(1f)
                                         )
                                         ModeOptionChip(
-                                            title = "İçerikleri Ayrı Ayrı Ekle",
-                                            subtitle = "Her içerik tabloda ayrı satır olur",
+                                            title = str("İçerikleri Ayrı Ayrı Ekle", "Add Items Separately"),
+                                            subtitle = str(
+                                                "Her içerik tabloda ayrı satır olur",
+                                                "Each item appears on its own row"
+                                            ),
                                             selected = addSeparately,
                                             onClick = { addSeparately = true },
                                             modifier = Modifier.weight(1f)
@@ -807,7 +831,11 @@ fun InventoryMixStudioDialog(
                                         }
                                         onAddItemsToMeal(
                                             foodItems,
-                                            "${currentSelected.name} (${foodItems.size} içerik, $totalCalories kcal) öğüne eklendi."
+                                            trEn(
+                                                "${currentSelected.name} (${foodItems.size} içerik, $totalCalories kcal) öğüne eklendi.",
+                                                "${currentSelected.name} (${foodItems.size} items, $totalCalories kcal) added to meal.",
+                                                lang
+                                            )
                                         )
                                     } else {
                                         val combinedPortion = if (activeScaledIngredients.size == 1) {
@@ -854,7 +882,11 @@ fun InventoryMixStudioDialog(
                                         )
                                         onAddItemsToMeal(
                                             listOf(singleItem),
-                                            "${currentSelected.name} ($totalCalories kcal) öğüne eklendi."
+                                            trEn(
+                                                "${currentSelected.name} ($totalCalories kcal) öğüne eklendi.",
+                                                "${currentSelected.name} ($totalCalories kcal) added to meal.",
+                                                lang
+                                            )
                                         )
                                     }
                                     onDismiss()
@@ -877,7 +909,7 @@ fun InventoryMixStudioDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Öğünüme Ekle ($totalCalories kcal)",
+                                    text = str("Öğünüme Ekle ($totalCalories kcal)", "Add to My Meal ($totalCalories kcal)"),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
@@ -932,7 +964,11 @@ private fun InventoryGridItemCard(
                     color = mixTagColor.copy(alpha = 0.16f)
                 ) {
                     Text(
-                        text = if (isMix) "⚡ ${effectiveIngredients.size} İçerik" else "🏷️ Tekli",
+                        text = if (isMix) {
+                            str("⚡ ${effectiveIngredients.size} İçerik", "⚡ ${effectiveIngredients.size} Items")
+                        } else {
+                            str("🏷️ Tekli", "🏷️ Single")
+                        },
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = mixTagColor,
@@ -943,7 +979,7 @@ private fun InventoryGridItemCard(
                 if (onDelete != null) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Sil",
+                        contentDescription = str("Sil", "Delete"),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                         modifier = Modifier
                             .size(16.dp)
@@ -1032,13 +1068,13 @@ private fun InventoryGridItemCard(
                     color = HealthColors.NutrientProtein
                 )
                 Text(
-                    text = "K: ${item.carbsG.roundToInt()}g",
+                    text = str("K: ${item.carbsG.roundToInt()}g", "C: ${item.carbsG.roundToInt()}g"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     fontWeight = FontWeight.Bold,
                     color = HealthColors.NutrientCarbs
                 )
                 Text(
-                    text = "Y: ${item.fatG.roundToInt()}g",
+                    text = str("Y: ${item.fatG.roundToInt()}g", "F: ${item.fatG.roundToInt()}g"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     fontWeight = FontWeight.Bold,
                     color = HealthColors.NutrientLipids
@@ -1052,7 +1088,7 @@ private fun InventoryGridItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Ayarla & Ekle",
+                    text = str("Ayarla & Ekle", "Adjust & Add"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     fontWeight = FontWeight.Bold,
                     color = HealthColors.Primary
@@ -1181,7 +1217,7 @@ private fun IngredientLevelWidgetCard(
                             if (isEnabled) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "Seçili",
+                                    contentDescription = str("Seçili", "Selected"),
                                     tint = HealthColors.OnPrimary,
                                     modifier = Modifier.size(15.dp)
                                 )
@@ -1209,9 +1245,12 @@ private fun IngredientLevelWidgetCard(
                         )
                         Text(
                             text = if (isEnabled) {
-                                "$scaledCalories kcal • ${scaledProtein}g P • ${scaledCarbs}g K • ${scaledFat}g Y"
+                                str(
+                                    "$scaledCalories kcal • ${scaledProtein}g P • ${scaledCarbs}g K • ${scaledFat}g Y",
+                                    "$scaledCalories kcal • ${scaledProtein}g P • ${scaledCarbs}g C • ${scaledFat}g F"
+                                )
                             } else {
-                                "Bu öğünde devre dışı (eklenmeyecek)"
+                                str("Bu öğünde devre dışı (eklenmeyecek)", "Disabled for this meal (won't be added)")
                             },
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = if (isEnabled) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -1240,7 +1279,7 @@ private fun IngredientLevelWidgetCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Remove,
-                                contentDescription = "Azalt",
+                                contentDescription = str("Azalt", "Decrease"),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
@@ -1272,7 +1311,7 @@ private fun IngredientLevelWidgetCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Artır",
+                                contentDescription = str("Artır", "Increase"),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )

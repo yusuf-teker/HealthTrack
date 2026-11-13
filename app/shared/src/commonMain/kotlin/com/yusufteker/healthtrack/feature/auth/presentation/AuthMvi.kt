@@ -1,5 +1,7 @@
 package com.yusufteker.healthtrack.feature.auth.presentation
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.model.UserSession
 
 data class AuthState(
@@ -7,12 +9,14 @@ data class AuthState(
     val password: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val session: UserSession = UserSession(0, "", "", "", "", null, false)
+    val session: UserSession = UserSession(0, "", "", "", "", null, false),
+    val language: AppLanguage = LocalizationManager.currentLanguage
 )
 
 sealed interface AuthIntent {
     data class OnIdentifierChanged(val value: String) : AuthIntent
     data class OnPasswordChanged(val value: String) : AuthIntent
+    data class OnLanguageChanged(val language: AppLanguage) : AuthIntent
     data object OnLoginClicked : AuthIntent
     data object OnLogoutClicked : AuthIntent
     data object OnDismissError : AuthIntent

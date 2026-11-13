@@ -7,7 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import java.util.Locale
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 
 @Composable
 actual fun rememberSpeechToTextLauncher(): SpeechToTextLauncher {
@@ -42,7 +42,7 @@ actual fun rememberSpeechToTextLauncher(): SpeechToTextLauncher {
                 onSpeechResultCallback = onResult
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, LocalizationManager.currentLanguage.bcp47Tag)
                     putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
                 }
                 try {

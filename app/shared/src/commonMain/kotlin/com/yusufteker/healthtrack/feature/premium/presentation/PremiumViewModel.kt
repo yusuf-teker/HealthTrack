@@ -2,12 +2,15 @@ package com.yusufteker.healthtrack.feature.premium.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.PaymentMethod
 import com.yusufteker.healthtrack.core.model.RestorePurchaseRequest
 import com.yusufteker.healthtrack.core.model.StoreBillingClient
 import com.yusufteker.healthtrack.core.model.VerifyPurchaseRequest
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.getPlatform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -49,6 +52,16 @@ class PremiumViewModel(
         viewModelScope.launch {
             tokenStorage.premiumUntilFlow.collect { until ->
                 _state.update { it.copy(premiumUntil = until) }
+            }
+        }
+        viewModelScope.launch {
+            LocalizationManager.languageFlow.collect { lang ->
+                val plans = localizedHealthTrackPlans(lang)
+                val features = localizedHealthTrackFeatures(lang)
+                _state.update { current ->
+                    val selected = plans.firstOrNull { it.id == current.selectedPlan.id } ?: plans.first()
+                    current.copy(availablePlans = plans, selectedPlan = selected, features = features)
+                }
             }
         }
         loadPlansAndStatus()
@@ -132,7 +145,7 @@ class PremiumViewModel(
                         isPurchasing = false,
                         showPaymentSheet = false,
                         infoMessage = purchaseResult.errorMessage
-                            ?: "Mağaza abonelik SDK'sı henüz bağlanmadı."
+                            ?: trEn("Mağaza abonelik SDK'sı henüz bağlanmadı.", "Store billing SDK is not connected yet.")
                     )
                 }
                 return@launch
@@ -160,13 +173,13 @@ class PremiumViewModel(
                             infoMessage = verifyResp.message
                         )
                     }
-                    _effects.send(PremiumEffect.ShowToast("HealthTrack Premium aktif edildi!"))
+                    _effects.send(PremiumEffect.ShowToast(trEn("HealthTrack Premium aktif edildi!", "HealthTrack Premium activated!")))
                 } else {
                     _state.update {
                         it.copy(
                             isPurchasing = false,
                             showPaymentSheet = false,
-                            infoMessage = verifyResp.message.ifBlank { "Abonelik doğrulaması bekleniyor." }
+                            infoMessage = verifyResp.message.ifBlank { trEn("Abonelik doğrulaması bekleniyor.", "Subscription verification pending.") }
                         )
                     }
                 }
@@ -175,7 +188,11 @@ class PremiumViewModel(
                     it.copy(
                         isPurchasing = false,
                         showPaymentSheet = false,
-                        errorMessage = err.message ?: "Satın alma doğrulaması başarısız."
+                        errorMessage = formatActionableApiError(
+                            error = err,
+                            operationTr = "Satın alma doğrulaması",
+                            operationEn = "Purchase verification"
+                        )
                     )
                 }
             }
@@ -210,9 +227,9 @@ class PremiumViewModel(
                         activePlanId = status.activePlanId,
                         provider = status.provider,
                         infoMessage = if (status.isPremium) {
-                            "Premium üyeliğiniz başarıyla geri yüklendi."
+                            trEn("Premium üyeliğiniz başarıyla geri yüklendi.", "Your Premium membership has been restored.")
                         } else {
-                            "Aktif mağaza aboneliği bulunamadı."
+                            trEn("Aktif mağaza aboneliği bulunamadı.", "No active store subscription found.")
                         }
                     )
                 }
@@ -220,7 +237,11 @@ class PremiumViewModel(
                 _state.update {
                     it.copy(
                         isRestoring = false,
-                        errorMessage = err.message ?: "Geri yükleme başarısız."
+                        errorMessage = formatActionableApiError(
+                            error = err,
+                            operationTr = "Satın alma geri yükleme",
+                            operationEn = "Purchase restore"
+                        )
                     )
                 }
             }

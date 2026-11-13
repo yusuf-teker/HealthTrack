@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.analytics.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.model.AnalysisPeriodType
 import com.yusufteker.healthtrack.core.model.HealthAiReport
 import com.yusufteker.healthtrack.theme.AppThemeColor
@@ -87,6 +88,18 @@ fun AnalyticsScreenLightPreview() {
 fun AnalyticsScreenEmptyPreview() {
     HealthTrackTheme(darkTheme = true, themeAccent = AppThemeColor.EMERALD) {
         AnalyticsScreen(state = AnalyticsState(), onIntent = {})
+    }
+}
+
+@Preview
+@Composable
+fun AnalyticsScreenEnglishPreview() {
+    HealthTrackTheme(
+        darkTheme = true,
+        themeAccent = AppThemeColor.TEAL,
+        language = AppLanguage.EN
+    ) {
+        AnalyticsScreen(state = populatedAnalyticsState, onIntent = {})
     }
 }
 

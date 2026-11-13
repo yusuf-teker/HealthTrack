@@ -1,6 +1,5 @@
 package com.yusufteker.healthtrack.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -9,15 +8,26 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 
 val LocalIsDarkTheme = compositionLocalOf { true }
 val LocalThemeAccent = compositionLocalOf { AppThemeColor.OCEAN }
+val LocalAppLanguage = compositionLocalOf { AppLanguage.TR }
 val LocalBottomBarVisibility = compositionLocalOf<MutableState<Boolean>> { mutableStateOf(true) }
+
+@Composable
+fun str(tr: String, en: String): String =
+    if (LocalAppLanguage.current == AppLanguage.TR) tr else en
+
+@Composable
+fun appLang(): AppLanguage = LocalAppLanguage.current
 
 @Composable
 fun HealthTrackTheme(
     darkTheme: Boolean = true,
     themeAccent: AppThemeColor = AppThemeColor.OCEAN,
+    language: AppLanguage = LocalizationManager.currentLanguage,
     content: @Composable () -> Unit
 ) {
     HealthColors.currentAccent = themeAccent
@@ -80,7 +90,8 @@ fun HealthTrackTheme(
 
     CompositionLocalProvider(
         LocalIsDarkTheme provides darkTheme,
-        LocalThemeAccent provides themeAccent
+        LocalThemeAccent provides themeAccent,
+        LocalAppLanguage provides language
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -88,4 +99,3 @@ fun HealthTrackTheme(
         )
     }
 }
-

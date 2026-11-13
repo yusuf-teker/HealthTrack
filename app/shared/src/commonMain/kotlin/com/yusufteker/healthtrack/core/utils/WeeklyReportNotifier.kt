@@ -32,6 +32,11 @@ interface WeeklyReportNotifier {
      * Schedules a repeating Sunday evening alarm (e.g. at 21:00) to trigger weekly notifications.
      */
     fun scheduleSundayEveningReminder(hour: Int = 21, minute: Int = 0)
+
+    /**
+     * Cancels any scheduled Sunday evening weekly report reminder.
+     */
+    fun cancelSundayEveningReminder()
 }
 
 /**

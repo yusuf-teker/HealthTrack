@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.core.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -36,7 +37,12 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 if (store == null) {
                     onResult(
                         Result.failure(
-                            IllegalStateException("Cihazınızda Apple HealthKit desteği bulunmuyor.")
+                            IllegalStateException(
+                                trEn(
+                                    "Cihazınızda Apple HealthKit desteği bulunmuyor.",
+                                    "Apple HealthKit is not available on this device."
+                                )
+                            )
                         )
                     )
                     return
@@ -164,7 +170,7 @@ private fun queryHealthKitSamples(
                     val millis = (sample.startDate.timeIntervalSince1970 * 1000.0).toLong()
                     val isoDate = epochMillisToLocalIsoDate(millis)
                     val kg = sample.quantity.doubleValueForUnit(kgUnit)
-                    val sourceName = sample.sourceRevision.source.name.ifBlank { "Apple Health Tartı" }
+                    val sourceName = sample.sourceRevision.source.name.ifBlank { trEn("Apple Health Tartı", "Apple Health Scale") }
 
                     val matchedFat = rawFats
                         .filter {
@@ -214,7 +220,7 @@ private fun queryHealthKitSamples(
                     weightKg = kg,
                     measuredAtMillis = millis,
                     sourcePackage = sample.sourceRevision.source.bundleIdentifier,
-                    sourceName = sample.sourceRevision.source.name.ifBlank { "Apple Health Tartı" }
+                    sourceName = sample.sourceRevision.source.name.ifBlank { trEn("Apple Health Tartı", "Apple Health Scale") }
                 )
             }
             queryWorkouts(

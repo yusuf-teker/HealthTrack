@@ -24,8 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import healthtrack.app.shared.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
@@ -34,23 +39,27 @@ import org.jetbrains.compose.resources.painterResource
 data class FoodIconItem(
     val key: String,
     val titleTr: String,
+    val titleEn: String,
     val resource: DrawableResource
-)
+) {
+    fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(titleTr, titleEn, language)
+}
 
 object FoodIcons {
     val ALL: List<FoodIconItem> = listOf(
-        FoodIconItem("capsule", "Kapsül / Tablet", Res.drawable.ic_supplement_capsule),
-        FoodIconItem("bottle", "Şişe / Shaker", Res.drawable.ic_supplement_bottle),
-        FoodIconItem("protein", "Protein Tozu", Res.drawable.ic_supplement_protein),
-        FoodIconItem("creatine", "Kreatin", Res.drawable.ic_supplement_creatine),
-        FoodIconItem("bcaa", "BCAA", Res.drawable.ic_supplement_bcaa),
-        FoodIconItem("carnitine", "L-Karnitin", Res.drawable.ic_supplement_carnitine),
-        FoodIconItem("multivitamin", "Multivitamin", Res.drawable.ic_supplement_multivitamin),
-        FoodIconItem("omega3", "Omega-3", Res.drawable.ic_supplement_omega3),
-        FoodIconItem("vit_d", "D Vitamini", Res.drawable.ic_supplement_vit_d),
-        FoodIconItem("vit_b", "B Vitamini", Res.drawable.ic_supplement_vit_b),
-        FoodIconItem("vit_a", "A Vitamini", Res.drawable.ic_supplement_vit_a),
-        FoodIconItem("coffee", "Kahve / Kafein", Res.drawable.ic_supplement_coffee)
+        FoodIconItem("capsule", "Kapsül / Tablet", "Capsule / Tablet", Res.drawable.ic_supplement_capsule),
+        FoodIconItem("bottle", "Şişe / Shaker", "Bottle / Shaker", Res.drawable.ic_supplement_bottle),
+        FoodIconItem("protein", "Protein Tozu", "Protein Powder", Res.drawable.ic_supplement_protein),
+        FoodIconItem("creatine", "Kreatin", "Creatine", Res.drawable.ic_supplement_creatine),
+        FoodIconItem("bcaa", "BCAA", "BCAA", Res.drawable.ic_supplement_bcaa),
+        FoodIconItem("carnitine", "L-Karnitin", "L-Carnitine", Res.drawable.ic_supplement_carnitine),
+        FoodIconItem("multivitamin", "Multivitamin", "Multivitamin", Res.drawable.ic_supplement_multivitamin),
+        FoodIconItem("omega3", "Omega-3", "Omega-3", Res.drawable.ic_supplement_omega3),
+        FoodIconItem("vit_d", "D Vitamini", "Vitamin D", Res.drawable.ic_supplement_vit_d),
+        FoodIconItem("vit_b", "B Vitamini", "Vitamin B", Res.drawable.ic_supplement_vit_b),
+        FoodIconItem("vit_a", "A Vitamini", "Vitamin A", Res.drawable.ic_supplement_vit_a),
+        FoodIconItem("coffee", "Kahve / Kafein", "Coffee / Caffeine", Res.drawable.ic_supplement_coffee)
     )
 
     fun getDrawable(key: String?): DrawableResource? {
@@ -58,9 +67,9 @@ object FoodIcons {
         return ALL.firstOrNull { it.key == key }?.resource
     }
 
-    fun getTitle(key: String?): String? {
+    fun getTitle(key: String?, language: AppLanguage = LocalizationManager.currentLanguage): String? {
         if (key == null) return null
-        return ALL.firstOrNull { it.key == key }?.titleTr
+        return ALL.firstOrNull { it.key == key }?.localizedTitle(language)
     }
 }
 
@@ -76,6 +85,7 @@ fun FoodIconBadge(
     backgroundColor: Color = tint.copy(alpha = 0.12f)
 ) {
     val drawableRes = FoodIcons.getDrawable(iconKey) ?: return
+    val lang = appLang()
 
     Box(
         modifier = modifier
@@ -86,7 +96,7 @@ fun FoodIconBadge(
     ) {
         Icon(
             painter = painterResource(drawableRes),
-            contentDescription = FoodIcons.getTitle(iconKey),
+            contentDescription = FoodIcons.getTitle(iconKey, lang),
             tint = tint,
             modifier = Modifier.size((size.value * 0.62f).dp)
         )
@@ -147,7 +157,7 @@ fun FoodIconSelector(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "İkonsuz",
+                        text = str("İkonsuz", "No Icon"),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (isNoneSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isNoneSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -156,8 +166,10 @@ fun FoodIconSelector(
             }
 
             // 12 Supplement Icons
+            val lang = appLang()
             FoodIcons.ALL.forEach { item ->
                 val isSelected = selectedKey == item.key
+                val itemTitle = item.localizedTitle(lang)
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = if (isSelected) {
@@ -193,14 +205,14 @@ fun FoodIconSelector(
                         ) {
                             Icon(
                                 painter = painterResource(item.resource),
-                                contentDescription = item.titleTr,
+                                contentDescription = itemTitle,
                                 tint = if (isSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
 
                         Text(
-                            text = item.titleTr,
+                            text = itemTitle,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurface
@@ -228,10 +240,10 @@ fun FoodIconSelector(
         }
 
         // Active selection display
-        val activeTitle = FoodIcons.getTitle(selectedKey)
+        val activeTitle = FoodIcons.getTitle(selectedKey, appLang())
         if (activeTitle != null) {
             Text(
-                text = "Seçilen İkon: $activeTitle",
+                text = str("Seçilen İkon: $activeTitle", "Selected Icon: $activeTitle"),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 color = HealthColors.Primary,
                 fontWeight = FontWeight.SemiBold,

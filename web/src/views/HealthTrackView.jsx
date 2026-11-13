@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getHealthData, seedSampleHealthData } from '../api/client';
 import { 
   Heart, 
@@ -25,6 +26,7 @@ import {
 
 export default function HealthTrackView() {
   const { token, user } = useAuth();
+  const { t, lang, dateLocale } = useLanguage();
   const cacheKey = user?.id ? `health_data_cache_${user.id}` : 'health_data_cache_default';
 
   // Initialize from localStorage cache to prevent data loss on tab switches
@@ -70,9 +72,9 @@ export default function HealthTrackView() {
       console.error('Failed to load health data:', err);
       // Keep displaying cached data if available; only show error if no data at all
       if (healthData.foods.length === 0 && healthData.workouts.length === 0) {
-        setError(err.message || 'Sağlık verileri yüklenirken bir hata oluştu.');
+        setError(err.message || t('Sağlık verileri yüklenirken bir hata oluştu.', 'An error occurred while loading health data.'));
       } else {
-        setInfoMessage('Çevrimdışı / Önbelleğe alınmış sağlık verileri görüntüleniyor.');
+        setInfoMessage(t('Çevrimdışı / Önbelleğe alınmış sağlık verileri görüntüleniyor.', 'Showing offline / cached health data.'));
       }
     } finally {
       setLoading(false);
@@ -92,10 +94,10 @@ export default function HealthTrackView() {
     try {
       await seedSampleHealthData(token, selectedDate);
       await loadData(true);
-      setInfoMessage('Örnek sağlık verileri başarıyla sunucuya kaydedildi ve yüklendi.');
+      setInfoMessage(t('Örnek sağlık verileri başarıyla sunucuya kaydedildi ve yüklendi.', 'Sample health data saved to server and loaded successfully.'));
     } catch (err) {
       console.error('Seed error:', err);
-      setError(err.message || 'Örnek veriler yüklenirken hata oluştu.');
+      setError(err.message || t('Örnek veriler yüklenirken hata oluştu.', 'An error occurred while loading sample data.'));
     } finally {
       setSeeding(false);
     }
@@ -143,22 +145,22 @@ export default function HealthTrackView() {
 
   // Export CSV
   const handleExportCSV = () => {
-    let csv = 'Tür,Tarih,Açıklama / Detay,Kalori / Değer\n';
+    let csv = t('Tür,Tarih,Açıklama / Detay,Kalori / Değer\n', 'Type,Date,Description / Detail,Calories / Value\n');
     healthData.foods.forEach(f => {
-      csv += `Öğün,"${f.date}","${(f.summary || f.rawText || '').replace(/"/g, '""')}",${f.totalCalories || 0}\n`;
+      csv += `${t('Öğün', 'Meal')},"${f.date}","${(f.summary || f.rawText || '').replace(/"/g, '""')}",${f.totalCalories || 0}\n`;
     });
     healthData.workouts.forEach(w => {
-      csv += `Antrenman,"${w.date}","${(w.rawText || '').replace(/"/g, '""')}",${w.caloriesBurned || 0} kcal (${w.durationMinutes || 0} dk)\n`;
+      csv += `${t('Antrenman', 'Workout')},"${w.date}","${(w.rawText || '').replace(/"/g, '""')}",${w.caloriesBurned || 0} kcal (${w.durationMinutes || 0} ${t('dk', 'min')})\n`;
     });
     healthData.weights.forEach(wt => {
-      csv += `Kilo,"${wt.date}","Tartı Kaydı",${wt.weightKg} kg\n`;
+      csv += `${t('Kilo', 'Weight')},"${wt.date}","${t('Tartı Kaydı', 'Weight Entry')}",${wt.weightKg} kg\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `HealthTrack_Rapor_${user?.username || 'user'}_${selectedDate}.csv`);
+    link.setAttribute('download', `${t('HealthTrack_Rapor', 'HealthTrack_Report')}_${user?.username || 'user'}_${selectedDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -177,11 +179,11 @@ export default function HealthTrackView() {
               <Heart className="w-4 h-4" />
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              HealthTrack Biyo-Telemetri Portalı
+              {t('HealthTrack Biyo-Telemetri Portalı', 'HealthTrack Bio-Telemetry Portal')}
             </h1>
           </div>
           <p className="text-xs text-gray-400 mt-1">
-            Günlük besin dökümü, kalori hedefleri, antrenmanlar ve vücut kompozisyonu geçmişiniz
+            {t('Günlük besin dökümü, kalori hedefleri, antrenmanlar ve vücut kompozisyonu geçmişiniz', 'Your daily nutrition log, calorie goals, workouts, and body composition history')}
           </p>
         </div>
 
@@ -195,12 +197,12 @@ export default function HealthTrackView() {
                 : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
             }`}
           >
-            Bugün
+            {t('Bugün', 'Today')}
           </button>
 
           {/* Date Picker */}
           <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
-            <span className="text-xs text-gray-400">Tarih:</span>
+            <span className="text-xs text-gray-400">{t('Tarih:', 'Date:')}</span>
             <input 
               type="date"
               value={selectedDate}
@@ -212,7 +214,7 @@ export default function HealthTrackView() {
           {/* Refresh Button */}
           <button
             onClick={() => loadData(true)}
-            title="Verileri Yenile"
+            title={t('Verileri Yenile', 'Refresh Data')}
             disabled={loading}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all disabled:opacity-50"
           >
@@ -228,7 +230,7 @@ export default function HealthTrackView() {
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{infoMessage}</span>
           </div>
-          <button onClick={() => setInfoMessage('')} className="text-emerald-400 hover:text-white text-xs">Kapat</button>
+          <button onClick={() => setInfoMessage('')} className="text-emerald-400 hover:text-white text-xs">{t('Kapat', 'Close')}</button>
         </div>
       )}
 
@@ -239,7 +241,7 @@ export default function HealthTrackView() {
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError('')} className="text-rose-400 hover:text-white text-xs">Kapat</button>
+          <button onClick={() => setError('')} className="text-rose-400 hover:text-white text-xs">{t('Kapat', 'Close')}</button>
         </div>
       )}
 
@@ -249,13 +251,13 @@ export default function HealthTrackView() {
           <div className="space-y-1.5 max-w-2xl">
             <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-4 h-4" />
-              <span>Veri Senkronizasyonu Bekleniyor</span>
+              <span>{t('Veri Senkronizasyonu Bekleniyor', 'Waiting for Data Sync')}</span>
             </div>
             <h2 className="text-lg font-bold text-white">
-              Henüz bu hesap için kayıtlı sağlık verisi bulunmuyor
+              {t('Henüz bu hesap için kayıtlı sağlık verisi bulunmuyor', 'No health data recorded for this account yet')}
             </h2>
             <p className="text-xs text-gray-400 leading-relaxed">
-              HealthTrack mobil uygulamasından öğün, kilo veya antrenman ekleyip senkronize ettiğinizde burada anlık olarak görünecektir. Dilerseniz panoyu ve grafikleri hemen test etmek için bir tıkla örnek verileri yükleyebilirsiniz.
+              {t('HealthTrack mobil uygulamasından öğün, kilo veya antrenman ekleyip senkronize ettiğinizde burada anlık olarak görünecektir. Dilerseniz panoyu ve grafikleri hemen test etmek için bir tıkla örnek verileri yükleyebilirsiniz.', 'When you log and sync meals, weight, or workouts from the HealthTrack mobile app, they will appear here in real time. You can also load sample data in one click to preview the dashboard and charts right away.')}
             </p>
           </div>
 
@@ -265,7 +267,7 @@ export default function HealthTrackView() {
             className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shrink-0"
           >
             <PlusCircle className={`w-4 h-4 ${seeding ? 'animate-spin' : ''}`} />
-            <span>{seeding ? 'Veriler Yükleniyor...' : 'Örnek Sağlık Verilerini Yükle'}</span>
+            <span>{seeding ? t('Veriler Yükleniyor...', 'Loading Data...') : t('Örnek Sağlık Verilerini Yükle', 'Load Sample Health Data')}</span>
           </button>
         </div>
       )}
@@ -277,7 +279,7 @@ export default function HealthTrackView() {
         <div className="glass-panel rounded-3xl p-6 relative overflow-hidden border border-emerald-500/20">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-              Günlük Kalori
+              {t('Günlük Kalori', 'Daily Calories')}
             </span>
             <Flame className="w-4 h-4 text-orange-400" />
           </div>
@@ -302,8 +304,8 @@ export default function HealthTrackView() {
           </div>
 
           <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400">
-            <span>Kalan: {Math.max(0, targetCalories - totalCaloriesDate)} kcal</span>
-            <span>%{Math.round((totalCaloriesDate / (targetCalories || 1)) * 100)}</span>
+            <span>{t('Kalan', 'Remaining')}: {Math.max(0, targetCalories - totalCaloriesDate)} kcal</span>
+            <span>{lang === 'tr' ? `%${Math.round((totalCaloriesDate / (targetCalories || 1)) * 100)}` : `${Math.round((totalCaloriesDate / (targetCalories || 1)) * 100)}%`}</span>
           </div>
         </div>
 
@@ -311,7 +313,7 @@ export default function HealthTrackView() {
         <div className="glass-panel rounded-3xl p-6 relative overflow-hidden border border-teal-500/20">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-teal-400">
-              Makro Dağılımı ({selectedDate})
+              {t('Makro Dağılımı', 'Macro Breakdown')} ({selectedDate})
             </span>
             <Utensils className="w-4 h-4 text-teal-400" />
           </div>
@@ -334,7 +336,7 @@ export default function HealthTrackView() {
             {/* Carbs */}
             <div>
               <div className="flex justify-between text-[11px] mb-1">
-                <span className="text-gray-400">Karbonhidrat</span>
+                <span className="text-gray-400">{t('Karbonhidrat', 'Carbs')}</span>
                 <span className="text-gray-300 font-mono">{Math.round(dateCarbs)}g / {targetCarbs}g</span>
               </div>
               <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
@@ -348,7 +350,7 @@ export default function HealthTrackView() {
             {/* Fat */}
             <div>
               <div className="flex justify-between text-[11px] mb-1">
-                <span className="text-gray-400">Yağ</span>
+                <span className="text-gray-400">{t('Yağ', 'Fat')}</span>
                 <span className="text-gray-300 font-mono">{Math.round(dateFat)}g / {targetFat}g</span>
               </div>
               <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
@@ -365,7 +367,7 @@ export default function HealthTrackView() {
         <div className="glass-panel rounded-3xl p-6 relative overflow-hidden border border-emerald-500/20">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-              Vücut Ağırlığı
+              {t('Vücut Ağırlığı', 'Body Weight')}
             </span>
             <Scale className="w-4 h-4 text-emerald-400" />
           </div>
@@ -385,15 +387,15 @@ export default function HealthTrackView() {
                   : 'bg-orange-500/15 text-orange-300 border border-orange-500/30'
               }`}>
                 {Number(weightChange) < 0 ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-                {Math.abs(weightChange)} kg ({sortedWeights[1]?.date ? 'önceki tartıya göre' : ''})
+                {Math.abs(weightChange)} kg ({sortedWeights[1]?.date ? t('önceki tartıya göre', 'vs previous weigh-in') : ''})
               </span>
             ) : (
-              <span className="text-xs text-gray-500">Kilo kaydı bekleniyor</span>
+              <span className="text-xs text-gray-500">{t('Kilo kaydı bekleniyor', 'Waiting for weight log')}</span>
             )}
           </div>
 
           <p className="text-[11px] text-gray-400 mt-2">
-            Toplam {healthData.weights.length} tartı kaydı mevcut
+            {t(`Toplam ${healthData.weights.length} tartı kaydı mevcut`, `${healthData.weights.length} weight entries recorded`)}
           </p>
         </div>
 
@@ -401,7 +403,7 @@ export default function HealthTrackView() {
         <div className="glass-panel rounded-3xl p-6 relative overflow-hidden border border-white/10">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-              Antrenman & Aktivite
+              {t('Antrenman & Aktivite', 'Workouts & Activity')}
             </span>
             <Activity className="w-4 h-4 text-indigo-400" />
           </div>
@@ -410,16 +412,16 @@ export default function HealthTrackView() {
             <span className="text-3xl font-black text-white">
               {totalWorkoutBurn}
             </span>
-            <span className="text-xs text-gray-400 font-medium">kcal yakıldı</span>
+            <span className="text-xs text-gray-400 font-medium">{t('kcal yakıldı', 'kcal burned')}</span>
           </div>
 
           <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
-            <span>Toplam Süre:</span>
-            <span className="text-white font-semibold">{totalWorkoutMinutes} dakika</span>
+            <span>{t('Toplam Süre:', 'Total Duration:')}</span>
+            <span className="text-white font-semibold">{totalWorkoutMinutes} {t('dakika', 'min')}</span>
           </div>
 
           <p className="text-[11px] text-gray-500 mt-2">
-            Toplam {healthData.workouts.length} kayıtlı egzersiz
+            {t(`Toplam ${healthData.workouts.length} kayıtlı egzersiz`, `${healthData.workouts.length} recorded workouts`)}
           </p>
         </div>
 
@@ -436,7 +438,7 @@ export default function HealthTrackView() {
           }`}
         >
           <Utensils className="w-3.5 h-3.5" />
-          <span>Öğün Günlüğü ({healthData.foods.length})</span>
+          <span>{t('Öğün Günlüğü', 'Food Log')} ({healthData.foods.length})</span>
         </button>
 
         <button
@@ -448,7 +450,7 @@ export default function HealthTrackView() {
           }`}
         >
           <Activity className="w-3.5 h-3.5" />
-          <span>Antrenmanlar ({healthData.workouts.length})</span>
+          <span>{t('Antrenmanlar', 'Workouts')} ({healthData.workouts.length})</span>
         </button>
 
         <button
@@ -460,7 +462,7 @@ export default function HealthTrackView() {
           }`}
         >
           <Scale className="w-3.5 h-3.5" />
-          <span>Kilo Takibi ({healthData.weights.length})</span>
+          <span>{t('Kilo Takibi', 'Weight Tracking')} ({healthData.weights.length})</span>
         </button>
 
         <button
@@ -472,7 +474,7 @@ export default function HealthTrackView() {
           }`}
         >
           <Printer className="w-3.5 h-3.5" />
-          <span>Sağlık Raporu & Çıktı</span>
+          <span>{t('Sağlık Raporu & Çıktı', 'Health Report & Export')}</span>
         </button>
       </div>
 
@@ -483,11 +485,11 @@ export default function HealthTrackView() {
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-gray-300">
                 {foodViewMode === 'DATE' 
-                  ? `Seçili Günün Öğünleri (${dateFoods.length} öğün: ${selectedDate})` 
-                  : `Tüm Kayıtlı Öğünler (${healthData.foods.length} öğün)`}
+                  ? t(`Seçili Günün Öğünleri (${dateFoods.length} öğün: ${selectedDate})`, `Meals for Selected Date (${dateFoods.length} meals: ${selectedDate})`)
+                  : t(`Tüm Kayıtlı Öğünler (${healthData.foods.length} öğün)`, `All Recorded Meals (${healthData.foods.length} meals)`)}
               </h2>
               <span className="text-xs text-gray-500">
-                Toplam kalori ve besin değeri dağılımı
+                {t('Toplam kalori ve besin değeri dağılımı', 'Total calorie and nutrient breakdown')}
               </span>
             </div>
 
@@ -499,7 +501,7 @@ export default function HealthTrackView() {
                   foodViewMode === 'DATE' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                Seçili Tarih ({selectedDate})
+                {t('Seçili Tarih', 'Selected Date')} ({selectedDate})
               </button>
               <button
                 onClick={() => setFoodViewMode('ALL')}
@@ -507,7 +509,7 @@ export default function HealthTrackView() {
                   foodViewMode === 'ALL' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                Tüm Öğünler ({healthData.foods.length})
+                {t('Tüm Öğünler', 'All Meals')} ({healthData.foods.length})
               </button>
             </div>
           </div>
@@ -518,18 +520,18 @@ export default function HealthTrackView() {
               <Utensils className="w-8 h-8 text-gray-600 mx-auto" />
               <p className="text-sm font-semibold text-gray-300">
                 {foodViewMode === 'DATE' 
-                  ? `Bu tarihte (${selectedDate}) kayıtlı öğün bulunamadı.` 
-                  : 'Henüz hiçbir tarihte kayıtlı öğün bulunmuyor.'}
+                  ? t(`Bu tarihte (${selectedDate}) kayıtlı öğün bulunamadı.`, `No meals recorded on ${selectedDate}.`)
+                  : t('Henüz hiçbir tarihte kayıtlı öğün bulunmuyor.', 'No meals recorded on any date yet.')}
               </p>
               <p className="text-xs text-gray-500 max-w-md mx-auto">
-                HealthTrack mobil uygulamasından fotoğraf veya serbest metinle öğün ekleyebilirsiniz.
+                {t('HealthTrack mobil uygulamasından fotoğraf veya serbest metinle öğün ekleyebilirsiniz.', 'You can log meals via photo or free text from the HealthTrack mobile app.')}
               </p>
               {healthData.foods.length > 0 && foodViewMode === 'DATE' && (
                 <button
                   onClick={() => setFoodViewMode('ALL')}
                   className="mt-2 px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-emerald-300 font-semibold transition-all"
                 >
-                  Diğer Günlerdeki Öğünleri Gör ({healthData.foods.length} öğün)
+                  {t(`Diğer Günlerdeki Öğünleri Gör (${healthData.foods.length} öğün)`, `View Meals on Other Days (${healthData.foods.length} meals)`)}
                 </button>
               )}
             </div>
@@ -570,7 +572,7 @@ export default function HealthTrackView() {
                     {Array.isArray(parsedItems) && parsedItems.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
                         <span className="text-[11px] font-bold uppercase text-gray-400 tracking-wider block">
-                          İçerik & Makro Detayları
+                          {t('İçerik & Makro Detayları', 'Items & Macro Details')}
                         </span>
                         <div className="divide-y divide-white/5">
                           {parsedItems.map((item, idx) => (
@@ -584,12 +586,12 @@ export default function HealthTrackView() {
                                 )}
                                 {(item.carbs || item.carbsG) && (
                                   <span className="text-[10px] text-amber-300 font-mono">
-                                    {item.carbs || item.carbsG}g K
+                                    {item.carbs || item.carbsG}g {t('K', 'C')}
                                   </span>
                                 )}
                                 {(item.fat || item.fatG) && (
                                   <span className="text-[10px] text-rose-300 font-mono">
-                                    {item.fat || item.fatG}g Y
+                                    {item.fat || item.fatG}g {t('Y', 'F')}
                                   </span>
                                 )}
                                 <span className="font-semibold text-gray-200 font-mono">
@@ -614,15 +616,15 @@ export default function HealthTrackView() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-300">
-              Egzersiz & Spor Kayıtları
+              {t('Egzersiz & Spor Kayıtları', 'Exercise & Workout Logs')}
             </h2>
-            <span className="text-xs text-gray-500">Toplam {healthData.workouts.length} kayıt</span>
+            <span className="text-xs text-gray-500">{t(`Toplam ${healthData.workouts.length} kayıt`, `${healthData.workouts.length} total entries`)}</span>
           </div>
 
           {healthData.workouts.length === 0 ? (
             <div className="glass-panel rounded-3xl p-10 text-center border border-white/5">
               <Activity className="w-8 h-8 text-gray-600 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-gray-300">Henüz kayıtlı egzersiz bulunmuyor.</p>
+              <p className="text-sm font-semibold text-gray-300">{t('Henüz kayıtlı egzersiz bulunmuyor.', 'No workouts recorded yet.')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -630,7 +632,7 @@ export default function HealthTrackView() {
                 <div key={w.id} className="glass-panel rounded-2xl p-5 border border-white/10 hover:border-indigo-500/30 transition-all">
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
                     <span className="font-semibold">{w.date}</span>
-                    <span className="text-indigo-400 font-semibold">{w.durationMinutes || 0} dakika</span>
+                    <span className="text-indigo-400 font-semibold">{w.durationMinutes || 0} {t('dakika', 'min')}</span>
                   </div>
 
                   <h3 className="text-base font-bold text-white mb-2">
@@ -644,7 +646,7 @@ export default function HealthTrackView() {
                   )}
 
                   <div className="flex items-center justify-between pt-3 border-t border-white/5 text-xs">
-                    <span className="text-gray-400">Yakılan Enerji:</span>
+                    <span className="text-gray-400">{t('Yakılan Enerji:', 'Calories Burned:')}</span>
                     <span className="text-base font-black text-orange-400">{w.caloriesBurned || 0} kcal</span>
                   </div>
                 </div>
@@ -659,26 +661,26 @@ export default function HealthTrackView() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-300">
-              Tartı & Kilo Geçmişi
+              {t('Tartı & Kilo Geçmişi', 'Weigh-in & Weight History')}
             </h2>
-            <span className="text-xs text-gray-500">Toplam {healthData.weights.length} kayıt</span>
+            <span className="text-xs text-gray-500">{t(`Toplam ${healthData.weights.length} kayıt`, `${healthData.weights.length} total entries`)}</span>
           </div>
 
           {healthData.weights.length === 0 ? (
             <div className="glass-panel rounded-3xl p-10 text-center border border-white/5">
               <Scale className="w-8 h-8 text-gray-600 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-gray-300">Henüz kayıtlı kilo geçmişi bulunmuyor.</p>
+              <p className="text-sm font-semibold text-gray-300">{t('Henüz kayıtlı kilo geçmişi bulunmuyor.', 'No weight history recorded yet.')}</p>
             </div>
           ) : (
             <div className="glass-panel rounded-3xl p-6 border border-white/10 overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-white/10 text-gray-400">
                   <tr>
-                    <th className="pb-3 font-semibold">Tarih</th>
-                    <th className="pb-3 font-semibold">Ölçülen Kilo</th>
-                    <th className="pb-3 font-semibold">Hedef Kilo</th>
-                    <th className="pb-3 font-semibold">Fark</th>
-                    <th className="pb-3 font-semibold">Not / Açıklama</th>
+                    <th className="pb-3 font-semibold">{t('Tarih', 'Date')}</th>
+                    <th className="pb-3 font-semibold">{t('Ölçülen Kilo', 'Measured Weight')}</th>
+                    <th className="pb-3 font-semibold">{t('Hedef Kilo', 'Target Weight')}</th>
+                    <th className="pb-3 font-semibold">{t('Fark', 'Diff')}</th>
+                    <th className="pb-3 font-semibold">{t('Not / Açıklama', 'Note / Details')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -705,7 +707,7 @@ export default function HealthTrackView() {
                           ) : '--'}
                         </td>
                         <td className="py-3 text-gray-400 italic">
-                          {wt.note || 'Ölçüm kaydı'}
+                          {wt.note || t('Ölçüm kaydı', 'Weight entry')}
                         </td>
                       </tr>
                     );
@@ -722,9 +724,9 @@ export default function HealthTrackView() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-white">Biyo-Telemetri & Beslenme Raporu</h2>
+              <h2 className="text-lg font-bold text-white">{t('Biyo-Telemetri & Beslenme Raporu', 'Bio-Telemetry & Nutrition Report')}</h2>
               <p className="text-xs text-gray-400">
-                Seçili tarih ve genel sağlık geçmişinizin detaylı dökümü
+                {t('Seçili tarih ve genel sağlık geçmişinizin detaylı dökümü', 'Detailed summary of your selected date and overall health history')}
               </p>
             </div>
 
@@ -734,7 +736,7 @@ export default function HealthTrackView() {
                 className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-200 flex items-center gap-2 transition-all"
               >
                 <Download className="w-4 h-4 text-emerald-400" />
-                <span>CSV Olarak İndir</span>
+                <span>{t('CSV Olarak İndir', 'Download as CSV')}</span>
               </button>
 
               <button
@@ -742,7 +744,7 @@ export default function HealthTrackView() {
                 className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-xs font-semibold text-white flex items-center gap-2 shadow-lg hover:shadow-glow-health transition-all"
               >
                 <Printer className="w-4 h-4" />
-                <span>Raporu Yazdır / PDF Kaydet</span>
+                <span>{t('Raporu Yazdır / PDF Kaydet', 'Print Report / Save PDF')}</span>
               </button>
             </div>
           </div>
@@ -751,13 +753,13 @@ export default function HealthTrackView() {
           <div className="glass-panel rounded-3xl p-8 border border-white/10 space-y-6 print:border-none print:p-0">
             <div className="border-b border-white/10 pb-4 flex justify-between items-start">
               <div>
-                <h1 className="text-xl font-bold text-white">Bireysel Sağlık & Beslenme İlerleme Raporu</h1>
+                <h1 className="text-xl font-bold text-white">{t('Bireysel Sağlık & Beslenme İlerleme Raporu', 'Personal Health & Nutrition Progress Report')}</h1>
                 <p className="text-xs text-gray-400 mt-1">
-                  Kullanıcı: <strong className="text-white">{user?.name || user?.username}</strong> | Rapor Tarihi: {new Date().toLocaleDateString('tr-TR')}
+                  {t('Kullanıcı:', 'User:')} <strong className="text-white">{user?.name || user?.username}</strong> | {t('Rapor Tarihi:', 'Report Date:')} {new Date().toLocaleDateString(dateLocale)}
                 </p>
               </div>
               <div className="text-right text-xs text-gray-400">
-                <span className="font-bold text-emerald-400">HealthTrack Ekosistemi</span>
+                <span className="font-bold text-emerald-400">{t('HealthTrack Ekosistemi', 'HealthTrack Ecosystem')}</span>
                 <p className="text-[10px]">Neon Cloud Database Verified</p>
               </div>
             </div>
@@ -765,31 +767,31 @@ export default function HealthTrackView() {
             {/* Summary Grid */}
             <div className="grid grid-cols-3 gap-4 text-xs">
               <div className="p-3 rounded-xl bg-white/5">
-                <span className="text-gray-400 block">Güncel Kilo</span>
-                <span className="text-base font-bold text-white">{latestWeight ? `${latestWeight} kg` : 'Veri yok'}</span>
+                <span className="text-gray-400 block">{t('Güncel Kilo', 'Current Weight')}</span>
+                <span className="text-base font-bold text-white">{latestWeight ? `${latestWeight} kg` : t('Veri yok', 'No data')}</span>
               </div>
               <div className="p-3 rounded-xl bg-white/5">
-                <span className="text-gray-400 block">Günlük Kalori Hedefi</span>
+                <span className="text-gray-400 block">{t('Günlük Kalori Hedefi', 'Daily Calorie Goal')}</span>
                 <span className="text-base font-bold text-white">{targetCalories} kcal</span>
               </div>
               <div className="p-3 rounded-xl bg-white/5">
-                <span className="text-gray-400 block">Toplam Egzersiz Kaydı</span>
-                <span className="text-base font-bold text-white">{healthData.workouts.length} seans</span>
+                <span className="text-gray-400 block">{t('Toplam Egzersiz Kaydı', 'Total Workout Sessions')}</span>
+                <span className="text-base font-bold text-white">{healthData.workouts.length} {t('seans', 'sessions')}</span>
               </div>
             </div>
 
             {/* Recent Foods Table */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">
-                Son Kaydedilen Öğünler
+                {t('Son Kaydedilen Öğünler', 'Recently Recorded Meals')}
               </h3>
               <div className="rounded-xl border border-white/10 overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-white/5 text-gray-400">
                     <tr>
-                      <th className="p-2.5">Tarih</th>
-                      <th className="p-2.5">Öğün Özeti</th>
-                      <th className="p-2.5 text-right">Kalori</th>
+                      <th className="p-2.5">{t('Tarih', 'Date')}</th>
+                      <th className="p-2.5">{t('Öğün Özeti', 'Meal Summary')}</th>
+                      <th className="p-2.5 text-right">{t('Kalori', 'Calories')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -807,7 +809,7 @@ export default function HealthTrackView() {
 
             {/* Disclaimer */}
             <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-gray-400">
-              * Bu rapor, kullanıcının HealthTrack mobil uygulaması üzerinden kaydettiği biyo-telemetri ve besin tüketim verilerini içerir. Tıbbi tanı yerine geçmez, danışman hekim ve diyetisyen değerlendirmesi için hazırlanmıştır.
+              * {t('Bu rapor, kullanıcının HealthTrack mobil uygulaması üzerinden kaydettiği biyo-telemetri ve besin tüketim verilerini içerir. Tıbbi tanı yerine geçmez, danışman hekim ve diyetisyen değerlendirmesi için hazırlanmıştır.', 'This report contains bio-telemetry and nutrition intake data recorded by the user via the HealthTrack mobile app. It is not a medical diagnosis and is intended for review by a physician or dietitian.')}
             </div>
           </div>
         </div>

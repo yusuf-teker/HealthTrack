@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.SyncStatus
@@ -11,12 +13,14 @@ import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.sync.SyncState
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.theme.AppThemeColor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -42,13 +46,39 @@ class ProfileViewModel(
     val effects = _effects.receiveAsFlow()
 
     private var hasUserModifiedWeight = false
+    private var weightObservationJob: Job? = null
+    private var goalObservationJob: Job? = null
 
     init {
-        observeLatestWeight()
+        observeSession()
         observeSyncState()
-        observeNutritionGoal()
-        refreshAiQuota()
         observePremiumStatus()
+        viewModelScope.launch {
+            LocalizationManager.languageFlow.collect { lang ->
+                _state.update { it.copy(language = lang) }
+            }
+        }
+    }
+
+    private fun observeSession() {
+        viewModelScope.launch {
+            tokenStorage.sessionFlow
+                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .collect { session ->
+                    if (session.isLoggedIn && session.userId > 0) {
+                        hasUserModifiedWeight = false
+                        _state.value = createInitialState()
+                        observeLatestWeight(session.userId)
+                        observeNutritionGoal(session.userId)
+                        refreshAiQuota()
+                    } else {
+                        weightObservationJob?.cancel()
+                        goalObservationJob?.cancel()
+                        hasUserModifiedWeight = false
+                        _state.value = createInitialState()
+                    }
+                }
+        }
     }
 
     private fun observePremiumStatus() {
@@ -73,10 +103,10 @@ class ProfileViewModel(
         }
     }
 
-    private fun observeNutritionGoal() {
-        val userId = tokenStorage.getUserId()
+    private fun observeNutritionGoal(userId: Int) {
         if (userId <= 0) return
-        viewModelScope.launch {
+        goalObservationJob?.cancel()
+        goalObservationJob = viewModelScope.launch {
             database.observeNutritionGoal(userId).collect { goal ->
                 val resolvedFitnessGoal = if (goal.fitnessGoal.isNotBlank() && goal.fitnessGoal != FitnessGoal.MAINTAIN.id) {
                     goal.parsedFitnessGoal
@@ -123,15 +153,16 @@ class ProfileViewModel(
             weightReminderFrequency = weightReminder,
             isDarkMode = isDark,
             themeAccent = accent,
+            language = LocalizationManager.currentLanguage,
             customGeminiApiKey = customGeminiApiKey
         )
     }
 
-    private fun observeLatestWeight() {
-        val userId = tokenStorage.getUserId()
+    private fun observeLatestWeight(userId: Int) {
         if (userId <= 0) return
 
-        viewModelScope.launch {
+        weightObservationJob?.cancel()
+        weightObservationJob = viewModelScope.launch {
             database.observeWeights(userId).collect { entries ->
                 val sorted = entries.sortedBy { it.date }
                 val latest = sorted.lastOrNull()
@@ -201,18 +232,32 @@ class ProfileViewModel(
                     )
                     tokenStorage.setUserFitnessGoal(intent.fitnessGoal)
                     database.upsertNutritionGoal(updated)
+                    val lang = LocalizationManager.currentLanguage
                     _state.update { it.copy(nutritionGoal = updated, fitnessGoal = intent.fitnessGoal) }
-                    _effects.send(ProfileEffect.ShowToast("${intent.fitnessGoal.title} ve besin hedefleri güncellendi."))
+                    _effects.send(
+                        ProfileEffect.ShowToast(
+                            trEn(
+                                "${intent.fitnessGoal.localizedTitle(lang)} ve besin hedefleri güncellendi.",
+                                "${intent.fitnessGoal.localizedTitle(lang)} and nutrition targets updated.",
+                                lang
+                            )
+                        )
+                    )
                     launch { syncEngine.sync() }
                 }
             }
             is ProfileIntent.OnWorkoutReminderFrequencyChanged -> {
                 tokenStorage.setWorkoutReminderFrequency(intent.frequency)
                 _state.update { it.copy(workoutReminderFrequency = intent.frequency) }
+                val lang = LocalizationManager.currentLanguage
                 val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF) {
-                    "Spora teşvik bildirimi kapatıldı."
+                    trEn("Spora teşvik bildirimi kapatıldı.", "Workout reminder notifications turned off.", lang)
                 } else {
-                    "Spora teşvik sıklığı: ${intent.frequency.title} olarak ayarlandı."
+                    trEn(
+                        "Spora teşvik sıklığı: ${intent.frequency.localizedTitle(lang)} olarak ayarlandı.",
+                        "Workout reminder frequency set to: ${intent.frequency.localizedTitle(lang)}.",
+                        lang
+                    )
                 }
                 viewModelScope.launch {
                     _effects.send(ProfileEffect.ShowToast(msg))
@@ -221,10 +266,15 @@ class ProfileViewModel(
             is ProfileIntent.OnWeightReminderFrequencyChanged -> {
                 tokenStorage.setWeightReminderFrequency(intent.frequency)
                 _state.update { it.copy(weightReminderFrequency = intent.frequency) }
+                val lang = LocalizationManager.currentLanguage
                 val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
-                    "Tartılma hatırlatıcısı kapatıldı."
+                    trEn("Tartılma hatırlatıcısı kapatıldı.", "Weigh-in reminder turned off.", lang)
                 } else {
-                    "Tartılma hatırlatıcısı: ${intent.frequency.title} olarak ayarlandı."
+                    trEn(
+                        "Tartılma hatırlatıcısı: ${intent.frequency.localizedTitle(lang)} olarak ayarlandı.",
+                        "Weigh-in reminder set to: ${intent.frequency.localizedTitle(lang)}.",
+                        lang
+                    )
                 }
                 viewModelScope.launch {
                     _effects.send(ProfileEffect.ShowToast(msg))
@@ -238,28 +288,55 @@ class ProfileViewModel(
                 settings.putString("theme_accent", intent.accent.id)
                 _state.update { it.copy(themeAccent = intent.accent) }
             }
+            is ProfileIntent.OnLanguageChanged -> {
+                LocalizationManager.setLanguage(intent.language, settings)
+                _state.update { it.copy(language = intent.language) }
+            }
             is ProfileIntent.OnSaveCustomGeminiApiKey -> {
                 val trimmed = intent.apiKey.trim()
                 tokenStorage.setCustomGeminiApiKey(trimmed)
                 _state.update { it.copy(customGeminiApiKey = trimmed) }
+                val lang = LocalizationManager.currentLanguage
                 viewModelScope.launch {
-                    _effects.send(ProfileEffect.ShowToast("Özel Gemini API anahtarı kaydedildi."))
+                    _effects.send(
+                        ProfileEffect.ShowToast(
+                            trEn("Özel Gemini API anahtarı kaydedildi.", "Custom Gemini API key saved.", lang)
+                        )
+                    )
                 }
             }
             ProfileIntent.OnClearCustomGeminiApiKey -> {
                 tokenStorage.setCustomGeminiApiKey(null)
                 _state.update { it.copy(customGeminiApiKey = "") }
+                val lang = LocalizationManager.currentLanguage
                 viewModelScope.launch {
-                    _effects.send(ProfileEffect.ShowToast("Özel API anahtarı kaldırıldı, varsayılan AI kullanılacak."))
+                    _effects.send(
+                        ProfileEffect.ShowToast(
+                            trEn(
+                                "Özel API anahtarı kaldırıldı, varsayılan AI kullanılacak.",
+                                "Custom API key removed; default AI will be used.",
+                                lang
+                            )
+                        )
+                    )
                 }
             }
             ProfileIntent.OnSyncClicked -> {
                 viewModelScope.launch {
+                    val lang = LocalizationManager.currentLanguage
                     val success = syncEngine.sync(forceFullPull = true)
                     if (success) {
-                        _effects.send(ProfileEffect.ShowToast("Senkronizasyon tamamlandı."))
+                        _effects.send(ProfileEffect.ShowToast(trEn("Senkronizasyon tamamlandı.", "Sync completed.", lang)))
                     } else {
-                        _effects.send(ProfileEffect.ShowToast("Senkronizasyon tamamlanamadı veya çevrimdışı."))
+                        _effects.send(
+                            ProfileEffect.ShowToast(
+                                trEn(
+                                    "Senkronizasyon tamamlanamadı veya çevrimdışı.",
+                                    "Sync could not finish or you are offline.",
+                                    lang
+                                )
+                            )
+                        )
                     }
                 }
             }
@@ -268,9 +345,10 @@ class ProfileViewModel(
             }
             is ProfileIntent.OnDeviceSnapshotReceived -> {
                 viewModelScope.launch {
+                    val lang = LocalizationManager.currentLanguage
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
-                        val msg = summary.toUserMessage()
+                        val msg = summary.toUserMessage(lang)
                         _state.update {
                             it.copy(
                                 isDeviceSyncing = false,
@@ -280,7 +358,7 @@ class ProfileViewModel(
                         }
                         _effects.send(ProfileEffect.ShowToast(msg))
                     }.onFailure { err ->
-                        val msg = err.message ?: "Cihaz senkronizasyonu başarısız oldu."
+                        val msg = err.message ?: trEn("Cihaz senkronizasyonu başarısız oldu.", "Device sync failed.", lang)
                         _state.update {
                             it.copy(
                                 isDeviceSyncing = false,
@@ -308,10 +386,16 @@ class ProfileViewModel(
                             _effects.send(ProfileEffect.LoggedOut)
                         }
                         .onFailure { error ->
+                            val lang = LocalizationManager.currentLanguage
                             _state.update {
                                 it.copy(
                                     isDeletingAccount = false,
-                                    errorMessage = "Hesap silinemedi: ${error.message ?: "Bilinmeyen hata"}"
+                                    errorMessage = formatActionableApiError(
+                                        error = error,
+                                        operationTr = "Hesap silme",
+                                        operationEn = "Account deletion",
+                                        language = lang
+                                    )
                                 )
                             }
                         }
@@ -380,7 +464,7 @@ class ProfileViewModel(
                     date = today,
                     weightKg = s.weightKg,
                     targetWeightKg = s.targetWeightKg,
-                    note = todayEntry?.note ?: "Profil Kilo Kaydı",
+                    note = todayEntry?.note ?: trEn("Profil Kilo Kaydı", "Profile Weight Entry"),
                     createdAt = todayEntry?.createdAt ?: now,
                     updatedAt = now,
                     syncStatus = SyncStatus.PENDING
@@ -402,6 +486,8 @@ class ProfileViewModel(
 
             // Cloud sync in background
             syncEngine.sync()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             // Quietly retain offline SSOT
         }
@@ -409,14 +495,28 @@ class ProfileViewModel(
 
     private fun saveProfile() {
         viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
             _state.update { it.copy(isSaving = true) }
             try {
                 persistProfileChanges()
-                _state.update { it.copy(isSaving = false, infoMessage = "Değişiklikler kaydedildi.") }
-                _effects.send(ProfileEffect.ShowToast("Değişiklikler kaydedildi."))
+                val savedMsg = trEn("Değişiklikler kaydedildi.", "Changes saved.", lang)
+                _state.update { it.copy(isSaving = false, infoMessage = savedMsg) }
+                _effects.send(ProfileEffect.ShowToast(savedMsg))
                 _effects.send(ProfileEffect.NavigateBack)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _state.update { it.copy(isSaving = false, errorMessage = "Kayıt sırasında hata: ${e.message}") }
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = formatActionableApiError(
+                            error = e,
+                            operationTr = "Profil kaydı",
+                            operationEn = "Saving profile",
+                            language = lang
+                        )
+                    )
+                }
             }
         }
     }
@@ -424,7 +524,7 @@ class ProfileViewModel(
     override fun onCleared() {
         super.onCleared()
         val s = _state.value
-        if (s.userId > 0) {
+        if (s.userId > 0 && tokenStorage.isLoggedIn() && tokenStorage.getUserId() == s.userId) {
             tokenStorage.setUserWeight(s.weightKg)
             tokenStorage.setUserTargetWeight(s.targetWeightKg)
             tokenStorage.setUserHeight(s.heightCm)

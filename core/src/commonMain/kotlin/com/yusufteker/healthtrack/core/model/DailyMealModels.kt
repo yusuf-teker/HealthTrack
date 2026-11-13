@@ -1,13 +1,22 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class MealSlotType(val label: String, val iconKey: String) {
-    BREAKFAST("Kahvaltı", "breakfast"),
-    LUNCH("Öğle Yemeği", "lunch"),
-    DINNER("Akşam Yemeği", "dinner"),
-    SNACK("Ara Öğün", "snack")
+enum class MealSlotType(val labelTr: String, val labelEn: String, val iconKey: String) {
+    BREAKFAST("Kahvaltı", "Breakfast", "breakfast"),
+    LUNCH("Öğle Yemeği", "Lunch", "lunch"),
+    DINNER("Akşam Yemeği", "Dinner", "dinner"),
+    SNACK("Ara Öğün", "Snack", "snack");
+
+    val label: String
+        get() = localizedLabel()
+
+    fun localizedLabel(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(labelTr, labelEn, language)
 }
 
 @Serializable

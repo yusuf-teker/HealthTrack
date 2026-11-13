@@ -27,9 +27,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
+import com.yusufteker.healthtrack.ui.components.LanguageSelectorPill
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
@@ -68,9 +70,21 @@ fun AuthScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 32.dp),
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        LanguageSelectorPill(
+                            selectedLanguage = state.language,
+                            onLanguageSelected = { onIntent(AuthIntent.OnLanguageChanged(it)) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // HealthTrack Luxury Brand Mark
                     HealthBrandLogo(size = 64.dp)
 
@@ -98,7 +112,7 @@ fun AuthScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Giriş Yap",
+                        text = str("Giriş Yap", "Sign In"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -107,9 +121,10 @@ fun AuthScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Planora hesabınız ile giriş yapın",
+                        text = str("Planora hesabınız ile giriş yapın", "Sign in with your Planora account"),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -136,7 +151,7 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = state.identifier,
                         onValueChange = { onIntent(AuthIntent.OnIdentifierChanged(it)) },
-                        label = { Text("Kullanıcı Adı veya E-posta") },
+                        label = { Text(str("Kullanıcı Adı veya E-posta", "Username or Email")) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Rounded.Person,
@@ -159,7 +174,7 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = state.password,
                         onValueChange = { onIntent(AuthIntent.OnPasswordChanged(it)) },
-                        label = { Text("Şifre") },
+                        label = { Text(str("Şifre", "Password")) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Rounded.Lock,
@@ -171,7 +186,7 @@ fun AuthScreen(
                             IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                                 Icon(
                                     imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (isPasswordVisible) "Şifreyi gizle" else "Şifreyi göster",
+                                    contentDescription = if (isPasswordVisible) str("Şifreyi gizle", "Hide password") else str("Şifreyi göster", "Show password"),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -210,7 +225,7 @@ fun AuthScreen(
                             )
                         } else {
                             Text(
-                                text = "Giriş Yap",
+                                text = str("Giriş Yap", "Sign In"),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -230,7 +245,7 @@ fun AuthScreen(
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Gizlilik Politikası",
+                                text = str("Gizlilik Politikası", "Privacy Policy"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -245,7 +260,7 @@ fun AuthScreen(
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Kullanım Koşulları",
+                                text = str("Kullanım Koşulları", "Terms of Service"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -253,7 +268,10 @@ fun AuthScreen(
                     }
 
                     Text(
-                        text = "Bu uygulama tıbbi tavsiye veya teşhis amacı taşımaz.",
+                        text = str(
+                            "Bu uygulama tıbbi tavsiye veya teşhis amacı taşımaz.",
+                            "This app is not intended for medical advice or diagnosis."
+                        ),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                         textAlign = TextAlign.Center

@@ -61,6 +61,7 @@ data class FoodState(
     val customFoodAiError: String? = null,
 
     // ── 2.A: Su & Hidrasyon Telemetrisi ──
+    val burnedCalories: Int = 0,
     val waterEntry: WaterEntry? = null,
     val dynamicWaterTargetMl: Int = 2500,
 
@@ -86,7 +87,7 @@ data class FoodState(
 
     // ── Market Listesi & Planora Entegrasyonu ──
     val isGroceryListSheetOpen: Boolean = false,
-    val groceryListTitle: String = "Market Alışveriş Listesi",
+    val groceryListTitle: String = "",
     val groceryItems: List<String> = emptyList(),
     val selectedGroceryItems: Set<String> = emptySet(),
 

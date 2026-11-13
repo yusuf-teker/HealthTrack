@@ -31,8 +31,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 
 /**
  * Luxury Bio-Telemetry Profile Setup Dialog.
@@ -113,14 +115,17 @@ fun InitialProfileDialog(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         GradientText(
-                            text = "Sağlık Profilinizi Oluşturalım",
+                            text = str("Sağlık Profilinizi Oluşturalım", "Let's Set Up Your Health Profile"),
                             colors = HealthColors.GradientPrimary,
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Kalori ve spor harcamanızı doğru hesaplamak için lütfen güncel vücut ölçülerinizi belirtin.",
+                            text = str(
+                                "Kalori ve spor harcamanızı doğru hesaplamak için lütfen güncel vücut ölçülerinizi belirtin.",
+                                "Please enter your current body metrics so we can accurately calculate your calorie & workout targets."
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -134,19 +139,19 @@ fun InitialProfileDialog(
 
                     // 1. Kilo (Weight) Card
                     ProfileMetricInputCard(
-                        title = "Güncel Kilo",
+                        title = str("Güncel Kilo", "Current Weight"),
                         valueText = weightText,
                         unit = "kg",
                         icon = Icons.Rounded.MonitorWeight,
                         accentColor = HealthColors.Primary,
                         onValueChange = { weightText = it },
                         onDecrement = {
-                            val cur = weightText.toDoubleOrNull() ?: 70.0
+                            val cur = weightText.toLocaleDoubleOrNull() ?: 70.0
                             val next = (cur - 0.5).coerceAtLeast(30.0)
                             weightText = (kotlin.math.round(next * 10) / 10.0).toString()
                         },
                         onIncrement = {
-                            val cur = weightText.toDoubleOrNull() ?: 70.0
+                            val cur = weightText.toLocaleDoubleOrNull() ?: 70.0
                             val next = (cur + 0.5).coerceAtMost(300.0)
                             weightText = (kotlin.math.round(next * 10) / 10.0).toString()
                         }
@@ -154,7 +159,7 @@ fun InitialProfileDialog(
 
                     // 2. Boy (Height) Card
                     ProfileMetricInputCard(
-                        title = "Boy Uzunluğu",
+                        title = str("Boy Uzunluğu", "Height"),
                         valueText = heightText,
                         unit = "cm",
                         icon = Icons.Default.Straighten,
@@ -174,9 +179,9 @@ fun InitialProfileDialog(
 
                     // 3. Yaş (Age) Card
                     ProfileMetricInputCard(
-                        title = "Yaş",
+                        title = str("Yaş", "Age"),
                         valueText = ageText,
-                        unit = "yaş",
+                        unit = str("yaş", "yrs"),
                         icon = Icons.Default.Person,
                         accentColor = HealthColors.Tertiary,
                         onValueChange = { ageText = it },
@@ -198,7 +203,7 @@ fun InitialProfileDialog(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "Biyolojik Cinsiyet",
+                            text = str("Biyolojik Cinsiyet", "Biological Sex"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -208,14 +213,14 @@ fun InitialProfileDialog(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             GenderChoiceCard(
-                                label = "Erkek",
+                                label = str("Erkek", "Male"),
                                 icon = Icons.Rounded.Male,
                                 isSelected = selectedGender == "MALE",
                                 onClick = { selectedGender = "MALE" },
                                 modifier = Modifier.weight(1f)
                             )
                             GenderChoiceCard(
-                                label = "Kadın",
+                                label = str("Kadın", "Female"),
                                 icon = Icons.Rounded.Female,
                                 isSelected = selectedGender == "FEMALE",
                                 onClick = { selectedGender = "FEMALE" },
@@ -224,13 +229,13 @@ fun InitialProfileDialog(
                         }
                     }
 
-                    // Fitness & Beslenme Hedefi
+                    // Fitness & Nutrition Goal
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Fitness & Beslenme Hedefi",
+                            text = str("Fitness & Beslenme Hedefi", "Fitness & Nutrition Goal"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -240,21 +245,21 @@ fun InitialProfileDialog(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             GoalChoiceCard(
-                                label = "Kilo Verme",
+                                label = str("Kilo Verme", "Lose Weight"),
                                 multiplier = "1.2x kg",
                                 isSelected = selectedGoal == FitnessGoal.LOSE_WEIGHT,
                                 onClick = { selectedGoal = FitnessGoal.LOSE_WEIGHT },
                                 modifier = Modifier.weight(1f)
                             )
                             GoalChoiceCard(
-                                label = "Sabit Kalma",
+                                label = str("Sabit Kalma", "Maintain"),
                                 multiplier = "1.0x kg",
                                 isSelected = selectedGoal == FitnessGoal.MAINTAIN,
                                 onClick = { selectedGoal = FitnessGoal.MAINTAIN },
                                 modifier = Modifier.weight(1f)
                             )
                             GoalChoiceCard(
-                                label = "Kaslanma",
+                                label = str("Kaslanma", "Build Muscle"),
                                 multiplier = "1.4x kg",
                                 isSelected = selectedGoal == FitnessGoal.BUILD_MUSCLE,
                                 onClick = { selectedGoal = FitnessGoal.BUILD_MUSCLE },
@@ -262,7 +267,7 @@ fun InitialProfileDialog(
                             )
                         }
 
-                        val parsedWeight = weightText.toDoubleOrNull() ?: 70.0
+                        val parsedWeight = weightText.toLocaleDoubleOrNull() ?: 70.0
                         val estimatedProtein = calculateProteinTarget(parsedWeight, selectedGoal).toInt()
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -270,7 +275,10 @@ fun InitialProfileDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Günlük Protein Hedefiniz: $estimatedProtein g ($parsedWeight kg × ${selectedGoal.proteinMultiplier}x)",
+                                text = str(
+                                    "Günlük Protein Hedefiniz: $estimatedProtein g ($parsedWeight kg × ${selectedGoal.proteinMultiplier}x)",
+                                    "Daily Protein Target: $estimatedProtein g ($parsedWeight kg × ${selectedGoal.proteinMultiplier}x)"
+                                ),
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
                                 color = HealthColors.Primary,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -286,8 +294,8 @@ fun InitialProfileDialog(
                     Button(
                         onClick = {
                             if (isSubmitting) return@Button
-                            val weight = weightText.toDoubleOrNull() ?: 70.0
-                            val height = heightText.toDoubleOrNull() ?: 175.0
+                            val weight = weightText.toLocaleDoubleOrNull() ?: 70.0
+                            val height = heightText.toLocaleDoubleOrNull() ?: 175.0
                             val age = ageText.toIntOrNull() ?: 25
                             if (weight > 20.0 && height > 50.0) {
                                 isSubmitting = true
@@ -309,7 +317,7 @@ fun InitialProfileDialog(
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Profilimi Kaydet & Başla",
+                            text = str("Profilimi Kaydet & Başla", "Save Profile & Start"),
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
@@ -452,7 +460,7 @@ private fun ProfileMetricInputCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Remove,
-                        contentDescription = "Azalt",
+                        contentDescription = str("Azalt", "Decrease"),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -481,7 +489,7 @@ private fun ProfileMetricInputCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Artır",
+                        contentDescription = str("Artır", "Increase"),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )

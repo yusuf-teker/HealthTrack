@@ -27,8 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import kotlin.math.round
@@ -96,13 +98,13 @@ fun EditTargetWeightDialog(
                         }
                         Column {
                             Text(
-                                text = "Hedef Kilo Belirle",
+                                text = str("Hedef Kilo Belirle", "Set Target Weight"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "İlerleme takibi için hedef kilonuz",
+                                text = str("İlerleme takibi için hedef kilonuz", "Your goal weight for progress tracking"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -112,7 +114,7 @@ fun EditTargetWeightDialog(
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = str("Kapat", "Close"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -127,7 +129,7 @@ fun EditTargetWeightDialog(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Hedef Kilo (kg)",
+                        text = str("Hedef Kilo (kg)", "Target Weight (kg)"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -140,7 +142,7 @@ fun EditTargetWeightDialog(
                     ) {
                         FilledTonalIconButton(
                             onClick = {
-                                val current = targetText.toDoubleOrNull() ?: 70.0
+                                val current = targetText.toLocaleDoubleOrNull() ?: 70.0
                                 val next = (current - 0.5).coerceAtLeast(30.0)
                                 targetText = (round(next * 10) / 10.0).toString()
                                 localError = null
@@ -148,7 +150,7 @@ fun EditTargetWeightDialog(
                             modifier = Modifier.size(44.dp).bounceClick(),
                             shape = CircleShape
                         ) {
-                            Icon(Icons.Default.Remove, contentDescription = "Azalt")
+                            Icon(Icons.Default.Remove, contentDescription = str("Azalt", "Decrease"))
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -173,7 +175,7 @@ fun EditTargetWeightDialog(
 
                         FilledTonalIconButton(
                             onClick = {
-                                val current = targetText.toDoubleOrNull() ?: 70.0
+                                val current = targetText.toLocaleDoubleOrNull() ?: 70.0
                                 val next = (current + 0.5).coerceAtMost(300.0)
                                 targetText = (round(next * 10) / 10.0).toString()
                                 localError = null
@@ -181,7 +183,7 @@ fun EditTargetWeightDialog(
                             modifier = Modifier.size(44.dp).bounceClick(),
                             shape = CircleShape
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Artır")
+                            Icon(Icons.Default.Add, contentDescription = str("Artır", "Increase"))
                         }
                     }
 
@@ -194,7 +196,10 @@ fun EditTargetWeightDialog(
                     }
 
                     Text(
-                        text = "Grafikteki hedef çizgisi ve tamamlanma yüzdeniz bu değere göre hesaplanır. Günlük kilo girerken hedefi tekrar yazmanız gerekmez.",
+                        text = str(
+                            "Grafikteki hedef çizgisi ve tamamlanma yüzdeniz bu değere göre hesaplanır. Günlük kilo girerken hedefi tekrar yazmanız gerekmez.",
+                            "The chart's goal line and your completion percentage are calculated from this value. You don't need to re-enter it on daily weigh-ins."
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -205,6 +210,7 @@ fun EditTargetWeightDialog(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                 // Action Buttons
+                val invalidGoalErr = str("Geçerli bir hedef kilo giriniz (Örn: 68.5)", "Enter a valid target weight (e.g. 68.5)")
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -214,14 +220,14 @@ fun EditTargetWeightDialog(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Vazgeç")
+                        Text(str("Vazgeç", "Cancel"))
                     }
 
                     Button(
                         onClick = {
-                            val parsed = targetText.toDoubleOrNull()
+                            val parsed = targetText.toLocaleDoubleOrNull()
                             if (parsed == null || parsed <= 20.0 || parsed > 350.0) {
-                                localError = "Geçerli bir hedef kilo giriniz (Örn: 68.5)"
+                                localError = invalidGoalErr
                             } else {
                                 onSaveTargetWeight(parsed)
                             }
@@ -235,7 +241,7 @@ fun EditTargetWeightDialog(
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Hedefi Kaydet", fontWeight = FontWeight.Bold)
+                        Text(str("Hedefi Kaydet", "Save Goal"), fontWeight = FontWeight.Bold)
                     }
                 }
             }

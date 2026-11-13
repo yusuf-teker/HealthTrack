@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.core.utils
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 
@@ -18,7 +19,12 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
             ) {
                 onResult(
                     Result.failure(
-                        IllegalStateException("Web tarayıcısında doğrudan cihaz sağlık köprüsü desteklenmemektedir.")
+                        IllegalStateException(
+                            trEn(
+                                "Web tarayıcısında doğrudan cihaz sağlık köprüsü desteklenmemektedir.",
+                                "Direct device health sync is not supported in web browsers."
+                            )
+                        )
                     )
                 )
             }

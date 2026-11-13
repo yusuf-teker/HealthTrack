@@ -1,5 +1,8 @@
 package com.yusufteker.healthtrack.feature.profile.presentation
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.FitnessGoal
 import com.yusufteker.healthtrack.core.model.NutritionGoal
@@ -24,6 +27,7 @@ data class ProfileState(
     val weightReminderFrequency: WeightReminderFrequency = WeightReminderFrequency.EVERY_3_DAYS,
     val isDarkMode: Boolean = true,
     val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
+    val language: AppLanguage = LocalizationManager.currentLanguage,
     val isPremium: Boolean = false,
     val premiumUntil: String? = null,
     val customGeminiApiKey: String = "",
@@ -49,13 +53,15 @@ data class ProfileState(
         }
 
     val bmiCategory: String
-        get() = when {
-            bmi <= 0.0 -> "-"
-            bmi < 18.5 -> "Zayıf"
-            bmi < 25.0 -> "İdeal / Sağlıklı"
-            bmi < 30.0 -> "Fazla Kilolu"
-            else -> "Obezite"
-        }
+        get() = localizedBmiCategory(LocalizationManager.currentLanguage)
+
+    fun localizedBmiCategory(language: AppLanguage = this.language): String = when {
+        bmi <= 0.0 -> "-"
+        bmi < 18.5 -> trEn("Zayıf", "Underweight", language)
+        bmi < 25.0 -> trEn("İdeal / Sağlıklı", "Healthy / Normal", language)
+        bmi < 30.0 -> trEn("Fazla Kilolu", "Overweight", language)
+        else -> trEn("Obezite", "Obese", language)
+    }
 }
 
 sealed interface ProfileIntent {
@@ -70,6 +76,7 @@ sealed interface ProfileIntent {
     data class OnWeightReminderFrequencyChanged(val frequency: WeightReminderFrequency) : ProfileIntent
     data class OnThemeModeChanged(val isDark: Boolean) : ProfileIntent
     data class OnThemeAccentChanged(val accent: AppThemeColor) : ProfileIntent
+    data class OnLanguageChanged(val language: AppLanguage) : ProfileIntent
     data class OnSaveCustomGeminiApiKey(val apiKey: String) : ProfileIntent
     data object OnClearCustomGeminiApiKey : ProfileIntent
     data object OnSyncClicked : ProfileIntent

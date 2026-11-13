@@ -36,6 +36,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
     fun getAccessToken(): String? = settings.getStringOrNull(KEY_ACCESS_TOKEN)
     fun getRefreshToken(): String? = settings.getStringOrNull(KEY_REFRESH_TOKEN)
     fun getUserId(): Int = settings.getInt(KEY_USER_ID, 0)
+    fun isLoggedIn(): Boolean = !getAccessToken().isNullOrBlank() && getUserId() > 0
     fun getUsername(): String = settings.getString(KEY_USERNAME, "")
     fun getName(): String = settings.getString(KEY_NAME, "")
     fun getLastSyncTimestamp(): Long = settings.getLong(KEY_LAST_SYNC_TS, 0L)
@@ -189,7 +190,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
     ) {
         val prevUserId = getUserId()
         if (prevUserId != userId) {
-            settings.remove(KEY_LAST_SYNC_TS)
+            clearUserScopedPreferences()
         }
 
         settings.putInt(KEY_USER_ID, userId)
@@ -198,7 +199,11 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_ACCESS_TOKEN, accessToken)
         settings.putString(KEY_REFRESH_TOKEN, refreshToken)
         settings.putBoolean(KEY_IS_PREMIUM, isPremium)
-        if (avatarId != null) settings.putString(KEY_AVATAR_ID, avatarId)
+        if (avatarId != null) {
+            settings.putString(KEY_AVATAR_ID, avatarId)
+        } else {
+            settings.remove(KEY_AVATAR_ID)
+        }
 
         _sessionFlow.value = UserSession(
             userId = userId,
@@ -212,14 +217,8 @@ class TokenStorage(private val settings: Settings = Settings()) {
         )
     }
 
-    fun clearSession() {
-        settings.remove(KEY_USER_ID)
-        settings.remove(KEY_NAME)
-        settings.remove(KEY_USERNAME)
-        settings.remove(KEY_ACCESS_TOKEN)
-        settings.remove(KEY_REFRESH_TOKEN)
+    private fun clearUserScopedPreferences() {
         settings.remove(KEY_AVATAR_ID)
-        settings.remove(KEY_IS_PREMIUM)
         settings.remove(KEY_USER_WEIGHT)
         settings.remove(KEY_USER_TARGET_WEIGHT)
         settings.remove(KEY_USER_HEIGHT)
@@ -227,8 +226,25 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_USER_GENDER)
         settings.remove(KEY_USER_FITNESS_GOAL)
         settings.remove(KEY_LAST_SYNC_TS)
+        settings.remove(KEY_WHATSAPP_NUMBER)
+        settings.remove(KEY_LAST_AUTO_WEEK_MONDAY)
+        settings.remove(KEY_DAILY_MEAL_PLAN_DISMISSED_DATE)
+        settings.remove(KEY_LAST_WORKOUT_REMINDER_DATE)
+        settings.remove(KEY_IGNORED_WORKOUT_NOTIF_COUNT)
+        settings.remove(KEY_LAST_WEIGHT_REMINDER_DATE)
+        settings.remove(KEY_LAST_FOOD_REMINDER_DATE)
+        settings.remove(KEY_CUSTOM_GEMINI_API_KEY)
+    }
+
+    fun clearSession() {
+        settings.remove(KEY_USER_ID)
+        settings.remove(KEY_NAME)
+        settings.remove(KEY_USERNAME)
+        settings.remove(KEY_ACCESS_TOKEN)
+        settings.remove(KEY_REFRESH_TOKEN)
         settings.remove(KEY_IS_PREMIUM)
         settings.remove(KEY_PREMIUM_UNTIL)
+        clearUserScopedPreferences()
         _isPremiumFlow.value = false
         _premiumUntilFlow.value = null
 

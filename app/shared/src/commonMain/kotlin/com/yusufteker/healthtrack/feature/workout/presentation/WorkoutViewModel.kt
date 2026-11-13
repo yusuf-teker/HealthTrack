@@ -3,12 +3,15 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.network.AiQuotaExceededException
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import kotlinx.coroutines.Job
@@ -47,14 +50,16 @@ class WorkoutViewModel(
 
     init {
         viewModelScope.launch {
-            tokenStorage.sessionFlow.collect { session ->
-                if (session.isLoggedIn) {
-                    observeWorkoutsAndCalories(session.userId, _state.value.selectedDate)
-                    observeAllWorkoutsHistory(session.userId)
-                    observeWeight(session.userId)
-                    refreshAiQuota()
+            tokenStorage.sessionFlow
+                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .collect { session ->
+                    if (session.isLoggedIn && session.userId > 0) {
+                        observeWorkoutsAndCalories(session.userId, _state.value.selectedDate)
+                        observeAllWorkoutsHistory(session.userId)
+                        observeWeight(session.userId)
+                        refreshAiQuota()
+                    }
                 }
-            }
         }
     }
 
@@ -89,9 +94,10 @@ class WorkoutViewModel(
             }
             is WorkoutIntent.OnWatchSnapshotReceived -> {
                 viewModelScope.launch {
+                    val lang = LocalizationManager.currentLanguage
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
-                        val msg = summary.toUserMessage()
+                        val msg = summary.toUserMessage(lang)
                         if (!intent.isSilent || summary.totalChanges > 0) {
                             _state.update { it.copy(isSyncingWatch = false, infoMessage = msg) }
                             _effects.send(WorkoutEffect.ShowToast(msg))
@@ -103,7 +109,7 @@ class WorkoutViewModel(
                             _state.update {
                                 it.copy(
                                     isSyncingWatch = false,
-                                    errorMessage = err.message ?: "Saat antrenman verileri alınamadı."
+                                    errorMessage = err.message ?: trEn("Saat antrenman verileri alınamadı.", "Could not read watch workout data.", lang)
                                 )
                             }
                         } else {
@@ -116,10 +122,15 @@ class WorkoutViewModel(
             is WorkoutIntent.OnReminderFrequencyChanged -> {
                 tokenStorage.setWorkoutReminderFrequency(intent.frequency)
                 _state.update { it.copy(reminderFrequency = intent.frequency, isReminderDialogOpen = false) }
+                val lang = LocalizationManager.currentLanguage
                 val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.OFF) {
-                    "Spora teşvik bildirimleri kapatıldı."
+                    trEn("Spora teşvik bildirimleri kapatıldı.", "Workout motivation alerts turned off.", lang)
                 } else {
-                    "Spor hatırlatıcısı güncellendi: ${intent.frequency.title}"
+                    trEn(
+                        "Spor hatırlatıcısı güncellendi: ${intent.frequency.localizedTitle(lang)}",
+                        "Workout reminder updated: ${intent.frequency.localizedTitle(lang)}",
+                        lang
+                    )
                 }
                 _state.update { it.copy(infoMessage = msg) }
             }
@@ -220,7 +231,14 @@ class WorkoutViewModel(
         val weight = _state.value.userWeightKg
 
         if (rawText.isBlank()) {
-            _state.update { it.copy(errorMessage = "Lütfen önce yapılan sporu yazınız (Örn: 30 dk koşu, 20 dk ağırlık).") }
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Lütfen önce yapılan sporu yazınız (Örn: 30 dk koşu, 20 dk ağırlık).",
+                        "Please enter your workout first (e.g., 30 min run, 20 min weights)."
+                    )
+                )
+            }
             return
         }
 
@@ -250,7 +268,10 @@ class WorkoutViewModel(
                     it.copy(
                         isCalculatingAi = false,
                         rawText = "",
-                        infoMessage = "AI ile spor analizi tamamlandı: ${aiResult.caloriesBurned} kcal yakıldı."
+                        infoMessage = trEn(
+                            "AI ile spor analizi tamamlandı: ${aiResult.caloriesBurned} kcal yakıldı.",
+                            "AI workout analysis complete: ${aiResult.caloriesBurned} kcal burned."
+                        )
                     )
                 }
                 launch { syncEngine.sync() }
@@ -266,28 +287,12 @@ class WorkoutViewModel(
                     }
                     return@onFailure
                 }
-                val errorMsg = err.message ?: "Bilinmeyen hata"
-                println("[WorkoutViewModel] analyzeWorkout failure: $errorMsg")
-                val displayMsg = when {
-                    errorMsg.contains("404") ->
-                        "Sunucuda AI servisi bulunamadı (404). Render üzerinde henüz yeni sürüm deploy edilmemiş olabilir."
-                    errorMsg.contains("401") ->
-                        "Oturum süresi doldu (401). Lütfen tekrar giriş yapınız."
-                    errorMsg.contains("GEMINI_API_KEY is not configured", ignoreCase = true) ->
-                        "Render sunucusunda GEMINI_API_KEY tanımlı değil."
-                    errorMsg.contains("başarısız (HTTP", ignoreCase = true) -> {
-                        val serverErr = if (errorMsg.contains("\"error\":")) {
-                            errorMsg.substringAfter("\"error\":").substringBefore("}").trim('"', ' ', '\\')
-                        } else {
-                            errorMsg
-                        }
-                        "AI spor analizi başarısız: $serverErr"
-                    }
-                    errorMsg.contains("Connect", ignoreCase = true) || errorMsg.contains("timeout", ignoreCase = true) ->
-                        "Sunucuya bağlanılamadı veya zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol ediniz."
-                    else ->
-                        "AI spor analizi başarısız: $errorMsg"
-                }
+                println("[WorkoutViewModel] analyzeWorkout failure: ${err.message ?: "Bilinmeyen hata"}")
+                val displayMsg = formatActionableApiError(
+                    error = err,
+                    operationTr = "AI spor analizi",
+                    operationEn = "AI workout analysis"
+                )
 
                 _state.update {
                     it.copy(
@@ -307,7 +312,14 @@ class WorkoutViewModel(
         val userId = tokenStorage.getUserId()
 
         if (rawText.isBlank() && cal == 0) {
-            _state.update { it.copy(errorMessage = "Lütfen aktivite adı veya yakılan kaloriyi giriniz.") }
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Lütfen aktivite adı veya yakılan kaloriyi giriniz.",
+                        "Please enter an activity name or calories burned."
+                    )
+                )
+            }
             return
         }
 
@@ -317,19 +329,19 @@ class WorkoutViewModel(
                 id = Uuid.random().toString(),
                 userId = userId,
                 date = date,
-                rawText = if (rawText.isNotBlank()) rawText else "Egzersiz ($cal kcal)",
+                rawText = if (rawText.isNotBlank()) rawText else trEn("Egzersiz ($cal kcal)", "Workout ($cal kcal)"),
                 caloriesBurned = cal,
                 durationMinutes = dur,
                 targetCalories = _state.value.targetCalories,
                 targetDurationMinutes = _state.value.targetDurationMinutes,
-                aiAnalysis = "Elle girildi",
+                aiAnalysis = trEn("Elle girildi", "Entered manually"),
                 createdAt = now,
                 updatedAt = now,
                 syncStatus = SyncStatus.PENDING
             )
             database.upsertWorkout(workout)
             _state.update { it.copy(rawText = "", manualCalories = "", manualDuration = "") }
-            _effects.send(WorkoutEffect.ShowToast("Egzersiz kaydedildi."))
+            _effects.send(WorkoutEffect.ShowToast(trEn("Egzersiz kaydedildi.", "Workout saved.")))
             launch { syncEngine.sync() }
         }
     }
@@ -342,16 +354,17 @@ class WorkoutViewModel(
     }
 
     private fun parseDailyStepTelemetry(log: WorkoutLog): DailyStepTelemetry {
-        val steps = Regex("""(\d+)\s*Adım""").find(log.rawText)?.groupValues?.get(1)?.toIntOrNull()
+        val steps = Regex("""(\d+)\s*(?:Adım|Steps)""", RegexOption.IGNORE_CASE).find(log.rawText)?.groupValues?.get(1)?.toIntOrNull()
             ?: (log.durationMinutes * 100).coerceAtLeast(0)
         val analysis = log.aiAnalysis.orEmpty()
         val distanceKm = Regex("""([\d.,]+)\s*km""").find(analysis)?.groupValues?.get(1)
             ?.replace(',', '.')?.toDoubleOrNull()
             ?: ((steps * 0.75) / 1000.0)
+        val defaultWatchName = trEn("Akıllı Saat", "Smart Watch")
         val source = if (analysis.contains("•")) {
             analysis.substringBefore("•").trim().removePrefix("⌚").trim()
         } else {
-            "Akıllı Saat"
+            defaultWatchName
         }
         return DailyStepTelemetry(
             stepCount = steps,
@@ -359,7 +372,7 @@ class WorkoutViewModel(
             durationMinutes = log.durationMinutes,
             caloriesBurned = log.caloriesBurned,
             netCaloriesBurned = log.caloriesBurned,
-            sourceName = source.ifBlank { "Akıllı Saat" },
+            sourceName = source.ifBlank { defaultWatchName },
             stepTarget = 10_000
         )
     }

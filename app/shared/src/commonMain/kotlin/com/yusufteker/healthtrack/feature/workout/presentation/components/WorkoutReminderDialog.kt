@@ -27,6 +27,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 
@@ -38,6 +40,7 @@ fun WorkoutReminderDialog(
 ) {
     var selectedFrequency by remember { mutableStateOf(currentFrequency) }
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val scrollState = rememberScrollState()
 
     Dialog(
@@ -91,13 +94,13 @@ fun WorkoutReminderDialog(
                             }
                             Column {
                                 Text(
-                                    text = "Spora Teşvik Bildirimi",
+                                    text = str("Spora Teşvik Bildirimi", "Workout Motivation Alerts"),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Akşam 18:00 Hatırlatıcı Planı",
+                                    text = str("Akşam 18:00 Hatırlatıcı Planı", "Evening 18:00 Reminder Schedule"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -110,7 +113,7 @@ fun WorkoutReminderDialog(
                         ) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = str("Kapat", "Close"),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -137,7 +140,10 @@ fun WorkoutReminderDialog(
                                 modifier = Modifier.size(20.dp).padding(top = 2.dp)
                             )
                             Text(
-                                text = "Saat 18:00'e kadar spor yapmadıysan ve dün 400+ kcal yakmadıysan, sevdiğin spor türüne özel motive edici bildirim alırsın.",
+                                text = str(
+                                    "Saat 18:00'e kadar spor yapmadıysan ve dün 400+ kcal yakmadıysan, sevdiğin spor türüne özel motive edici bildirim alırsın.",
+                                    "If you haven't worked out by 18:00 and didn't burn 400+ kcal yesterday, you'll receive a personalized motivational nudge for your favorite activity."
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 18.sp
@@ -196,14 +202,14 @@ fun WorkoutReminderDialog(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = option.title,
+                                            text = option.localizedTitle(lang),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                             color = if (isSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = option.description,
+                                            text = option.localizedDescription(lang),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             lineHeight = 15.sp
@@ -229,7 +235,7 @@ fun WorkoutReminderDialog(
                                 .bounceClick(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Vazgeç")
+                            Text(str("Vazgeç", "Cancel"))
                         }
 
                         Button(
@@ -241,7 +247,7 @@ fun WorkoutReminderDialog(
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = HealthColors.Primary)
                         ) {
-                            Text("Kaydet", color = HealthColors.OnPrimary, fontWeight = FontWeight.Bold)
+                            Text(str("Kaydet", "Save"), color = HealthColors.OnPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

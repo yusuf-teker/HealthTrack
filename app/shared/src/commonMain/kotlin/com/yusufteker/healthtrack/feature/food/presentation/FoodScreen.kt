@@ -87,6 +87,7 @@ import com.yusufteker.healthtrack.feature.food.presentation.components.FoodPhoto
 import com.yusufteker.healthtrack.feature.food.presentation.components.GroceryListBottomSheet
 import com.yusufteker.healthtrack.feature.food.presentation.components.SmartMealMatcherBottomSheet
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import com.yusufteker.healthtrack.feature.food.presentation.components.AddCustomFoodDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.EditGoalsDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.FoodAiReviewBottomSheet
@@ -98,6 +99,8 @@ import com.yusufteker.healthtrack.feature.food.presentation.components.QuickFood
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.CalorieProgressGauge
 import com.yusufteker.healthtrack.ui.components.CalorieTelemetryColors
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
@@ -141,6 +144,7 @@ fun FoodScreen(
         state.isPhotoScanSheetOpen ||
         state.isGroceryListSheetOpen ||
         state.isAiReviewSheetOpen ||
+        state.isDailyMealPlanSheetOpen ||
         showManualAddSheet ||
         showGeneralMicrosSheet
 
@@ -173,7 +177,7 @@ fun FoodScreen(
             CalorieProgressGauge(
                 consumedCalories = state.totalCalories,
                 targetCalories = state.nutritionGoal.calories,
-                burnedCalories = 0,
+                burnedCalories = state.burnedCalories,
                 proteinCurrent = proteinProgress?.current ?: 0.0,
                 proteinTarget = state.effectiveProteinTarget,
                 carbsCurrent = carbsProgress?.current ?: 0.0,
@@ -248,7 +252,7 @@ fun FoodScreen(
                                 )
                             }
                             Text(
-                                text = "Öğün Ekle",
+                                text = str("Öğün Ekle", "Add Meal"),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -282,7 +286,7 @@ fun FoodScreen(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Envanterim",
+                                        text = str("Envanterim", "My Inventory"),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = HealthColors.Secondary
@@ -310,7 +314,7 @@ fun FoodScreen(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Hazır / Manuel",
+                                        text = str("Hazır / Manuel", "Presets / Manual"),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = HealthColors.Primary
@@ -326,7 +330,7 @@ fun FoodScreen(
                         onValueChange = { onIntent(FoodIntent.OnRawTextChanged(it)) },
                         placeholder = {
                             Text(
-                                "Ne yediniz? Örn: 2 yumurta, 100ml süt...",
+                                str("Ne yediniz? Örn: 2 yumurta, 100ml süt...", "What did you eat? e.g., 2 eggs, 100ml milk..."),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             )
@@ -344,7 +348,7 @@ fun FoodScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Temizle",
+                                            contentDescription = str("Temizle", "Clear"),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                                 alpha = 0.6f
                                             ),
@@ -360,15 +364,16 @@ fun FoodScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CameraAlt,
-                                        contentDescription = "Besin Etiketi Tara",
+                                        contentDescription = str("Besin Etiketi Tara", "Scan Nutrition Label"),
                                         tint = HealthColors.Primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 if (speechLauncher.isAvailable) {
+                                    val voicePrompt = str("Ne yediniz? Sesinizle söyleyin...", "What did you eat? Speak now...")
                                     IconButton(
                                         onClick = {
-                                            speechLauncher.launch("Ne yediniz? Sesinizle söyleyin...") { spokenText ->
+                                            speechLauncher.launch(voicePrompt) { spokenText ->
                                                 val current = state.rawText.trim()
                                                 val updated =
                                                     if (current.isBlank()) spokenText else "$current, $spokenText"
@@ -381,7 +386,7 @@ fun FoodScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Mic,
-                                            contentDescription = "Sesle Söyle",
+                                            contentDescription = str("Sesle Söyle", "Voice Input"),
                                             tint = HealthColors.Primary,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -404,28 +409,32 @@ fun FoodScreen(
                     )
 
                     // Quick Suggestion Chips (No duplicate mic chip)
+                    val chip2EggsText = str("2 yumurta", "2 eggs")
+                    val chipOatMilkText = str("1 kase yulaf ve süt", "1 bowl oats & milk")
+                    val chipChickenText = str("150g ızgara tavuk", "150g grilled chicken")
+                    val chipCoffeeText = str("1 fincan filtre kahve", "1 cup black coffee")
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        QuickChip(label = "+ 2 Yumurta") {
+                        QuickChip(label = str("+ 2 Yumurta", "+ 2 Eggs")) {
                             val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, 2 yumurta" else "2 yumurta"
+                                if (state.rawText.isNotBlank()) "${state.rawText}, $chip2EggsText" else chip2EggsText
                             onIntent(FoodIntent.OnRawTextChanged(current))
                         }
-                        QuickChip(label = "+ Yulaf & Süt") {
+                        QuickChip(label = str("+ Yulaf & Süt", "+ Oats & Milk")) {
                             val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, 1 kase yulaf ve süt" else "1 kase yulaf ve süt"
+                                if (state.rawText.isNotBlank()) "${state.rawText}, $chipOatMilkText" else chipOatMilkText
                             onIntent(FoodIntent.OnRawTextChanged(current))
                         }
-                        QuickChip(label = "+ Izgara Tavuk") {
+                        QuickChip(label = str("+ Izgara Tavuk", "+ Grilled Chicken")) {
                             val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, 150g ızgara tavuk" else "150g ızgara tavuk"
+                                if (state.rawText.isNotBlank()) "${state.rawText}, $chipChickenText" else chipChickenText
                             onIntent(FoodIntent.OnRawTextChanged(current))
                         }
-                        QuickChip(label = "+ Filtre Kahve") {
+                        QuickChip(label = str("+ Filtre Kahve", "+ Filter Coffee")) {
                             val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, 1 fincan filtre kahve" else "1 fincan filtre kahve"
+                                if (state.rawText.isNotBlank()) "${state.rawText}, $chipCoffeeText" else chipCoffeeText
                             onIntent(FoodIntent.OnRawTextChanged(current))
                         }
                     }
@@ -440,17 +449,23 @@ fun FoodScreen(
                         ) {
                             Text(
                                 text = if (foodAiQuota.isPremium) {
-                                    "Premium AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
+                                    str(
+                                        "Premium AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}",
+                                        "Premium AI Quota: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
+                                    )
                                 } else {
-                                    "Günlük AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
+                                    str(
+                                        "Günlük AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}",
+                                        "Daily AI Quota: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
+                                    )
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isExhausted) HealthColors.Error else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (isExhausted) {
                                 Text(
-                                    text = "Profil > Özel API Key ile sınırsız",
+                                    text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = HealthColors.Primary
                                 )
@@ -484,7 +499,7 @@ fun FoodScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Hesaplanıyor...",
+                                    str("Hesaplanıyor...", "Calculating..."),
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
@@ -497,7 +512,7 @@ fun FoodScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    "AI ile Hesapla",
+                                    str("AI ile Hesapla", "Calculate with AI"),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = Color.White
@@ -520,7 +535,7 @@ fun FoodScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    "Ham Kaydet",
+                                    str("Ham Kaydet", "Save Raw"),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -558,7 +573,7 @@ fun FoodScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Ekle",
+                contentDescription = str("Ekle", "Add"),
                 tint = HealthColors.OnPrimary,
                 modifier = Modifier.size(28.dp)
             )
@@ -621,14 +636,17 @@ fun FoodScreen(
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = "Yapay Zeka Analiz Ediyor...",
+                                    text = str("Yapay Zeka Analiz Ediyor...", "AI Analyzing..."),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
-                                    text = "Girdiğiniz besinlerin kalori ve makro değerleri hesaplanıyor. Lütfen bekleyin...",
+                                    text = str(
+                                        "Girdiğiniz besinlerin kalori ve makro değerleri hesaplanıyor. Lütfen bekleyin...",
+                                        "Calculating calories and macros for your food. Please wait..."
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -809,7 +827,7 @@ fun FoodScreen(
         // ── Grocery / Market List -> Planora To-Do Bottom Sheet ──
         if (state.isGroceryListSheetOpen) {
             GroceryListBottomSheet(
-                title = state.groceryListTitle,
+                title = state.groceryListTitle.ifBlank { str("Market Alışveriş Listesi", "Grocery Shopping List") },
                 items = state.groceryItems,
                 selectedItems = state.selectedGroceryItems,
                 onToggleItem = { onIntent(FoodIntent.OnToggleGroceryItem(it)) },
@@ -851,10 +869,12 @@ private fun QuickChip(
 }
 
 private enum class AddFoodTab(
-    val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val titleTr: String,
+    val titleEn: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    PRESETS("Hazır Besinler", Icons.Default.RestaurantMenu),
-    MANUAL("Manuel Giriş", Icons.Default.Edit)
+    PRESETS("Hazır Besinler", "Presets", Icons.Default.RestaurantMenu),
+    MANUAL("Manuel Giriş", "Manual Entry", Icons.Default.Edit)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -884,6 +904,7 @@ private fun ManualAddBottomSheet(
         unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
     )
 
+    val lang = appLang()
     var activeTab by remember { mutableStateOf(AddFoodTab.PRESETS) }
 
     var name by remember { mutableStateOf("") }
@@ -964,7 +985,7 @@ private fun ManualAddBottomSheet(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = tab.title,
+                                    text = str(tab.titleTr, tab.titleEn),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -986,7 +1007,7 @@ private fun ManualAddBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = str("Kapat", "Close"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1008,9 +1029,9 @@ private fun ManualAddBottomSheet(
                     },
                     onAddFoodWithDetails = onAddWithDetails,
                     onSelectFood = { preset, qty ->
-                        name = preset.nameTr
+                        name = preset.localizedName(lang)
                         val totalAmount = preset.unitStep * qty
-                        val cleanUnit = preset.unitLabelTr.replace(Regex("^1\\s+"), "")
+                        val cleanUnit = preset.localizedUnitLabel(lang).replace(Regex("^1\\s+"), "")
                         portion =
                             if (preset.unitStep == 1) "$qty $cleanUnit" else "$totalAmount $cleanUnit"
                         calories = (preset.baseCalories * qty).toString()
@@ -1061,13 +1082,16 @@ private fun ManualAddBottomSheet(
                                 }
                                 Column {
                                     Text(
-                                        text = "Envanterim",
+                                        text = str("Envanterim", "My Inventory"),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Kendi eklediğiniz ürünlerin ve öğünlerin seviyelerini ayarlayın",
+                                        text = str(
+                                            "Kendi eklediğiniz ürünlerin ve öğünlerin seviyelerini ayarlayın",
+                                            "Adjust serving levels for your custom foods and meals"
+                                        ),
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1094,7 +1118,7 @@ private fun ManualAddBottomSheet(
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Text(
-                                            text = "Yeni",
+                                            text = str("Yeni", "New"),
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             fontWeight = FontWeight.Bold,
                                             color = HealthColors.Secondary
@@ -1138,13 +1162,13 @@ private fun ManualAddBottomSheet(
                             )
                             Column {
                                 Text(
-                                    text = "Aradığınızı bulamadınız mı?",
+                                    text = str("Aradığınızı bulamadınız mı?", "Didn't find what you're looking for?"),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Kendi besininizi gramaj ve kalorisiyle elle girin",
+                                    text = str("Kendi besininizi gramaj ve kalorisiyle elle girin", "Enter your own food manually with portion and calories"),
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1163,7 +1187,7 @@ private fun ManualAddBottomSheet(
                 // 1. Food Name Input
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Yiyecek Adı *",
+                        text = str("Yiyecek Adı *", "Food Name *"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1173,7 +1197,7 @@ private fun ManualAddBottomSheet(
                         onValueChange = { name = it },
                         placeholder = {
                             Text(
-                                "Örn: Izgara Somon, Yulaf Kasesi...",
+                                str("Örn: Izgara Somon, Yulaf Kasesi...", "e.g., Grilled Salmon, Oatmeal Bowl..."),
                                 color = placeholderColor
                             )
                         },
@@ -1195,7 +1219,7 @@ private fun ManualAddBottomSheet(
                 // 2. Portion Input & Quick Chips
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Porsiyon / Miktar",
+                        text = str("Porsiyon / Miktar", "Portion / Amount"),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1205,7 +1229,7 @@ private fun ManualAddBottomSheet(
                         onValueChange = { portion = it },
                         placeholder = {
                             Text(
-                                "Örn: 1 Porsiyon / 150g / 1 Kase",
+                                str("Örn: 1 Porsiyon / 150g / 1 Kase", "e.g., 1 Serving / 150g / 1 Bowl"),
                                 color = placeholderColor
                             )
                         },
@@ -1224,13 +1248,16 @@ private fun ManualAddBottomSheet(
                     )
 
                     // Quick portion suggestion chips
+                    val portionChips = if (appLang().code == "en") {
+                        listOf("1 Serving", "100g", "1 Piece", "1 Bowl", "1 Slice", "200ml")
+                    } else {
+                        listOf("1 Porsiyon", "100g", "1 Adet", "1 Kase", "1 Dilim", "200ml")
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf(
-                            "1 Porsiyon", "100g", "1 Adet", "1 Kase", "1 Dilim", "200ml"
-                        ).forEach { chip ->
+                        portionChips.forEach { chip ->
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
                                 color = if (portion == chip) HealthColors.Primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(
@@ -1272,7 +1299,7 @@ private fun ManualAddBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Kalori (kcal) *",
+                            text = str("Kalori (kcal) *", "Calories (kcal) *"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1285,10 +1312,10 @@ private fun ManualAddBottomSheet(
                             ) {
                                 Text(
                                     text = when {
-                                        projectedRatio > 1.0f -> "+${projectedTotal - dailyTargetCalories} kcal aşılacak"
-                                        projectedRatio >= 0.75f -> "Sınıra Yakın (%${(projectedRatio * 100).toInt()})"
-                                        projectedRatio >= 0.50f -> "Dengeli (%${(projectedRatio * 100).toInt()})"
-                                        else -> "Başlangıç (%${(projectedRatio * 100).toInt()})"
+                                        projectedRatio > 1.0f -> str("+${projectedTotal - dailyTargetCalories} kcal aşılacak", "+${projectedTotal - dailyTargetCalories} kcal over")
+                                        projectedRatio >= 0.75f -> str("Sınıra Yakın (%${(projectedRatio * 100).toInt()})", "Near Limit (${(projectedRatio * 100).toInt()}%)")
+                                        projectedRatio >= 0.50f -> str("Dengeli (%${(projectedRatio * 100).toInt()})", "Balanced (${(projectedRatio * 100).toInt()}%)")
+                                        else -> str("Başlangıç (%${(projectedRatio * 100).toInt()})", "Light (${(projectedRatio * 100).toInt()}%)")
                                     },
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     fontWeight = FontWeight.Bold,
@@ -1304,7 +1331,7 @@ private fun ManualAddBottomSheet(
                         onValueChange = { calories = it },
                         placeholder = {
                             Text(
-                                "Örn: 250",
+                                str("Örn: 250", "e.g., 250"),
                                 color = placeholderColor
                             )
                         },
@@ -1335,9 +1362,15 @@ private fun ManualAddBottomSheet(
                     if (enteredCal > 0) {
                         Text(
                             text = if (projectedRatio > 1.0f) {
-                                "⚠️ Bu öğünle birlikte günlük limit ${projectedTotal - dailyTargetCalories} kcal aşılacak ($projectedTotal / $dailyTargetCalories kcal)"
+                                str(
+                                    "⚠️ Bu öğünle birlikte günlük limit ${projectedTotal - dailyTargetCalories} kcal aşılacak ($projectedTotal / $dailyTargetCalories kcal)",
+                                    "⚠️ This meal exceeds your daily limit by ${projectedTotal - dailyTargetCalories} kcal ($projectedTotal / $dailyTargetCalories kcal)"
+                                )
                             } else {
-                                "Günlük toplam: $projectedTotal / $dailyTargetCalories kcal • Kalan: ${(dailyTargetCalories - projectedTotal).coerceAtLeast(0)} kcal"
+                                str(
+                                    "Günlük toplam: $projectedTotal / $dailyTargetCalories kcal • Kalan: ${(dailyTargetCalories - projectedTotal).coerceAtLeast(0)} kcal",
+                                    "Daily total: $projectedTotal / $dailyTargetCalories kcal • Remaining: ${(dailyTargetCalories - projectedTotal).coerceAtLeast(0)} kcal"
+                                )
                             },
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             fontWeight = FontWeight.Medium,
@@ -1350,7 +1383,7 @@ private fun ManualAddBottomSheet(
                 // 4. Optional Macros (Protein, Carbs, Fat)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Makro Değerleri (İsteğe Bağlı)",
+                        text = str("Makro Değerleri (İsteğe Bağlı)", "Macro Values (Optional)"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1377,7 +1410,7 @@ private fun ManualAddBottomSheet(
                             placeholder = {
                                 Text("0", color = placeholderColor)
                             },
-                            label = { Text("Karb (g)") },
+                            label = { Text(str("Karb (g)", "Carbs (g)")) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
@@ -1390,7 +1423,7 @@ private fun ManualAddBottomSheet(
                             placeholder = {
                                 Text("0", color = placeholderColor)
                             },
-                            label = { Text("Yağ (g)") },
+                            label = { Text(str("Yağ (g)", "Fat (g)")) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
@@ -1403,6 +1436,7 @@ private fun ManualAddBottomSheet(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 // Action Buttons
+                val defaultServingLabel = str("1 Porsiyon", "1 Serving")
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1412,19 +1446,19 @@ private fun ManualAddBottomSheet(
                         modifier = Modifier.weight(1f).height(50.dp).bounceClick(),
                         shape = RoundedCornerShape(999.dp)
                     ) {
-                        Text("İptal")
+                        Text(str("İptal", "Cancel"))
                     }
 
                     Button(
                         onClick = {
                             val calInt = calories.toIntOrNull() ?: 0
                             if (name.isNotBlank()) {
-                                val prot = proteinText.toDoubleOrNull() ?: 0.0
-                                val carb = carbsText.toDoubleOrNull() ?: 0.0
-                                val fat = fatText.toDoubleOrNull() ?: 0.0
+                                val prot = proteinText.toLocaleDoubleOrNull() ?: 0.0
+                                val carb = carbsText.toLocaleDoubleOrNull() ?: 0.0
+                                val fat = fatText.toLocaleDoubleOrNull() ?: 0.0
                                 onAdd(
                                     name,
-                                    portion.ifBlank { "1 Porsiyon" },
+                                    portion.ifBlank { defaultServingLabel },
                                     calInt,
                                     prot,
                                     carb,
@@ -1447,7 +1481,7 @@ private fun ManualAddBottomSheet(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Öğünü Ekle", fontWeight = FontWeight.Bold)
+                        Text(str("Öğünü Ekle", "Add Meal"), fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -1464,7 +1498,7 @@ private fun ManualAddBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Hazır Besin Listesine Dön",
+                        text = str("Hazır Besin Listesine Dön", "Back to Food Presets"),
                         fontWeight = FontWeight.SemiBold,
                         color = HealthColors.Primary
                     )

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -103,13 +104,13 @@ fun GeneralMicronutrientsBottomSheet(
                     }
                     Column {
                         Text(
-                            text = "Genel Mikrolar",
+                            text = str("Genel Mikrolar", "General Micronutrients"),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Günlük vitamin, mineral & lif dengesi",
+                            text = str("Günlük vitamin, mineral & lif dengesi", "Daily vitamin, mineral & fiber balance"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -131,7 +132,7 @@ fun GeneralMicronutrientsBottomSheet(
                 ) {
                     Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Hedefler", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(str("Hedefler", "Goals"), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -141,27 +142,27 @@ fun GeneralMicronutrientsBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 QuickStatCard(
-                    title = "Takip Edilen",
+                    title = str("Takip Edilen", "Tracked"),
                     value = "${microNutrients.size}",
-                    unit = "Öğe",
+                    unit = str("Öğe", "Items"),
                     icon = Icons.Default.CheckCircle,
                     color = HealthColors.Primary,
                     isDark = isDark,
                     modifier = Modifier.weight(1f)
                 )
                 QuickStatCard(
-                    title = "Tamamlanan",
+                    title = str("Tamamlanan", "Completed"),
                     value = "$achievedCount/${microNutrients.size}",
-                    unit = "Hedef",
+                    unit = str("Hedef", "Goals"),
                     icon = Icons.Default.DoneAll,
                     color = Color(0xFF4CAF50),
                     isDark = isDark,
                     modifier = Modifier.weight(1f)
                 )
                 QuickStatCard(
-                    title = "Ort. Karşılama",
-                    value = "%$averagePercentage",
-                    unit = "Denge",
+                    title = str("Ort. Karşılama", "Avg. Fulfilled"),
+                    value = str("%$averagePercentage", "$averagePercentage%"),
+                    unit = str("Denge", "Balance"),
                     icon = Icons.Default.Bolt,
                     color = HealthColors.Tertiary,
                     isDark = isDark,
@@ -172,7 +173,7 @@ fun GeneralMicronutrientsBottomSheet(
             // Horizontal Capsules Preview Strip
             if (microNutrients.isNotEmpty()) {
                 Text(
-                    text = "Hızlı Bakış",
+                    text = str("Hızlı Bakış", "Quick Overview"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -192,7 +193,7 @@ fun GeneralMicronutrientsBottomSheet(
 
             // Detailed List by Category
             Text(
-                text = "Detaylı Mikro Besin Dökümü",
+                text = str("Detaylı Mikro Besin Dökümü", "Detailed Micronutrient Breakdown"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -217,7 +218,7 @@ fun GeneralMicronutrientsBottomSheet(
                     contentColor = MaterialTheme.colorScheme.onSurface
                 )
             ) {
-                Text("Kapat", fontWeight = FontWeight.SemiBold)
+                Text(str("Kapat", "Close"), fontWeight = FontWeight.SemiBold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -308,7 +309,7 @@ private fun DetailedCapsulePill(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "%${item.percentage.toInt()}",
+                text = str("%${item.percentage.toInt()}", "${item.percentage.toInt()}%"),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -361,7 +362,7 @@ private fun DetailedCapsulePill(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = item.label,
+                text = localizedNutrientLabel(item),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -425,7 +426,7 @@ private fun NutrientDetailRowCard(
 
                     Column {
                         Text(
-                            text = item.label,
+                            text = localizedNutrientLabel(item),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -449,7 +450,11 @@ private fun NutrientDetailRowCard(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = if (isMet) "Tamamlandı (%${item.percentage.toInt()})" else "%${item.percentage.toInt()}",
+                        text = if (isMet) {
+                            str("Tamamlandı (%${item.percentage.toInt()})", "Completed (${item.percentage.toInt()}%)")
+                        } else {
+                            str("%${item.percentage.toInt()}", "${item.percentage.toInt()}%")
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (isMet) Color(0xFF4CAF50) else groupColor

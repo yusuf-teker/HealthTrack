@@ -28,23 +28,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 
-enum class FoodCategory(val labelTr: String) {
-    ALL("Tümü"),
-    FAVORITES("★ Favorilerim"),
-    CUSTOM("🏷️ Envanterim"),
-    PROTEIN("Protein"),
-    BREAKFAST("Kahvaltılık"),
-    CARBS("Karbonhidrat"),
-    FRUITS_NUTS("Meyve & Kuruyemiş"),
-    HEALTHY_FATS("Sağlıklı Yağlar")
+enum class FoodCategory(val labelTr: String, val labelEn: String) {
+    ALL("Tümü", "All"),
+    FAVORITES("★ Favorilerim", "★ Favorites"),
+    CUSTOM("🏷️ Envanterim", "🏷️ Inventory"),
+    PROTEIN("Protein", "Protein"),
+    BREAKFAST("Kahvaltılık", "Breakfast"),
+    CARBS("Karbonhidrat", "Carbs"),
+    FRUITS_NUTS("Meyve & Kuruyemiş", "Fruits & Nuts"),
+    HEALTHY_FATS("Sağlıklı Yağlar", "Healthy Fats");
+
+    fun localizedLabel(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(labelTr, labelEn, language)
 }
 
 data class FoodPreset(
@@ -67,7 +75,13 @@ data class FoodPreset(
     val micronutrients: List<Micronutrient> = emptyList(),
     val isMix: Boolean = false,
     val ingredientCount: Int = 0
-)
+) {
+    fun localizedName(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(nameTr, nameEn, language)
+
+    fun localizedUnitLabel(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(unitLabelTr, unitLabelEn, language)
+}
 
 /**
  * 100% verified authoritative nutrition values for frequent staple foods,
@@ -1093,7 +1107,7 @@ private fun CustomFoodItem.toPreset(): FoodPreset {
     return FoodPreset(
         id = id,
         nameTr = displayTitle,
-        nameEn = name,
+        nameEn = displayTitle,
         unitStep = unitStep,
         unitLabelTr = portionUnit,
         unitLabelEn = portionUnit,
@@ -1103,7 +1117,7 @@ private fun CustomFoodItem.toPreset(): FoodPreset {
         baseFatG = fatG,
         baseFiberG = fiberG,
         category = mappedCategory,
-        tags = listOfNotNull(name, brand, "özel", "marka", portionUnit),
+        tags = listOfNotNull(name, brand, "özel", "marka", "custom", "brand", portionUnit),
         isCustom = true,
         brand = brand,
         iconKey = iconKey,
@@ -1113,8 +1127,12 @@ private fun CustomFoodItem.toPreset(): FoodPreset {
     )
 }
 
-private fun formatScaledPresetPortion(preset: FoodPreset, count: Int): String {
-    val label = preset.unitLabelTr.trim()
+private fun formatScaledPresetPortion(
+    preset: FoodPreset,
+    count: Int,
+    language: AppLanguage = LocalizationManager.currentLanguage
+): String {
+    val label = preset.localizedUnitLabel(language).trim()
     if (preset.unitStep > 1) {
         val totalAmount = preset.unitStep * count
         return if (count > 1) {
@@ -1161,6 +1179,7 @@ fun QuickFoodPresetsView(
     onOpenInventoryStudio: ((CustomFoodItem?) -> Unit)? = null
 ) {
     val isDark = LocalIsDarkTheme.current
+    val lang = appLang()
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var searchQuery by remember { mutableStateOf("") }
@@ -1243,7 +1262,7 @@ fun QuickFoodPresetsView(
                         modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = category.labelTr,
+                            text = category.localizedLabel(lang),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1282,9 +1301,9 @@ fun QuickFoodPresetsView(
                 ) {
                     Text(
                         text = when (selectedCategory) {
-                            FoodCategory.FAVORITES -> "Henüz favori yiyecek eklemediniz"
-                            FoodCategory.CUSTOM -> "Envanterinizde henüz ürün bulunmuyor"
-                            else -> "\"$searchQuery\" ile eşleşen besin bulunamadı"
+                            FoodCategory.FAVORITES -> str("Henüz favori yiyecek eklemediniz", "You haven't added any favorite foods yet")
+                            FoodCategory.CUSTOM -> str("Envanterinizde henüz ürün bulunmuyor", "Your inventory has no items yet")
+                            else -> str("\"$searchQuery\" ile eşleşen besin bulunamadı", "No foods found matching \"$searchQuery\"")
                         },
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
@@ -1305,7 +1324,7 @@ fun QuickFoodPresetsView(
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Envanterime Ekle", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                Text(str("Envanterime Ekle", "Add to My Inventory"), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             }
                         } else {
                             TextButton(
@@ -1317,7 +1336,7 @@ fun QuickFoodPresetsView(
                                 modifier = Modifier.height(30.dp).bounceClick()
                             ) {
                                 Text(
-                                    text = "Tüm Besinleri Göster",
+                                    text = str("Tüm Besinleri Göster", "Show All Foods"),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = HealthColors.Primary
@@ -1347,7 +1366,7 @@ fun QuickFoodPresetsView(
                     val totalFat = ((preset.baseFatG * count * 10).toInt()) / 10.0
                     val totalFiber = ((preset.baseFiberG * count * 10).toInt()) / 10.0
 
-                    val portionLabel = formatScaledPresetPortion(preset, count)
+                    val portionLabel = formatScaledPresetPortion(preset, count, lang)
 
                     val matchingCustomItem = if (preset.isCustom) {
                         customFoods.firstOrNull { it.id == preset.id }
@@ -1393,7 +1412,7 @@ fun QuickFoodPresetsView(
                             }
                             if (onAddFoodWithDetails != null) {
                                 onAddFoodWithDetails(
-                                    preset.nameTr,
+                                    preset.localizedName(lang),
                                     portionLabel,
                                     totalCalories,
                                     totalProtein,
@@ -1405,7 +1424,7 @@ fun QuickFoodPresetsView(
                                 )
                             } else {
                                 onAddFood(
-                                    preset.nameTr,
+                                    preset.localizedName(lang),
                                     portionLabel,
                                     totalCalories,
                                     totalProtein,
@@ -1428,7 +1447,7 @@ fun QuickFoodPresetsView(
             onValueChange = { searchQuery = it },
             placeholder = {
                 Text(
-                    text = "Besin veya marka ara...",
+                    text = str("Besin veya marka ara...", "Search food or brand..."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f),
                     maxLines = 1,
@@ -1438,7 +1457,7 @@ fun QuickFoodPresetsView(
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Ara",
+                    contentDescription = str("Ara", "Search"),
                     tint = HealthColors.Primary.copy(alpha = 0.8f),
                     modifier = Modifier.size(19.dp)
                 )
@@ -1458,7 +1477,7 @@ fun QuickFoodPresetsView(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Temizle",
+                            contentDescription = str("Temizle", "Clear"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
@@ -1539,7 +1558,11 @@ private fun PresetFoodCard(
                                 modifier = Modifier.padding(bottom = 2.dp)
                             ) {
                                 Text(
-                                    text = if (preset.isMix) "🏷️ ${preset.ingredientCount} İçerik" else (preset.brand ?: "Envanterim"),
+                                    text = if (preset.isMix) {
+                                        str("🏷️ ${preset.ingredientCount} İçerik", "🏷️ ${preset.ingredientCount} Items")
+                                    } else {
+                                        preset.brand ?: str("Envanterim", "Inventory")
+                                    },
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                     fontWeight = FontWeight.Bold,
                                     color = HealthColors.Secondary,
@@ -1548,7 +1571,7 @@ private fun PresetFoodCard(
                             }
                         }
                         Text(
-                            text = preset.nameTr,
+                            text = preset.localizedName(appLang()),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -1566,7 +1589,7 @@ private fun PresetFoodCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
-                                contentDescription = "Sil",
+                                contentDescription = str("Sil", "Delete"),
                                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                                 modifier = Modifier.size(15.dp)
                             )
@@ -1579,7 +1602,11 @@ private fun PresetFoodCard(
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
+                            contentDescription = if (isFavorite) {
+                                str("Favorilerden çıkar", "Remove from favorites")
+                            } else {
+                                str("Favorilere ekle", "Add to favorites")
+                            },
                             tint = if (isFavorite) HealthColors.Tertiary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.size(17.dp)
                         )
@@ -1621,7 +1648,7 @@ private fun PresetFoodCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${totalCarbs}g K",
+                    text = str("${totalCarbs}g K", "${totalCarbs}g C"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = HealthColors.NutrientCarbs,
                     fontWeight = FontWeight.Medium
@@ -1632,7 +1659,7 @@ private fun PresetFoodCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
                 Text(
-                    text = "${totalFat}g Y",
+                    text = str("${totalFat}g Y", "${totalFat}g F"),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = HealthColors.NutrientLipids,
                     fontWeight = FontWeight.Medium
@@ -1662,7 +1689,11 @@ private fun PresetFoodCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (preset.isMix) "İçerik Seviyelerini Ayarla" else "Seviye / Ölçek Değiştir",
+                            text = if (preset.isMix) {
+                                str("İçerik Seviyelerini Ayarla", "Adjust Ingredient Levels")
+                            } else {
+                                str("Seviye / Ölçek Değiştir", "Change Level / Scale")
+                            },
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             fontWeight = FontWeight.Bold,
                             color = HealthColors.Secondary,
@@ -1677,7 +1708,7 @@ private fun PresetFoodCard(
                     color = HealthColors.Secondary.copy(alpha = 0.12f)
                 ) {
                     Text(
-                        text = "🧬 ${preset.micronutrients.size} Mikro Besin",
+                        text = str("🧬 ${preset.micronutrients.size} Mikro Besin", "🧬 ${preset.micronutrients.size} Micronutrients"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
                         color = HealthColors.Secondary,
@@ -1702,7 +1733,7 @@ private fun PresetFoodCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Remove,
-                        contentDescription = "Azalt",
+                        contentDescription = str("Azalt", "Decrease"),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -1723,7 +1754,7 @@ private fun PresetFoodCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Artır",
+                        contentDescription = str("Artır", "Increase"),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -1751,7 +1782,7 @@ private fun PresetFoodCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Öğüne Ekle",
+                    text = str("Öğüne Ekle", "Add to Meal"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )

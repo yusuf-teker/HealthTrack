@@ -47,6 +47,8 @@ import com.yusufteker.healthtrack.core.utils.rememberWeeklyReportNotifier
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.DaysStripSelector
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
@@ -62,6 +64,7 @@ fun AnalyticsScreen(
     onIntent: (AnalyticsIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val lang = appLang()
     val appLauncher = rememberExternalAppLauncher()
     val reportNotifier = rememberWeeklyReportNotifier()
     val scrollState = rememberScrollState()
@@ -71,6 +74,8 @@ fun AnalyticsScreen(
     LaunchedEffect(state.autoWeeklyWhatsApp) {
         if (state.autoWeeklyWhatsApp) {
             reportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
+        } else {
+            reportNotifier.cancelSundayEveningReminder()
         }
     }
 
@@ -101,7 +106,7 @@ fun AnalyticsScreen(
                             onIntent(AnalyticsIntent.OnDismissPendingAutoReport)
                         },
                         onSendWhatsApp = {
-                            val formatted = autoReport.toWhatsAppMessage(state.userName)
+                            val formatted = autoReport.toWhatsAppMessage(state.userName, lang)
                             appLauncher.shareToWhatsApp(formatted, state.whatsAppPhone)
                             onIntent(AnalyticsIntent.OnReportSentToWhatsApp(autoReport.id))
                         },
@@ -127,7 +132,7 @@ fun AnalyticsScreen(
                 // Haftalık Seçim: Önceki Hafta / Seçili Hafta / Sonraki Hafta + Son 4 Hafta Çipleri
                 WeekSelectorCard(
                     selectedMonday = state.selectedWeekMonday,
-                    selectedWeekLabel = state.selectedWeekLabel,
+                    selectedWeekLabel = state.localizedSelectedWeekLabel(lang),
                     onShiftWeek = { delta -> onIntent(AnalyticsIntent.OnShiftWeek(delta)) },
                     onSelectWeekMonday = { monday -> onIntent(AnalyticsIntent.OnSelectWeekByDate(monday)) }
                 )
@@ -145,7 +150,7 @@ fun AnalyticsScreen(
                 AiReportDetailCard(
                     report = activeReport,
                     onShareWhatsApp = {
-                        val formatted = activeReport.toWhatsAppMessage(state.userName)
+                        val formatted = activeReport.toWhatsAppMessage(state.userName, lang)
                         appLauncher.shareToWhatsApp(formatted, state.whatsAppPhone)
                         onIntent(AnalyticsIntent.OnReportSentToWhatsApp(activeReport.id))
                     }
@@ -153,6 +158,22 @@ fun AnalyticsScreen(
             }
 
             var hasNotificationPerm by remember { mutableStateOf(reportNotifier.hasPermission) }
+            val permGrantedMsg = str(
+                "🔔 Bildirim izni verildi! Haftalık raporlarınız kilit ekranınıza gelecek.",
+                "🔔 Notification permission granted! Your weekly reports will arrive on your lock screen."
+            )
+            val permDeniedMsg = str(
+                "⚠️ Bildirim izni verilmedi. Ayarlardan bildirimlere izin verebilirsiniz.",
+                "⚠️ Notification permission denied. You can enable notifications in Settings."
+            )
+            val testNotifSentMsg = str(
+                "🔔 Test bildirimi gönderildi! Bildirime dokunarak doğrudan WhatsApp'ı açabilirsiniz.",
+                "🔔 Test notification sent! Tap the notification to open WhatsApp directly."
+            )
+            val reportPreparingMsg = str(
+                "Rapor hazırlanıyor, tamamlanınca bildirimi test edebilirsiniz.",
+                "Generating report, you can test the notification once it is ready."
+            )
 
             // ── 6. WhatsApp Otomatik Haftalık Rapor & Push Bildirim Kartı ──
             WhatsAppAutomationCard(
@@ -163,9 +184,9 @@ fun AnalyticsScreen(
                     reportNotifier.requestPermission { granted ->
                         hasNotificationPerm = granted
                         if (granted) {
-                            onIntent(AnalyticsIntent.OnShowInfoMessage("🔔 Bildirim izni verildi! Haftalık raporlarınız kilit ekranınıza gelecek."))
+                            onIntent(AnalyticsIntent.OnShowInfoMessage(permGrantedMsg))
                         } else {
-                            onIntent(AnalyticsIntent.OnShowInfoMessage("⚠️ Bildirim izni verilmedi. Ayarlardan bildirimlere izin verebilirsiniz."))
+                            onIntent(AnalyticsIntent.OnShowInfoMessage(permDeniedMsg))
                         }
                     }
                 },
@@ -179,11 +200,11 @@ fun AnalyticsScreen(
                             whatsAppPhone = state.whatsAppPhone,
                             userName = state.userName
                         )
-                        onIntent(AnalyticsIntent.OnShowInfoMessage("🔔 Test bildirimi gönderildi! Bildirime dokunarak doğrudan WhatsApp'ı açabilirsiniz."))
+                        onIntent(AnalyticsIntent.OnShowInfoMessage(testNotifSentMsg))
                     } else {
                         onIntent(AnalyticsIntent.OnPeriodTypeChanged(AnalysisPeriodType.WEEKLY))
                         onIntent(AnalyticsIntent.OnGenerateReportClicked)
-                        onIntent(AnalyticsIntent.OnShowInfoMessage("Rapor hazırlanıyor, tamamlanınca bildirimi test edebilirsiniz."))
+                        onIntent(AnalyticsIntent.OnShowInfoMessage(reportPreparingMsg))
                     }
                 },
                 onPhoneChange = { onIntent(AnalyticsIntent.OnWhatsAppPhoneChanged(it)) },
@@ -194,7 +215,7 @@ fun AnalyticsScreen(
                         ?: state.recentReports.firstOrNull { it.periodType == AnalysisPeriodType.WEEKLY }
                         ?: state.currentReport
                     if (weekly != null) {
-                        val formatted = weekly.toWhatsAppMessage(state.userName)
+                        val formatted = weekly.toWhatsAppMessage(state.userName, lang)
                         appLauncher.shareToWhatsApp(formatted, state.whatsAppPhone)
                         onIntent(AnalyticsIntent.OnReportSentToWhatsApp(weekly.id))
                     } else {
@@ -207,7 +228,10 @@ fun AnalyticsScreen(
             // ── 7. Kayıtlı AI Rapor Geçmişi (Hem Günlük Hem Haftalık) ──
             if (state.recentReports.isNotEmpty()) {
                 Text(
-                    text = "Kayıtlı AI Rapor Arşivi (${state.recentReports.size})",
+                    text = str(
+                        "Kayıtlı AI Rapor Arşivi (${state.recentReports.size})",
+                        "Saved AI Report Archive (${state.recentReports.size})"
+                    ),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 4.dp)
@@ -220,7 +244,7 @@ fun AnalyticsScreen(
                             isSelected = state.currentReport?.id == item.id,
                             onSelect = { onIntent(AnalyticsIntent.OnSelectSavedReport(item)) },
                             onShareWhatsApp = {
-                                val formatted = item.toWhatsAppMessage(state.userName)
+                                val formatted = item.toWhatsAppMessage(state.userName, lang)
                                 appLauncher.shareToWhatsApp(formatted, state.whatsAppPhone)
                                 onIntent(AnalyticsIntent.OnReportSentToWhatsApp(item.id))
                             },
@@ -289,12 +313,15 @@ private fun AutoWeeklyReportReadyBanner(
                     }
                     Column {
                         Text(
-                            text = "Haftalık Otomatik Raporunuz Hazır!",
+                            text = str("Haftalık Otomatik Raporunuz Hazır!", "Your Automatic Weekly Report Is Ready!"),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${report.periodLabel} • Skor: ${report.score}/100",
+                            text = str(
+                                "${report.periodLabel} • Skor: ${report.score}/100",
+                                "${report.periodLabel} • Score: ${report.score}/100"
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -302,7 +329,7 @@ private fun AutoWeeklyReportReadyBanner(
                 }
 
                 IconButton(onClick = onDismiss, modifier = Modifier.size(26.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Kapat", modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Close, contentDescription = str("Kapat", "Close"), modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -315,7 +342,7 @@ private fun AutoWeeklyReportReadyBanner(
                     modifier = Modifier.weight(1f).bounceClick(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Raporu İncele", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(str("Raporu İncele", "View Report"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
 
                 Button(
@@ -329,7 +356,7 @@ private fun AutoWeeklyReportReadyBanner(
                 ) {
                     Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("WhatsApp'a At", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(str("WhatsApp'a At", "Send to WhatsApp"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }
@@ -355,8 +382,8 @@ private fun PeriodModeToggleCard(
             val isWeekly = selectedPeriod == AnalysisPeriodType.WEEKLY
 
             PeriodTabPill(
-                title = "Günlük AI Analiz",
-                subtitle = "İstediğin günü seç",
+                title = str("Günlük AI Analiz", "Daily AI Analysis"),
+                subtitle = str("İstediğin günü seç", "Pick any day"),
                 icon = Icons.Rounded.Today,
                 isSelected = isDaily,
                 modifier = Modifier.weight(1f),
@@ -364,8 +391,8 @@ private fun PeriodModeToggleCard(
             )
 
             PeriodTabPill(
-                title = "Haftalık AI Rapor",
-                subtitle = "İstediğin haftayı seç",
+                title = str("Haftalık AI Rapor", "Weekly AI Report"),
+                subtitle = str("İstediğin haftayı seç", "Pick any week"),
                 icon = Icons.Rounded.DateRange,
                 isSelected = isWeekly,
                 modifier = Modifier.weight(1f),
@@ -425,16 +452,17 @@ private fun WeekSelectorCard(
     onShiftWeek: (Int) -> Unit,
     onSelectWeekMonday: (String) -> Unit
 ) {
+    val lang = appLang()
     val today = getTodayIso()
     val (thisWeekMonday, _) = getWeekBoundsIso(today)
-    val recentWeeks = remember(thisWeekMonday) {
+    val recentWeeks = remember(thisWeekMonday, lang) {
         (0..3).map { offset ->
             val mon = shiftDateIso(thisWeekMonday, -offset * 7)
             val sun = shiftDateIso(mon, 6)
             val label = when (offset) {
-                0 -> "Bu Hafta"
-                1 -> "Geçen Hafta"
-                else -> formatWeekRangeTr(mon, sun)
+                0 -> if (lang.code == "en") "This Week" else "Bu Hafta"
+                1 -> if (lang.code == "en") "Last Week" else "Geçen Hafta"
+                else -> formatWeekRangeTr(mon, sun, lang)
             }
             Triple(mon, sun, label)
         }
@@ -460,12 +488,12 @@ private fun WeekSelectorCard(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Önceki Hafta")
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = str("Önceki Hafta", "Previous Week"))
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "SEÇİLİ HAFTA ARALIĞI",
+                        text = str("SEÇİLİ HAFTA ARALIĞI", "SELECTED WEEK RANGE"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -484,7 +512,7 @@ private fun WeekSelectorCard(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Sonraki Hafta")
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = str("Sonraki Hafta", "Next Week"))
                 }
             }
 
@@ -530,8 +558,9 @@ private fun SelectionSummaryAndGenerateCard(
     state: AnalyticsState,
     onGenerateClick: () -> Unit
 ) {
+    val lang = appLang()
     val isDaily = state.periodType == AnalysisPeriodType.DAILY
-    val periodTitle = if (isDaily) state.selectedDayLabel else state.selectedWeekLabel
+    val periodTitle = if (isDaily) state.localizedSelectedDayLabel(lang) else state.localizedSelectedWeekLabel(lang)
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -551,7 +580,7 @@ private fun SelectionSummaryAndGenerateCard(
             ) {
                 Column {
                     Text(
-                        text = if (isDaily) "GÜNLÜK TELEMETRİ ÖZETİ" else "7 GÜNLÜK HAFTALIK ÖZET",
+                        text = if (isDaily) str("GÜNLÜK TELEMETRİ ÖZETİ", "DAILY TELEMETRY SUMMARY") else str("7 GÜNLÜK HAFTALIK ÖZET", "7-DAY WEEKLY SUMMARY"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = HealthColors.Primary
@@ -569,9 +598,9 @@ private fun SelectionSummaryAndGenerateCard(
                 ) {
                     Text(
                         text = if (isDaily) {
-                            if (state.previewLoggedDays > 0) "Veri Mevcut" else "Kayıt Bekleniyor"
+                            if (state.previewLoggedDays > 0) str("Veri Mevcut", "Data Available") else str("Kayıt Bekleniyor", "Awaiting Logs")
                         } else {
-                            "${state.previewLoggedDays} / 7 Gün Kayıtlı"
+                            str("${state.previewLoggedDays} / 7 Gün Kayıtlı", "${state.previewLoggedDays} / 7 Days Logged")
                         },
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
@@ -586,24 +615,24 @@ private fun SelectionSummaryAndGenerateCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 MiniMetricBox(
-                    label = if (isDaily) "Alınan" else "Ort. Kalori",
+                    label = if (isDaily) str("Alınan", "Intake") else str("Ort. Kalori", "Avg. Calories"),
                     value = "${state.previewCaloriesIntake}",
                     unit = "/ ${state.previewTargetCalories} kcal",
                     accent = HealthColors.Primary,
                     modifier = Modifier.weight(1f)
                 )
                 MiniMetricBox(
-                    label = if (isDaily) "Protein" else "Ort. Protein",
+                    label = if (isDaily) "Protein" else str("Ort. Protein", "Avg. Protein"),
                     value = "${state.previewProteinG}g",
                     unit = "/ ${state.previewTargetProteinG}g",
                     accent = HealthColors.NutrientProtein,
                     modifier = Modifier.weight(1f)
                 )
                 MiniMetricBox(
-                    label = "Spor Yakımı",
+                    label = str("Spor Yakımı", "Workout Burn"),
                     value = "${state.previewCaloriesBurned}",
-                    unit = "${state.previewWorkoutMinutes} dk",
-                    accent = HealthColors.TertiaryContainer,
+                    unit = str("${state.previewWorkoutMinutes} dk", "${state.previewWorkoutMinutes} min"),
+                    accent = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -628,15 +657,15 @@ private fun SelectionSummaryAndGenerateCard(
                         color = Color.White
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("AI Analiz Raporu Hazırlanıyor...", fontWeight = FontWeight.Bold)
+                    Text(str("AI Analiz Raporu Hazırlanıyor...", "Preparing AI Analysis Report..."), fontWeight = FontWeight.Bold)
                 } else {
                     Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (state.currentReport != null) {
-                            if (isDaily) "✨ Günlük AI Analizini Yenile" else "✨ Haftalık AI Raporunu Yenile"
+                            if (isDaily) str("✨ Günlük AI Analizini Yenile", "✨ Refresh Daily AI Analysis") else str("✨ Haftalık AI Raporunu Yenile", "✨ Refresh Weekly AI Report")
                         } else {
-                            if (isDaily) "✨ Seçili Günü AI ile Analiz Et" else "✨ Seçili Haftayı AI ile Analiz Et"
+                            if (isDaily) str("✨ Seçili Günü AI ile Analiz Et", "✨ Analyze Selected Day with AI") else str("✨ Seçili Haftayı AI ile Analiz Et", "✨ Analyze Selected Week with AI")
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -721,7 +750,7 @@ private fun AiReportDetailCard(
                     val scoreColor = when {
                         report.score >= 80 -> HealthColors.Primary
                         report.score >= 60 -> HealthColors.NutrientCarbs
-                        else -> HealthColors.TertiaryContainer
+                        else -> MaterialTheme.colorScheme.tertiary
                     }
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val stroke = 8.dp.toPx()
@@ -769,7 +798,7 @@ private fun AiReportDetailCard(
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = if (report.periodType == AnalysisPeriodType.DAILY) "GÜNLÜK RAPOR" else "HAFTALIK RAPOR",
+                                text = if (report.periodType == AnalysisPeriodType.DAILY) str("GÜNLÜK RAPOR", "DAILY REPORT") else str("HAFTALIK RAPOR", "WEEKLY REPORT"),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary
@@ -781,7 +810,7 @@ private fun AiReportDetailCard(
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    text = "OTOMATİK",
+                                    text = str("OTOMATİK", "AUTO"),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
                                     color = WhatsAppGreen
@@ -813,7 +842,7 @@ private fun AiReportDetailCard(
             // Highlights
             if (report.highlights.isNotEmpty()) {
                 ReportSectionBlock(
-                    title = "✅ Güçlü Yönler & Başarılar",
+                    title = str("✅ Güçlü Yönler & Başarılar", "✅ Strengths & Achievements"),
                     items = report.highlights,
                     accentColor = HealthColors.Primary
                 )
@@ -822,16 +851,16 @@ private fun AiReportDetailCard(
             // Warnings
             if (report.warnings.isNotEmpty()) {
                 ReportSectionBlock(
-                    title = "⚠️ Dikkat Edilmesi Gerekenler",
+                    title = str("⚠️ Dikkat Edilmesi Gerekenler", "⚠️ Things to Watch"),
                     items = report.warnings,
-                    accentColor = HealthColors.TertiaryContainer
+                    accentColor = MaterialTheme.colorScheme.tertiary
                 )
             }
 
             // Recommendations
             if (report.recommendations.isNotEmpty()) {
                 ReportSectionBlock(
-                    title = "🎯 AI Koç Eylem Tavsiyeleri",
+                    title = str("🎯 AI Koç Eylem Tavsiyeleri", "🎯 AI Coach Action Plan"),
                     items = report.recommendations,
                     accentColor = HealthColors.NutrientProtein
                 )
@@ -853,7 +882,7 @@ private fun AiReportDetailCard(
                 Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "📲 Raporu WhatsApp ile Gönder",
+                    text = str("📲 Raporu WhatsApp ile Gönder", "📲 Send Report via WhatsApp"),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -956,15 +985,15 @@ private fun WhatsAppAutomationCard(
                     }
                     Column {
                         Text(
-                            text = "Haftalık WhatsApp Otomasyonu",
+                            text = str("Haftalık WhatsApp Otomasyonu", "Weekly WhatsApp Automation"),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = if (autoWeeklyEnabled) {
-                                "Aktif (Pazar 21:00) • Ayarlar için dokunun"
+                                str("Aktif (Pazar 21:00) • Ayarlar için dokunun", "Active (Sunday 21:00) • Tap for settings")
                             } else {
-                                "Kapalı • Ayarlar için dokunun"
+                                str("Kapalı • Ayarlar için dokunun", "Off • Tap for settings")
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -982,7 +1011,7 @@ private fun WhatsAppAutomationCard(
                     ) {
                         Icon(
                             imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Rounded.Tune,
-                            contentDescription = "Otomasyon Ayarları",
+                            contentDescription = str("Otomasyon Ayarları", "Automation Settings"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1025,12 +1054,15 @@ private fun WhatsAppAutomationCard(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Bildirim İznini Etkinleştir",
+                                        text = str("Bildirim İznini Etkinleştir", "Enable Notification Permission"),
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Rapor hazır olunca kilit ekranından tek dokunuşla WhatsApp açılsın.",
+                                        text = str(
+                                            "Rapor hazır olunca kilit ekranından tek dokunuşla WhatsApp açılsın.",
+                                            "Open WhatsApp with a single tap from your lock screen when the report is ready."
+                                        ),
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1042,8 +1074,8 @@ private fun WhatsAppAutomationCard(
                     OutlinedTextField(
                         value = whatsAppPhone,
                         onValueChange = onPhoneChange,
-                        label = { Text("Hedef WhatsApp Numarası (Opsiyonel)") },
-                        placeholder = { Text("Örn: 05551234567") },
+                        label = { Text(str("Hedef WhatsApp Numarası (Opsiyonel)", "Target WhatsApp Number (Optional)")) },
+                        placeholder = { Text(str("Örn: 05551234567", "e.g., +905551234567")) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
@@ -1053,7 +1085,7 @@ private fun WhatsAppAutomationCard(
                                 onSaveSettings()
                                 isExpanded = false
                             }) {
-                                Text("Kaydet", fontWeight = FontWeight.Bold)
+                                Text(str("Kaydet", "Save"), fontWeight = FontWeight.Bold)
                             }
                         }
                     )
@@ -1073,7 +1105,7 @@ private fun WhatsAppAutomationCard(
                             Icon(Icons.Rounded.NotificationsActive, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Bildirim Testi",
+                                text = str("Bildirim Testi", "Test Notification"),
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -1089,7 +1121,7 @@ private fun WhatsAppAutomationCard(
                             Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Şimdi Gönder",
+                                text = str("Şimdi Gönder", "Send Now"),
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -1156,18 +1188,18 @@ private fun SavedReportHistoryRow(
                         )
                         Surface(
                             color = if (report.periodType == AnalysisPeriodType.WEEKLY) {
-                                HealthColors.TertiaryContainer.copy(alpha = 0.16f)
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
                             } else {
                                 HealthColors.Primary.copy(alpha = 0.14f)
                             },
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = if (report.periodType == AnalysisPeriodType.WEEKLY) "Haftalık" else "Günlük",
+                                text = if (report.periodType == AnalysisPeriodType.WEEKLY) str("Haftalık", "Weekly") else str("Günlük", "Daily"),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
                                 color = if (report.periodType == AnalysisPeriodType.WEEKLY) {
-                                    HealthColors.TertiaryContainer
+                                    MaterialTheme.colorScheme.tertiary
                                 } else {
                                     HealthColors.Primary
                                 }
@@ -1189,7 +1221,7 @@ private fun SavedReportHistoryRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
-                        contentDescription = "WhatsApp ile Gönder",
+                        contentDescription = str("WhatsApp ile Gönder", "Send via WhatsApp"),
                         tint = WhatsAppGreen,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1200,7 +1232,7 @@ private fun SavedReportHistoryRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Sil",
+                        contentDescription = str("Sil", "Delete"),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
                         modifier = Modifier.size(18.dp)
                     )

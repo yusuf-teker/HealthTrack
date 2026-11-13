@@ -1,5 +1,8 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -53,21 +56,40 @@ data class HealthAiReport(
     /**
      * Formats this report into a clean, emoji-structured WhatsApp message.
      */
-    fun toWhatsAppMessage(userName: String = ""): String {
+    fun toWhatsAppMessage(
+        userName: String = "",
+        language: AppLanguage = LocalizationManager.currentLanguage
+    ): String {
         val headerTitle = if (periodType == AnalysisPeriodType.DAILY) {
-            "📊 *HealthTrack Günlük AI Sağlık Raporu*"
+            trEn(
+                "📊 *HealthTrack Günlük AI Sağlık Raporu*",
+                "📊 *HealthTrack Daily AI Health Report*",
+                language
+            )
         } else {
-            "📈 *HealthTrack Haftalık AI Sağlık Raporu*"
+            trEn(
+                "📈 *HealthTrack Haftalık AI Sağlık Raporu*",
+                "📈 *HealthTrack Weekly AI Health Report*",
+                language
+            )
         }
-        val userLine = if (userName.isNotBlank()) "👤 *Kullanıcı:* $userName\n" else ""
+        val userLine = if (userName.isNotBlank()) {
+            trEn("👤 *Kullanıcı:* $userName\n", "👤 *User:* $userName\n", language)
+        } else ""
+        val minUnit = trEn("dk", "min", language)
         val weightLine = when {
             periodType == AnalysisPeriodType.DAILY && endWeightKg != null ->
-                "⚖️ *Güncel Kilo:* $endWeightKg kg" + (targetWeightKg?.let { " (Hedef: $it kg)" } ?: "")
+                trEn("⚖️ *Güncel Kilo:* $endWeightKg kg", "⚖️ *Current Weight:* $endWeightKg kg", language) +
+                    (targetWeightKg?.let { trEn(" (Hedef: $it kg)", " (Goal: $it kg)", language) } ?: "")
             periodType == AnalysisPeriodType.WEEKLY && endWeightKg != null -> {
                 val deltaStr = weightDeltaKg?.let { d ->
                     if (d > 0) " (+$d kg)" else " ($d kg)"
                 } ?: ""
-                "⚖️ *Kilo Trendi:* ${startWeightKg ?: endWeightKg} kg → $endWeightKg kg$deltaStr"
+                trEn(
+                    "⚖️ *Kilo Trendi:* ${startWeightKg ?: endWeightKg} kg → $endWeightKg kg$deltaStr",
+                    "⚖️ *Weight Trend:* ${startWeightKg ?: endWeightKg} kg → $endWeightKg kg$deltaStr",
+                    language
+                )
             }
             else -> null
         }
@@ -75,25 +97,25 @@ data class HealthAiReport(
         return buildString {
             appendLine(headerTitle)
             append(userLine)
-            appendLine("🗓️ *Dönem:* $periodLabel")
-            appendLine("🏆 *AI Sağlık & Uyum Skoru:* $score / 100")
+            appendLine(trEn("🗓️ *Dönem:* $periodLabel", "🗓️ *Period:* $periodLabel", language))
+            appendLine(trEn("🏆 *AI Sağlık & Uyum Skoru:* $score / 100", "🏆 *AI Health & Consistency Score:* $score / 100", language))
             appendLine("────────────────────")
             appendLine("✨ *$headline*")
             appendLine(summary)
             appendLine()
-            appendLine("📌 *Özet Metrikler:*")
+            appendLine(trEn("📌 *Özet Metrikler:*", "📌 *Key Metrics:*", language))
             if (periodType == AnalysisPeriodType.DAILY) {
-                appendLine("• 🍽️ Alınan Kalori: *$avgCaloriesIntake / $targetCalories kcal*")
-                appendLine("• 🔥 Egzersiz Yakımı: *$totalCaloriesBurned kcal* ($totalWorkoutMinutes dk)")
-                appendLine("• ⚡ Net Kalori: *${avgCaloriesIntake - totalCaloriesBurned} kcal*")
-                appendLine("• 🥩 Protein: *${avgProteinG.toInt()}g / ${targetProteinG.toInt()}g*")
-                appendLine("• 🍞 Karb: *${avgCarbsG.toInt()}g* | 🥑 Yağ: *${avgFatG.toInt()}g* | 🌿 Lif: *${avgFiberG.toInt()}g*")
+                appendLine(trEn("• 🍽️ Alınan Kalori: *$avgCaloriesIntake / $targetCalories kcal*", "• 🍽️ Calorie Intake: *$avgCaloriesIntake / $targetCalories kcal*", language))
+                appendLine(trEn("• 🔥 Egzersiz Yakımı: *$totalCaloriesBurned kcal* ($totalWorkoutMinutes $minUnit)", "• 🔥 Workout Burn: *$totalCaloriesBurned kcal* ($totalWorkoutMinutes $minUnit)", language))
+                appendLine(trEn("• ⚡ Net Kalori: *${avgCaloriesIntake - totalCaloriesBurned} kcal*", "• ⚡ Net Calories: *${avgCaloriesIntake - totalCaloriesBurned} kcal*", language))
+                appendLine(trEn("• 🥩 Protein: *${avgProteinG.toInt()}g / ${targetProteinG.toInt()}g*", "• 🥩 Protein: *${avgProteinG.toInt()}g / ${targetProteinG.toInt()}g*", language))
+                appendLine(trEn("• 🍞 Karb: *${avgCarbsG.toInt()}g* | 🥑 Yağ: *${avgFatG.toInt()}g* | 🌿 Lif: *${avgFiberG.toInt()}g*", "• 🍞 Carbs: *${avgCarbsG.toInt()}g* | 🥑 Fat: *${avgFatG.toInt()}g* | 🌿 Fiber: *${avgFiberG.toInt()}g*", language))
             } else {
-                appendLine("• 📅 Kayıtlı Gün: *$loggedDaysCount / 7 gün*")
-                appendLine("• 🍽️ Ort. Günlük Kalori: *$avgCaloriesIntake / $targetCalories kcal*")
-                appendLine("• 🔥 Toplam Spor Yakımı: *$totalCaloriesBurned kcal* ($workoutCount antrenman, $totalWorkoutMinutes dk)")
-                appendLine("• 🥩 Ort. Protein: *${avgProteinG.toInt()}g / ${targetProteinG.toInt()}g*")
-                appendLine("• 🍞 Ort. Karb: *${avgCarbsG.toInt()}g* | 🥑 Yağ: *${avgFatG.toInt()}g* | 🌿 Lif: *${avgFiberG.toInt()}g*")
+                appendLine(trEn("• 📅 Kayıtlı Gün: *$loggedDaysCount / 7 gün*", "• 📅 Logged Days: *$loggedDaysCount / 7 days*", language))
+                appendLine(trEn("• 🍽️ Ort. Günlük Kalori: *$avgCaloriesIntake / $targetCalories kcal*", "• 🍽️ Avg. Daily Calories: *$avgCaloriesIntake / $targetCalories kcal*", language))
+                appendLine(trEn("• 🔥 Toplam Spor Yakımı: *$totalCaloriesBurned kcal* ($workoutCount antrenman, $totalWorkoutMinutes $minUnit)", "• 🔥 Total Workout Burn: *$totalCaloriesBurned kcal* ($workoutCount workouts, $totalWorkoutMinutes $minUnit)", language))
+                appendLine(trEn("• 🥩 Ort. Protein: *${avgProteinG.toInt()}g / ${targetProteinG.toInt()}g*", "• 🥩 Avg. Protein: *${avgProteinG.toInt()}g / ${targetProteinG.toInt()}g*", language))
+                appendLine(trEn("• 🍞 Ort. Karb: *${avgCarbsG.toInt()}g* | 🥑 Yağ: *${avgFatG.toInt()}g* | 🌿 Lif: *${avgFiberG.toInt()}g*", "• 🍞 Avg. Carbs: *${avgCarbsG.toInt()}g* | 🥑 Fat: *${avgFatG.toInt()}g* | 🌿 Fiber: *${avgFiberG.toInt()}g*", language))
             }
             if (weightLine != null) {
                 appendLine("• $weightLine")
@@ -101,19 +123,19 @@ data class HealthAiReport(
 
             if (highlights.isNotEmpty()) {
                 appendLine()
-                appendLine("✅ *Öne Çıkan Başarılar:*")
+                appendLine(trEn("✅ *Öne Çıkan Başarılar:*", "✅ *Highlights:*", language))
                 highlights.forEach { appendLine("• $it") }
             }
 
             if (warnings.isNotEmpty()) {
                 appendLine()
-                appendLine("⚠️ *Dikkat Edilmesi Gerekenler:*")
+                appendLine(trEn("⚠️ *Dikkat Edilmesi Gerekenler:*", "⚠️ *Watch Out:*", language))
                 warnings.forEach { appendLine("• $it") }
             }
 
             if (recommendations.isNotEmpty()) {
                 appendLine()
-                appendLine("🎯 *AI Koç Tavsiyeleri:*")
+                appendLine(trEn("🎯 *AI Koç Tavsiyeleri:*", "🎯 *AI Coach Recommendations:*", language))
                 recommendations.forEach { appendLine("• $it") }
             }
         }.trim()

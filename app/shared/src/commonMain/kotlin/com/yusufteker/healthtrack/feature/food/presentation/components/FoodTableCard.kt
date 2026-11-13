@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.CalorieTelemetryColors
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -49,13 +50,16 @@ fun FoodTableCard(
             onDismissRequest = { showClearConfirmation = false },
             title = {
                 Text(
-                    text = "Tümünü Sil",
+                    text = str("Tümünü Sil", "Delete All"),
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "Bugünkü tüm yemek kayıtlarını silmek istediğinize emin misiniz?",
+                    text = str(
+                        "Bugünkü tüm yemek kayıtlarını silmek istediğinize emin misiniz?",
+                        "Are you sure you want to delete all meal logs for today?"
+                    ),
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -67,12 +71,12 @@ fun FoodTableCard(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Sil", color = MaterialTheme.colorScheme.onError)
+                    Text(str("Sil", "Delete"), color = MaterialTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmation = false }) {
-                    Text("İptal")
+                    Text(str("İptal", "Cancel"))
                 }
             }
         )
@@ -105,7 +109,7 @@ fun FoodTableCard(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Günlük Öğün Dökümü",
+                        text = str("Günlük Öğün Dökümü", "Daily Meal Log"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -123,7 +127,7 @@ fun FoodTableCard(
                             .padding(horizontal = 9.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "${items.size} Öğe",
+                            text = str("${items.size} Öğe", "${items.size} Items"),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -139,7 +143,7 @@ fun FoodTableCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
-                                contentDescription = "Tümünü Sil",
+                                contentDescription = str("Tümünü Sil", "Delete All"),
                                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                                 modifier = Modifier.size(18.dp)
                             )
@@ -188,7 +192,7 @@ fun FoodTableCard(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Henüz bu güne ait öğün eklenmedi.",
+                        text = str("Henüz bu güne ait öğün eklenmedi.", "No meals logged for this day yet."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -200,7 +204,7 @@ fun FoodTableCard(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = HealthColors.Primary)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Öğün Ekle", fontWeight = FontWeight.SemiBold)
+                            Text(str("Öğün Ekle", "Add Meal"), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -230,7 +234,7 @@ fun FoodTableCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Günün Toplam Kalorisi",
+                            text = str("Günün Toplam Kalorisi", "Daily Total Calories"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -309,7 +313,7 @@ private fun FoodTableRowItem(
                     }
                     if (item.micronutrients.isNotEmpty()) {
                         Text(
-                            text = "• 🧬 ${item.micronutrients.size} mikro",
+                            text = str("• 🧬 ${item.micronutrients.size} mikro", "• 🧬 ${item.micronutrients.size} micros"),
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                             color = HealthColors.Secondary,
                             fontWeight = FontWeight.Medium,
@@ -342,7 +346,7 @@ private fun FoodTableRowItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Sil",
+                    contentDescription = str("Sil", "Delete"),
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                     modifier = Modifier.size(18.dp)
                 )

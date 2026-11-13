@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -85,13 +86,13 @@ fun GroceryListBottomSheet(
                     }
                     Column {
                         Text(
-                            text = "Market Listesi 🛒",
+                            text = str("Market Listesi 🛒", "Grocery List 🛒"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = title,
+                            text = title.ifBlank { str("Market Alışveriş Listesi", "Grocery Shopping List") },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -104,7 +105,7 @@ fun GroceryListBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = str("Kapat", "Close"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -122,7 +123,10 @@ fun GroceryListBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Alınacak eksik malzemeleri seçin. Tek tıkla Planora uygulamanızın To-Do listesine aktarılacaktır.",
+                        text = str(
+                            "Alınacak eksik malzemeleri seçin. Tek tıkla Planora uygulamanızın To-Do listesine aktarılacaktır.",
+                            "Select missing ingredients to buy. They will be sent to your Planora To-Do list in one tap."
+                        ),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -206,7 +210,10 @@ fun GroceryListBottomSheet(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${selectedItems.size} Malzemeyi Planora'ya Gönder (To-Do)",
+                    text = str(
+                        "${selectedItems.size} Malzemeyi Planora'ya Gönder (To-Do)",
+                        "Send ${selectedItems.size} Items to Planora (To-Do)"
+                    ),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

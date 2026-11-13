@@ -31,6 +31,16 @@ interface DailyReminderNotifier {
      * Schedules the morning weight tracking reminder (default: 09:00).
      */
     fun scheduleMorningWeightReminder(hour: Int = 9, minute: Int = 0)
+
+    /**
+     * Cancels any scheduled evening workout reminder alarm.
+     */
+    fun cancelEveningWorkoutReminder()
+
+    /**
+     * Cancels any scheduled morning weight reminder alarm.
+     */
+    fun cancelMorningWeightReminder()
 }
 
 /**

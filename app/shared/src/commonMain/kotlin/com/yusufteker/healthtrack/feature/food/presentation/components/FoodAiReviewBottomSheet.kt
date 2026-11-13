@@ -32,6 +32,7 @@ import com.yusufteker.healthtrack.core.network.FoodAiResultDto
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScanTarget
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
@@ -108,13 +109,27 @@ fun FoodAiReviewBottomSheet(
                         }
                         Column {
                             Text(
-                                text = if (target == FoodScanTarget.INVENTORY) "AI Envanter & Ürün Analizi 🏷️" else "AI Besin Analizi ✨",
+                                text = if (target == FoodScanTarget.INVENTORY) {
+                                    str("AI Envanter & Ürün Analizi 🏷️", "AI Inventory & Product Analysis 🏷️")
+                                } else {
+                                    str("AI Besin Analizi ✨", "AI Nutrition Analysis ✨")
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (target == FoodScanTarget.INVENTORY) "Tespit edilen ürünleri inceleyip envanterinize kaydedin" else "Tespit edilen besinleri inceleyip onaylayın",
+                                text = if (target == FoodScanTarget.INVENTORY) {
+                                    str(
+                                        "Tespit edilen ürünleri inceleyip envanterinize kaydedin",
+                                        "Review detected items and save them to your inventory"
+                                    )
+                                } else {
+                                    str(
+                                        "Tespit edilen besinleri inceleyip onaylayın",
+                                        "Review and confirm detected foods"
+                                    )
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -127,7 +142,7 @@ fun FoodAiReviewBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = str("Kapat", "Close"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -178,7 +193,7 @@ fun FoodAiReviewBottomSheet(
                         ) {
                             Column {
                                 Text(
-                                    text = "Toplam Kalori",
+                                    text = str("Toplam Kalori", "Total Calories"),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -192,8 +207,8 @@ fun FoodAiReviewBottomSheet(
 
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 MacroBadge(label = "P", value = "${totalProtein.toInt()}g", color = Color(0xFF38BDF8))
-                                MacroBadge(label = "K", value = "${totalCarbs.toInt()}g", color = Color(0xFFFBBF24))
-                                MacroBadge(label = "Y", value = "${totalFat.toInt()}g", color = Color(0xFFF87171))
+                                MacroBadge(label = str("K", "C"), value = "${totalCarbs.toInt()}g", color = Color(0xFFFBBF24))
+                                MacroBadge(label = str("Y", "F"), value = "${totalFat.toInt()}g", color = Color(0xFFF87171))
                             }
                         }
                     }
@@ -206,7 +221,7 @@ fun FoodAiReviewBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Ayrıştırılan Öğeler (${aiResult.items.size})",
+                        text = str("Ayrıştırılan Öğeler (${aiResult.items.size})", "Parsed Items (${aiResult.items.size})"),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -274,7 +289,7 @@ fun FoodAiReviewBottomSheet(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Kaydediliyor...",
+                                    text = str("Kaydediliyor...", "Saving..."),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -287,7 +302,14 @@ fun FoodAiReviewBottomSheet(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (aiResult.items.size > 1) "Tümünü Envanterime Kaydet (${aiResult.items.size})" else "Ürünü Envanterime Kaydet",
+                                    text = if (aiResult.items.size > 1) {
+                                        str(
+                                            "Tümünü Envanterime Kaydet (${aiResult.items.size})",
+                                            "Save All to My Inventory (${aiResult.items.size})"
+                                        )
+                                    } else {
+                                        str("Ürünü Envanterime Kaydet", "Save Product to Inventory")
+                                    },
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -309,7 +331,7 @@ fun FoodAiReviewBottomSheet(
                                 shape = RoundedCornerShape(14.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
-                                Text("Vazgeç", color = MaterialTheme.colorScheme.onSurface)
+                                Text(str("Vazgeç", "Cancel"), color = MaterialTheme.colorScheme.onSurface)
                             }
 
                             OutlinedButton(
@@ -334,7 +356,7 @@ fun FoodAiReviewBottomSheet(
                                         strokeWidth = 2.dp
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Ekleniyor...", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                    Text(str("Ekleniyor...", "Adding..."), color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
                                 } else {
                                     Icon(
                                         imageVector = Icons.Default.Restaurant,
@@ -343,7 +365,7 @@ fun FoodAiReviewBottomSheet(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Günlüğe de Ekle", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                    Text(str("Günlüğe de Ekle", "Also Add to Log"), color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -372,7 +394,7 @@ fun FoodAiReviewBottomSheet(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Günlüğe Ekleniyor...",
+                                    text = str("Günlüğe Ekleniyor...", "Adding to Log..."),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -385,7 +407,7 @@ fun FoodAiReviewBottomSheet(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Onayla ve Günlüğe Ekle",
+                                    text = str("Onayla ve Günlüğe Ekle", "Confirm & Add to Log"),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -407,7 +429,7 @@ fun FoodAiReviewBottomSheet(
                                 shape = RoundedCornerShape(14.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
-                                Text("Vazgeç", color = MaterialTheme.colorScheme.onSurface)
+                                Text(str("Vazgeç", "Cancel"), color = MaterialTheme.colorScheme.onSurface)
                             }
 
                             if (onSaveToInventory != null) {
@@ -433,7 +455,7 @@ fun FoodAiReviewBottomSheet(
                                             strokeWidth = 2.dp
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Kaydediliyor...", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                        Text(str("Kaydediliyor...", "Saving..."), color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
                                     } else {
                                         Icon(
                                             imageVector = Icons.Default.BookmarkAdd,
@@ -442,7 +464,7 @@ fun FoodAiReviewBottomSheet(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Envantere de Ekle", color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
+                                        Text(str("Envantere de Ekle", "Also Add to Inventory"), color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -536,7 +558,7 @@ private fun ReviewFoodItemCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = "Karb: ${item.carbsG.toInt()}g",
+                        text = str("Karb: ${item.carbsG.toInt()}g", "Carbs: ${item.carbsG.toInt()}g"),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -546,7 +568,7 @@ private fun ReviewFoodItemCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = "Yağ: ${item.fatG.toInt()}g",
+                        text = str("Yağ: ${item.fatG.toInt()}g", "Fat: ${item.fatG.toInt()}g"),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -576,7 +598,7 @@ private fun ReviewFoodItemCard(
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
-                                text = if (isSaved) "Eklendi ✓" else "Envantere Ekle",
+                                text = if (isSaved) str("Eklendi ✓", "Added ✓") else str("Envantere Ekle", "Add to Inventory"),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = HealthColors.Primary

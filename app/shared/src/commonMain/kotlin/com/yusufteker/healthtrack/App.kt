@@ -19,7 +19,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -30,16 +32,23 @@ import com.russhwolf.settings.Settings
 import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
 import com.yusufteker.healthtrack.core.model.UpdateStatus
+import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
+import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalApp
 import com.yusufteker.healthtrack.core.utils.rememberAppVersion
+import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
+import com.yusufteker.healthtrack.core.utils.rememberWeeklyReportNotifier
 import com.yusufteker.healthtrack.di.appModules
 import com.yusufteker.healthtrack.feature.analytics.presentation.AnalyticsScreenRoot
 import com.yusufteker.healthtrack.feature.auth.presentation.AuthScreenRoot
@@ -52,6 +61,7 @@ import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.ForceUpdateDialog
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
@@ -63,11 +73,17 @@ import org.koin.compose.koinInject
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-enum class HealthTab(val title: String) {
-    FOOD("Yemek"),
-    WORKOUT("Spor"),
-    WEIGHT("Kilo"),
-    ANALYTICS("Analiz")
+enum class HealthTab(val titleTr: String, val titleEn: String) {
+    FOOD("Yemek", "Food"),
+    WORKOUT("Spor", "Workout"),
+    WEIGHT("Kilo", "Weight"),
+    ANALYTICS("Analiz", "Analytics");
+
+    val title: String
+        get() = localizedTitle()
+
+    fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(titleTr, titleEn, language)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalUuidApi::class)
@@ -77,6 +93,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
         modules(appModules)
     }) {
         val settings: Settings = koinInject()
+        remember(settings) { LocalizationManager.init(settings) }
+        val currentLanguage by LocalizationManager.languageFlow.collectAsState()
         var isDark by remember {
             mutableStateOf(settings.getBoolean("dark_mode", true))
         }
@@ -84,7 +102,11 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             mutableStateOf(AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id)))
         }
 
-        HealthTrackTheme(darkTheme = isDark, themeAccent = currentThemeColor) {
+        HealthTrackTheme(
+            darkTheme = isDark,
+            themeAccent = currentThemeColor,
+            language = currentLanguage
+        ) {
             val tokenStorage: TokenStorage = koinInject()
             val database: HealthDatabase = koinInject()
             val syncEngine: SyncEngine = koinInject()
@@ -127,12 +149,33 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
 
             val pagerState = rememberPagerState(initialPage = initialTab.ordinal) { HealthTab.entries.size }
             val selectedTab = HealthTab.entries[pagerState.currentPage]
-            val dailyReminderNotifier = com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier()
+            val dailyReminderNotifier = rememberDailyReminderNotifier()
+            val weeklyReportNotifier = rememberWeeklyReportNotifier()
 
-            LaunchedEffect(session.isLoggedIn) {
+            LaunchedEffect(session.isLoggedIn, session.userId) {
                 if (session.isLoggedIn) {
-                    dailyReminderNotifier.scheduleEveningWorkoutReminder(hour = 18, minute = 0)
-                    dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+                    if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
+                        dailyReminderNotifier.scheduleEveningWorkoutReminder(
+                            hour = tokenStorage.getWorkoutReminderHour(),
+                            minute = tokenStorage.getWorkoutReminderMinute()
+                        )
+                    } else {
+                        dailyReminderNotifier.cancelEveningWorkoutReminder()
+                    }
+                    if (tokenStorage.getWeightReminderFrequency() != WeightReminderFrequency.OFF) {
+                        dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+                    } else {
+                        dailyReminderNotifier.cancelMorningWeightReminder()
+                    }
+                    if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
+                        weeklyReportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
+                    } else {
+                        weeklyReportNotifier.cancelSundayEveningReminder()
+                    }
+                } else {
+                    dailyReminderNotifier.cancelEveningWorkoutReminder()
+                    dailyReminderNotifier.cancelMorningWeightReminder()
+                    weeklyReportNotifier.cancelSundayEveningReminder()
                 }
             }
 
@@ -140,6 +183,12 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             var isEcoSwitcherOpen by remember { mutableStateOf(false) }
             val snackbarHostState = remember { SnackbarHostState() }
             val coroutineScope = rememberCoroutineScope()
+            val showToast: (String) -> Unit = { msg ->
+                coroutineScope.launch {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    snackbarHostState.showSnackbar(msg)
+                }
+            }
 
             LaunchedEffect(Unit) {
                 try {
@@ -159,7 +208,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             coroutineScope.launch {
                                 val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
                                 if (summary.totalChanges > 0) {
-                                    snackbarHostState.showSnackbar(summary.toUserMessage())
+                                    snackbarHostState.showSnackbar(summary.toUserMessage(currentLanguage))
                                 }
                             }
                         }
@@ -184,37 +233,51 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
-            if (!session.isLoggedIn) {
-                AuthScreenRoot(
-                    onLoginSuccess = {
-                        // User logged in
-                    }
-                )
-            } else if (isPremiumScreenOpen) {
-                PremiumScreenRoot(
-                    onNavigateBack = { isPremiumScreenOpen = false },
-                    onShowToast = { msg ->
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(msg)
-                        }
-                    }
-                )
-            } else if (isProfileScreenOpen) {
-                ProfileScreenRoot(
-                    onBack = { isProfileScreenOpen = false },
-                    onThemeAccentChanged = { currentThemeColor = it },
-                    onDarkModeChanged = { isDark = it },
-                    onOpenPremium = { isPremiumScreenOpen = true },
-                    onLogout = {
-                        isProfileScreenOpen = false
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (!session.isLoggedIn) {
+                    AuthScreenRoot(
+                        onLoginSuccess = {
+                            // User logged in
+                        },
+                        onShowToast = showToast
+                    )
+                } else if (isPremiumScreenOpen) {
+                    @Suppress("DEPRECATION")
+                    @OptIn(ExperimentalComposeUiApi::class)
+                    BackHandler(enabled = true) {
                         isPremiumScreenOpen = false
-                        coroutineScope.launch {
-                            database.clearAll()
-                            tokenStorage.clearSession()
-                        }
                     }
-                )
-            } else {
+                    PremiumScreenRoot(
+                        onNavigateBack = { isPremiumScreenOpen = false },
+                        onShowToast = showToast
+                    )
+                } else if (isProfileScreenOpen) {
+                    @Suppress("DEPRECATION")
+                    @OptIn(ExperimentalComposeUiApi::class)
+                    BackHandler(enabled = true) {
+                        isProfileScreenOpen = false
+                    }
+                    ProfileScreenRoot(
+                        onBack = { isProfileScreenOpen = false },
+                        onThemeAccentChanged = { currentThemeColor = it },
+                        onDarkModeChanged = { isDark = it },
+                        onOpenPremium = { isPremiumScreenOpen = true },
+                        onLogout = {
+                            isProfileScreenOpen = false
+                            isPremiumScreenOpen = false
+                            coroutineScope.launch {
+                                database.clearAll()
+                                tokenStorage.clearSession()
+                            }
+                        },
+                        onShowToast = showToast
+                    )
+                } else {
+                @Suppress("DEPRECATION")
+                @OptIn(ExperimentalComposeUiApi::class)
+                BackHandler(enabled = isEcoSwitcherOpen) {
+                    isEcoSwitcherOpen = false
+                }
                 val bottomBarVisibility = remember { mutableStateOf(true) }
                 CompositionLocalProvider(
                     LocalBottomBarVisibility provides bottomBarVisibility
@@ -284,7 +347,13 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                             appLauncher.openApp(ExternalApp.PLANORA)
                                                         } else {
                                                             coroutineScope.launch {
-                                                                snackbarHostState.showSnackbar("Planora uygulaması cihazınızda yüklü değil.")
+                                                                snackbarHostState.showSnackbar(
+                                                                    trEn(
+                                                                        "Planora uygulaması cihazınızda yüklü değil.",
+                                                                        "Planora app is not installed on your device.",
+                                                                        currentLanguage
+                                                                    )
+                                                                )
                                                             }
                                                         }
                                                     },
@@ -324,7 +393,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Person,
-                                            contentDescription = "Profil & Ayarlar",
+                                            contentDescription = str("Profil & Ayarlar", "Profile & Settings"),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -360,8 +429,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                     pagerState.animateScrollToPage(HealthTab.FOOD.ordinal)
                                                 }
                                             },
-                                            icon = { Icon(Icons.Default.Restaurant, contentDescription = "Yemek") },
-                                            label = { Text(HealthTab.FOOD.title) },
+                                            icon = { Icon(Icons.Default.Restaurant, contentDescription = HealthTab.FOOD.localizedTitle(currentLanguage)) },
+                                            label = { Text(HealthTab.FOOD.localizedTitle(currentLanguage)) },
                                             colors = NavigationBarItemDefaults.colors(
                                                 indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                                 selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -375,8 +444,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                     pagerState.animateScrollToPage(HealthTab.WORKOUT.ordinal)
                                                 }
                                             },
-                                            icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Spor") },
-                                            label = { Text(HealthTab.WORKOUT.title) },
+                                            icon = { Icon(Icons.Default.FitnessCenter, contentDescription = HealthTab.WORKOUT.localizedTitle(currentLanguage)) },
+                                            label = { Text(HealthTab.WORKOUT.localizedTitle(currentLanguage)) },
                                             colors = NavigationBarItemDefaults.colors(
                                                 indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                                 selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -390,8 +459,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                     pagerState.animateScrollToPage(HealthTab.WEIGHT.ordinal)
                                                 }
                                             },
-                                            icon = { Icon(Icons.Default.MonitorWeight, contentDescription = "Kilo") },
-                                            label = { Text(HealthTab.WEIGHT.title) },
+                                            icon = { Icon(Icons.Default.MonitorWeight, contentDescription = HealthTab.WEIGHT.localizedTitle(currentLanguage)) },
+                                            label = { Text(HealthTab.WEIGHT.localizedTitle(currentLanguage)) },
                                             colors = NavigationBarItemDefaults.colors(
                                                 indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                                 selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -405,8 +474,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                     pagerState.animateScrollToPage(HealthTab.ANALYTICS.ordinal)
                                                 }
                                             },
-                                            icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "Analiz & Rapor") },
-                                            label = { Text(HealthTab.ANALYTICS.title) },
+                                            icon = { Icon(Icons.Default.AutoAwesome, contentDescription = str("Analiz & Rapor", "Analytics & Reports")) },
+                                            label = { Text(HealthTab.ANALYTICS.localizedTitle(currentLanguage)) },
                                             colors = NavigationBarItemDefaults.colors(
                                                 indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                                 selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -437,15 +506,28 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(HealthTab.WEIGHT.ordinal)
                                             }
-                                        }
+                                        },
+                                        onShowToast = showToast
                                     )
-                                    HealthTab.WORKOUT -> WorkoutScreenRoot()
-                                    HealthTab.WEIGHT -> WeightScreenRoot()
-                                    HealthTab.ANALYTICS -> AnalyticsScreenRoot()
+                                    HealthTab.WORKOUT -> WorkoutScreenRoot(onShowToast = showToast)
+                                    HealthTab.WEIGHT -> WeightScreenRoot(onShowToast = showToast)
+                                    HealthTab.ANALYTICS -> AnalyticsScreenRoot(onShowToast = showToast)
                                 }
                             }
                         }
                     }
+                }
+                }
+
+                if (!session.isLoggedIn || isPremiumScreenOpen || isProfileScreenOpen) {
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .imePadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
                 }
             }
         }

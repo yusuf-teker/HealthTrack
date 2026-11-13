@@ -29,6 +29,8 @@ import com.yusufteker.healthtrack.core.model.DailyMealPlan
 import com.yusufteker.healthtrack.core.model.MealSlotSuggestion
 import com.yusufteker.healthtrack.core.model.MealSlotType
 import com.yusufteker.healthtrack.theme.HealthColors
+import com.yusufteker.healthtrack.theme.appLang
+import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -92,13 +94,16 @@ fun DailyMealPlanBottomSheet(
                     }
                     Column {
                         Text(
-                            text = "Günün Öğün Önerisi 🥗",
+                            text = str("Günün Öğün Önerisi 🥗", "Daily Meal Suggestion 🥗"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Eksik besinlerinize göre 4 öğünlük pratik plan",
+                            text = str(
+                                "Eksik besinlerinize göre 4 öğünlük pratik plan",
+                                "Practical 4-meal plan based on your missing nutrients"
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -121,7 +126,7 @@ fun DailyMealPlanBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Yeniden Oluştur",
+                            contentDescription = str("Yeniden Oluştur", "Regenerate"),
                             tint = HealthColors.Primary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -138,7 +143,7 @@ fun DailyMealPlanBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = str("Kapat", "Close"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
@@ -164,13 +169,19 @@ fun DailyMealPlanBottomSheet(
                             modifier = Modifier.size(42.dp)
                         )
                         Text(
-                            text = "Son günlerdeki beslenmeniz analiz ediliyor...",
+                            text = str(
+                                "Son günlerdeki beslenmeniz analiz ediliyor...",
+                                "Analyzing your recent nutrition..."
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Eksik kalan protein, lif ve vitaminleri tamamlayacak pratik market tarifleri hazırlanıyor.",
+                            text = str(
+                                "Eksik kalan protein, lif ve vitaminleri tamamlayacak pratik market tarifleri hazırlanıyor.",
+                                "Preparing practical grocery recipes to complete your missing protein, fiber, and vitamins."
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 32.dp),
@@ -210,7 +221,10 @@ fun DailyMealPlanBottomSheet(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "Tespit Edilen Besin Eksikleri & Hedef",
+                                        text = str(
+                                            "Tespit Edilen Besin Eksikleri & Hedef",
+                                            "Detected Nutrient Deficits & Target"
+                                        ),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -257,13 +271,16 @@ fun DailyMealPlanBottomSheet(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Toplam Günlük Plan:",
+                                        text = str("Toplam Günlük Plan:", "Total Daily Plan:"),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "${plan.totalCalories} kcal • ${plan.totalProteinG.toInt()}g Protein • ${plan.totalFiberG.toInt()}g Lif",
+                                        text = str(
+                                            "${plan.totalCalories} kcal • ${plan.totalProteinG.toInt()}g Protein • ${plan.totalFiberG.toInt()}g Lif",
+                                            "${plan.totalCalories} kcal • ${plan.totalProteinG.toInt()}g Protein • ${plan.totalFiberG.toInt()}g Fiber"
+                                        ),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Black,
                                         color = HealthColors.Primary
@@ -308,7 +325,10 @@ fun DailyMealPlanBottomSheet(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Tüm Günü Günlüğüme Ekle (4 Öğün)",
+                                    text = str(
+                                        "Tüm Günü Günlüğüme Ekle (4 Öğün)",
+                                        "Add Full Day to My Log (4 Meals)"
+                                    ),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Black,
                                     color = Color.Black
@@ -363,7 +383,7 @@ private fun MealSlotCard(
                         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f))
                     ) {
                         Text(
-                            text = slot.slotTitle.uppercase(),
+                            text = slot.slot.localizedLabel(appLang()).uppercase(),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             fontWeight = FontWeight.Black,
                             color = accentColor,
@@ -387,7 +407,7 @@ private fun MealSlotCard(
                                 modifier = Modifier.size(11.dp)
                             )
                             Text(
-                                text = "${slot.prepTimeMinutes} dk pratik",
+                                text = str("${slot.prepTimeMinutes} dk pratik", "${slot.prepTimeMinutes} min prep"),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -406,7 +426,7 @@ private fun MealSlotCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ShoppingCart,
-                        contentDescription = "Market Listesine Ekle",
+                        contentDescription = str("Market Listesine Ekle", "Add to Grocery List"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(13.dp)
                     )
@@ -439,7 +459,7 @@ private fun MealSlotCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "🛒 Kolay Bulunan Malzemeler:",
+                        text = str("🛒 Kolay Bulunan Malzemeler:", "🛒 Everyday Ingredients:"),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -483,7 +503,10 @@ private fun MealSlotCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MacroTelemetryChip("${slot.calories} kcal", HealthColors.Primary)
                     MacroTelemetryChip("${slot.proteinG.toInt()}g P", Color(0xFF00E676))
-                    MacroTelemetryChip("${slot.fiberG.toInt()}g Lif", Color(0xFFFFB703))
+                    MacroTelemetryChip(
+                        str("${slot.fiberG.toInt()}g Lif", "${slot.fiberG.toInt()}g Fiber"),
+                        Color(0xFFFFB703)
+                    )
                 }
 
                 // Add to Log Button
@@ -505,7 +528,7 @@ private fun MealSlotCard(
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = "Eklendi",
+                                text = str("Eklendi", "Added"),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF00E676)
@@ -532,7 +555,7 @@ private fun MealSlotCard(
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = "Öğünü Ekle",
+                                text = str("Öğünü Ekle", "Add Meal"),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Black,
                                 color = Color.Black

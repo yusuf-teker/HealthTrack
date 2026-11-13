@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 import { User, Key, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function LoginView({ onNavigateLegal }) {
   const { login } = useAuth();
+  const { t } = useLanguage();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,7 +15,7 @@ export default function LoginView({ onNavigateLegal }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!identifier.trim() || !password) {
-      setError('Lütfen kullanıcı adı / e-posta ve şifrenizi girin.');
+      setError(t('Lütfen kullanıcı adı / e-posta ve şifrenizi girin.', 'Please enter your username / email and password.'));
       return;
     }
 
@@ -23,9 +26,12 @@ export default function LoginView({ onNavigateLegal }) {
       await login(identifier.trim(), password);
     } catch (err) {
       console.error('Login error:', err);
-      let msg = err.message || 'Giriş yapılamadı.';
+      let msg = err.message || t('Giriş yapılamadı.', 'Sign in failed.');
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        msg = 'Render sunucusuna ulaşılamadı. Sunucu uyku modundan uyanıyor olabilir (30-40 sn sürebilir), lütfen birazdan tekrar deneyin.';
+        msg = t(
+          'Render sunucusuna ulaşılamadı. Sunucu uyku modundan uyanıyor olabilir (30-40 sn sürebilir), lütfen birazdan tekrar deneyin.',
+          'Could not reach the Render server. It may be waking up from sleep (this can take 30-40s); please try again shortly.'
+        );
       }
       setError(msg);
     } finally {
@@ -43,6 +49,9 @@ export default function LoginView({ onNavigateLegal }) {
 
         {/* Main Glass Card */}
         <div className="glass-panel rounded-3xl p-8 sm:p-10 shadow-2xl border border-white/10 relative">
+          <div className="flex justify-end mb-2">
+            <LanguageToggle />
+          </div>
 
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center mb-6">
@@ -67,9 +76,12 @@ export default function LoginView({ onNavigateLegal }) {
             </h1>
           </div>
 
-          {/* Bilgilendirme Notu */}
+          {/* Info Note */}
           <div className="mb-6 p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-gray-400 text-xs text-center leading-relaxed">
-            Hem normal kullanıcılar (rapor ve verilerini görüntülemek için) hem de yöneticiler aynı giriş ekranını kullanır.
+            {t(
+              'Hem normal kullanıcılar (rapor ve verilerini görüntülemek için) hem de yöneticiler aynı giriş ekranını kullanır.',
+              'Both standard users (to view reports & data) and administrators use the same sign-in screen.'
+            )}
           </div>
 
           {/* Error Banner */}
@@ -84,7 +96,7 @@ export default function LoginView({ onNavigateLegal }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
-                Kullanıcı Adı veya E-posta
+                {t('Kullanıcı Adı veya E-posta', 'Username or Email')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -95,7 +107,7 @@ export default function LoginView({ onNavigateLegal }) {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="ornek@planora.com veya kullanici"
+                  placeholder={t('ornek@planora.com veya kullanici', 'name@planora.com or username')}
                   className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm text-white placeholder-gray-600 transition-all"
                 />
               </div>
@@ -103,7 +115,7 @@ export default function LoginView({ onNavigateLegal }) {
 
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
-                Şifre
+                {t('Şifre', 'Password')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -128,11 +140,11 @@ export default function LoginView({ onNavigateLegal }) {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Giriş Yapılıyor...</span>
+                  <span>{t('Giriş Yapılıyor...', 'Signing In...')}</span>
                 </>
               ) : (
                 <>
-                  <span>Giriş Yap</span>
+                  <span>{t('Giriş Yap', 'Sign In')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -147,7 +159,7 @@ export default function LoginView({ onNavigateLegal }) {
               }}
               className="hover:text-emerald-400 transition-colors"
             >
-              Gizlilik Politikası
+              {t('Gizlilik Politikası', 'Privacy Policy')}
             </a>
             <span className="text-gray-600">•</span>
             <a
@@ -157,7 +169,7 @@ export default function LoginView({ onNavigateLegal }) {
               }}
               className="hover:text-emerald-400 transition-colors"
             >
-              Kullanım Koşulları
+              {t('Kullanım Koşulları', 'Terms of Service')}
             </a>
             <span className="text-gray-600">•</span>
             <a
@@ -167,7 +179,7 @@ export default function LoginView({ onNavigateLegal }) {
               }}
               className="hover:text-rose-400 transition-colors"
             >
-              Hesap Silme
+              {t('Hesap Silme', 'Delete Account')}
             </a>
           </div>
 
