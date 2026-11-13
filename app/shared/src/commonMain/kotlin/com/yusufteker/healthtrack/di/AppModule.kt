@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.di
 
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
+import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.di.coreModule
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
@@ -30,7 +31,8 @@ val featureModule = module {
             get<TokenStorage>(),
             get<SyncEngine>(),
             get<Settings>(),
-            get<DeviceHealthSyncManager>()
+            get<DeviceHealthSyncManager>(),
+            get<HealthApiClient>()
         )
     }
 }

@@ -1,5 +1,8 @@
 package com.yusufteker.healthtrack
 
+import android.app.AlertDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,6 +23,9 @@ class MainActivity : ComponentActivity() {
             Napier.base(DebugAntilog())
         }
 
+        val isHealthRationaleIntent = intent?.action == "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" ||
+            intent?.action == "android.intent.action.VIEW_PERMISSION_USAGE"
+
         val targetTabStr = intent?.getStringExtra("open_tab")
         val initialTab = when (targetTabStr) {
             "WORKOUT" -> HealthTab.WORKOUT
@@ -30,6 +36,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             App(initialTab = initialTab)
+        }
+
+        if (isHealthRationaleIntent) {
+            AlertDialog.Builder(this)
+                .setTitle("Health Connect Veri Kullanımı")
+                .setMessage(
+                    "HealthTrack; kilo, vücut yağı, kas kütlesi, adım, mesafe, egzersiz, yakılan kalori ve kalp atış hızı verilerinizi yalnızca uygulama içi sağlık analizlerinizi sunmak ve cihazlarınız arasında senkronize etmek amacıyla okur. Verileriniz üçüncü taraflara satılmaz ve reklam amacıyla kullanılmaz."
+                )
+                .setPositiveButton("Gizlilik Politikası") { _, _ ->
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pulse-7b4z.onrender.com/privacy")))
+                }
+                .setNegativeButton("Kapat", null)
+                .show()
         }
     }
 }

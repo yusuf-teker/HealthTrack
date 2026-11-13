@@ -159,7 +159,8 @@ class HealthApiClient(
             level = LogLevel.ALL
             sanitizeHeader { header ->
                 header.equals(HttpHeaders.Authorization, ignoreCase = true) ||
-                header.equals(HttpHeaders.Cookie, ignoreCase = true)
+                header.equals(HttpHeaders.Cookie, ignoreCase = true) ||
+                header.equals("X-Gemini-Api-Key", ignoreCase = true)
             }
         }
         install(Auth) {
@@ -212,6 +213,13 @@ class HealthApiClient(
                 if (!token.isNullOrBlank()) {
                     context.headers.remove(HttpHeaders.Authorization)
                     context.headers.append(HttpHeaders.Authorization, "Bearer $token")
+                }
+            }
+            if (path.contains("/health/ai/")) {
+                val customGeminiKey = tokenStorage.getCustomGeminiApiKey()
+                if (!customGeminiKey.isNullOrBlank()) {
+                    context.headers.remove("X-Gemini-Api-Key")
+                    context.headers.append("X-Gemini-Api-Key", customGeminiKey)
                 }
             }
         }
@@ -280,6 +288,13 @@ class HealthApiClient(
             response.body<PullResponsePayload>()
         } else {
             throw RuntimeException("Senkronizasyon (pull) başarısız: HTTP ${response.status.value}")
+        }
+    }
+
+    suspend fun deleteAccount(): Result<Unit> = runCatching {
+        val response = httpClient.delete("/users/me")
+        if (!response.status.isSuccess()) {
+            throw RuntimeException("Hesap silme başarısız: HTTP ${response.status.value}")
         }
     }
 }

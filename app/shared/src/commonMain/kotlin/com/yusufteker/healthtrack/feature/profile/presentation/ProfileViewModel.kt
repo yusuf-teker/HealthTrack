@@ -9,6 +9,7 @@ import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
+import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
@@ -30,7 +31,8 @@ class ProfileViewModel(
     private val tokenStorage: TokenStorage,
     private val syncEngine: SyncEngine,
     private val settings: Settings,
-    private val deviceHealthSyncManager: DeviceHealthSyncManager
+    private val deviceHealthSyncManager: DeviceHealthSyncManager,
+    private val apiClient: HealthApiClient
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(createInitialState())
@@ -81,6 +83,7 @@ class ProfileViewModel(
         val weightReminder = tokenStorage.getWeightReminderFrequency()
         val isDark = settings.getBoolean("dark_mode", true)
         val accent = AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id))
+        val customGeminiApiKey = tokenStorage.getCustomGeminiApiKey().orEmpty()
 
         return ProfileState(
             userId = userId,
@@ -95,7 +98,8 @@ class ProfileViewModel(
             workoutReminderFrequency = workoutReminder,
             weightReminderFrequency = weightReminder,
             isDarkMode = isDark,
-            themeAccent = accent
+            themeAccent = accent,
+            customGeminiApiKey = customGeminiApiKey
         )
     }
 
@@ -210,6 +214,21 @@ class ProfileViewModel(
                 settings.putString("theme_accent", intent.accent.id)
                 _state.update { it.copy(themeAccent = intent.accent) }
             }
+            is ProfileIntent.OnSaveCustomGeminiApiKey -> {
+                val trimmed = intent.apiKey.trim()
+                tokenStorage.setCustomGeminiApiKey(trimmed)
+                _state.update { it.copy(customGeminiApiKey = trimmed) }
+                viewModelScope.launch {
+                    _effects.send(ProfileEffect.ShowToast("Özel Gemini API anahtarı kaydedildi."))
+                }
+            }
+            ProfileIntent.OnClearCustomGeminiApiKey -> {
+                tokenStorage.setCustomGeminiApiKey(null)
+                _state.update { it.copy(customGeminiApiKey = "") }
+                viewModelScope.launch {
+                    _effects.send(ProfileEffect.ShowToast("Özel API anahtarı kaldırıldı, varsayılan AI kullanılacak."))
+                }
+            }
             ProfileIntent.OnSyncClicked -> {
                 viewModelScope.launch {
                     val success = syncEngine.sync(forceFullPull = true)
@@ -252,6 +271,26 @@ class ProfileViewModel(
                     database.clearAll()
                     tokenStorage.clearSession()
                     _effects.send(ProfileEffect.LoggedOut)
+                }
+            }
+            ProfileIntent.OnDeleteAccountConfirmed -> {
+                viewModelScope.launch {
+                    _state.update { it.copy(isDeletingAccount = true, errorMessage = null) }
+                    apiClient.deleteAccount()
+                        .onSuccess {
+                            database.clearAll()
+                            tokenStorage.clearSession()
+                            _state.update { it.copy(isDeletingAccount = false) }
+                            _effects.send(ProfileEffect.LoggedOut)
+                        }
+                        .onFailure { error ->
+                            _state.update {
+                                it.copy(
+                                    isDeletingAccount = false,
+                                    errorMessage = "Hesap silinemedi: ${error.message ?: "Bilinmeyen hata"}"
+                                )
+                            }
+                        }
                 }
             }
             ProfileIntent.OnSaveProfileClicked -> saveProfile()

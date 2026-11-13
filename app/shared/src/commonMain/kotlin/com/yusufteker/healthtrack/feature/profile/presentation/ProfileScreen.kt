@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -73,6 +74,9 @@ fun ProfileScreen(
     var showWeightReminderDialog by remember { mutableStateOf(false) }
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showCustomApiKeyDialog by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -905,7 +909,134 @@ fun ProfileScreen(
                 }
             }
 
-            // ── Section 5: Çıkış Yap ──
+            // ── Yapay Zeka (Özel Gemini API Key) ──
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp)
+            ) {
+                val hasCustomKey = state.customGeminiApiKey.isNotBlank()
+                val maskedKey = if (hasCustomKey) {
+                    val k = state.customGeminiApiKey
+                    if (k.length > 8) "${k.take(4)}••••${k.takeLast(4)}" else "••••••••"
+                } else {
+                    null
+                }
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Yapay Zeka (Özel API Key)",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Surface(
+                            color = if (hasCustomKey) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                text = if (hasCustomKey) "Aktif" else "Varsayılan",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (hasCustomKey) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (maskedKey != null) {
+                            "Kayıtlı anahtar: $maskedKey • Yemek ve egzersiz analizleri kendi Gemini kotanızla çalışır."
+                        } else {
+                            "İsterseniz kendi Google Gemini API anahtarınızı (aistudio.google.com) girerek AI analizlerini kendi kotanızla kullanabilirsiniz."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = { showCustomApiKeyDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                    ) {
+                        Text(
+                            text = if (hasCustomKey) "API Anahtarını Düzenle" else "Özel API Key Ekle",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // ── Yasal Bilgiler & Tıbbi Uyarı ──
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Yasal Bilgiler ve Gizlilik",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { uriHandler.openUri("https://pulse-7b4z.onrender.com/privacy") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Text(
+                                text = "Gizlilik Politikası",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { uriHandler.openUri("https://pulse-7b4z.onrender.com/terms") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Text(
+                                text = "Kullanım Koşulları",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Tıbbi Uyarı: HealthTrack yalnızca kişisel takip amaçlıdır; tıbbi tavsiye, teşhis veya tedavi yerine geçmez. Sağlık kararlarınızda mutlaka hekiminize danışınız.",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // ── Section 5: Çıkış Yap & Hesap Silme ──
             OutlinedButton(
                 onClick = { showLogoutDialog = true },
                 modifier = Modifier
@@ -930,6 +1061,25 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            TextButton(
+                onClick = { showDeleteAccountDialog = true },
+                enabled = !state.isDeletingAccount,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.DeleteForever,
+                    contentDescription = "Hesabı Sil",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (state.isDeletingAccount) "Hesap Siliniyor..." else "Hesabı Kalıcı Olarak Sil",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
                 )
             }
             }
@@ -998,6 +1148,91 @@ fun ProfileScreen(
         )
     }
 
+    if (showCustomApiKeyDialog) {
+        var keyInput by remember(state.customGeminiApiKey) { mutableStateOf(state.customGeminiApiKey) }
+        var showKey by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showCustomApiKeyDialog = false },
+            modifier = Modifier.imePadding(),
+            icon = {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Özel Gemini API Key",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Kendi Google Gemini API anahtarınızı (aistudio.google.com) girerek yemek ve spor AI analizlerini kendi kotanızla çalıştırabilirsiniz. Anahtarınız yalnızca cihazınızda saklanır.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = keyInput,
+                        onValueChange = { keyInput = it },
+                        label = { Text("Gemini API Key") },
+                        placeholder = { Text("AIza...") },
+                        singleLine = true,
+                        visualTransformation = if (showKey) {
+                            androidx.compose.ui.text.input.VisualTransformation.None
+                        } else {
+                            androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showKey = !showKey }) {
+                                Icon(
+                                    imageVector = if (showKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onIntent(ProfileIntent.OnSaveCustomGeminiApiKey(keyInput))
+                        showCustomApiKeyDialog = false
+                    },
+                    enabled = keyInput.trim().isNotBlank()
+                ) {
+                    Text("Kaydet")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (state.customGeminiApiKey.isNotBlank()) {
+                        TextButton(
+                            onClick = {
+                                onIntent(ProfileIntent.OnClearCustomGeminiApiKey)
+                                showCustomApiKeyDialog = false
+                            }
+                        ) {
+                            Text("Kaldır", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    TextButton(onClick = { showCustomApiKeyDialog = false }) {
+                        Text("Vazgeç")
+                    }
+                }
+            }
+        )
+    }
+
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -1035,6 +1270,53 @@ fun ProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Vazgeç")
+                }
+            }
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!state.isDeletingAccount) showDeleteAccountDialog = false },
+            modifier = Modifier.imePadding(),
+            icon = {
+                Icon(
+                    imageVector = Icons.Rounded.DeleteForever,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Hesabı Kalıcı Olarak Sil",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Text(
+                    text = "Hesabınızı sildiğinizde tüm HealthTrack ve Planora verileriniz (beslenme, antrenman, kilo, randevular, görevler ve profil) kalıcı olarak silinir. Bu işlem geri alınamaz.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        onIntent(ProfileIntent.OnDeleteAccountConfirmed)
+                    },
+                    enabled = !state.isDeletingAccount,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Evet, Hesabımı Sil", color = MaterialTheme.colorScheme.onError)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteAccountDialog = false },
+                    enabled = !state.isDeletingAccount
+                ) {
                     Text("Vazgeç")
                 }
             }

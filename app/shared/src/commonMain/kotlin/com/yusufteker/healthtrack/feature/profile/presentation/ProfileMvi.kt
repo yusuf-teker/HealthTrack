@@ -23,10 +23,12 @@ data class ProfileState(
     val weightReminderFrequency: WeightReminderFrequency = WeightReminderFrequency.EVERY_3_DAYS,
     val isDarkMode: Boolean = true,
     val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
+    val customGeminiApiKey: String = "",
     val latestWeightDate: String? = null,
     val isSaving: Boolean = false,
     val isSyncing: Boolean = false,
     val isDeviceSyncing: Boolean = false,
+    val isDeletingAccount: Boolean = false,
     val lastDeviceSyncSummary: String? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null
@@ -64,10 +66,13 @@ sealed interface ProfileIntent {
     data class OnWeightReminderFrequencyChanged(val frequency: WeightReminderFrequency) : ProfileIntent
     data class OnThemeModeChanged(val isDark: Boolean) : ProfileIntent
     data class OnThemeAccentChanged(val accent: AppThemeColor) : ProfileIntent
+    data class OnSaveCustomGeminiApiKey(val apiKey: String) : ProfileIntent
+    data object OnClearCustomGeminiApiKey : ProfileIntent
     data object OnSyncClicked : ProfileIntent
     data object OnDeviceSyncStarted : ProfileIntent
     data class OnDeviceSnapshotReceived(val result: Result<DeviceHealthSnapshot>) : ProfileIntent
     data object OnLogoutClicked : ProfileIntent
+    data object OnDeleteAccountConfirmed : ProfileIntent
     data object OnSaveProfileClicked : ProfileIntent
     data object OnScreenAppeared : ProfileIntent
     data object OnDismissInfoMessage : ProfileIntent

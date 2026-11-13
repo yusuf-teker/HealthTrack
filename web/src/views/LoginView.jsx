@@ -40,10 +40,10 @@ export default function LoginView({ onNavigateLegal }) {
       <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
-        
+
         {/* Main Glass Card */}
         <div className="glass-panel rounded-3xl p-8 sm:p-10 shadow-2xl border border-white/10 relative">
-          
+
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center mb-6">
             {/* Logolar yan yana ve aralıklı */}

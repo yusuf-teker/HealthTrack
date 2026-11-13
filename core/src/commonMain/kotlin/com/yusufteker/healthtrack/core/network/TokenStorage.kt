@@ -132,6 +132,18 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_LAST_FOOD_REMINDER_DATE, dateIso)
     }
 
+    fun getCustomGeminiApiKey(): String? =
+        settings.getStringOrNull(KEY_CUSTOM_GEMINI_API_KEY)?.takeIf { it.isNotBlank() }
+
+    fun setCustomGeminiApiKey(apiKey: String?) {
+        val cleaned = apiKey?.trim()?.takeIf { it.isNotBlank() }
+        if (cleaned != null) {
+            settings.putString(KEY_CUSTOM_GEMINI_API_KEY, cleaned)
+        } else {
+            settings.remove(KEY_CUSTOM_GEMINI_API_KEY)
+        }
+    }
+
     fun isProfileConfigured(): Boolean {
         return getUserWeight() > 0.0
     }
@@ -254,5 +266,6 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_FOOD_REMINDER_ENABLED = "ht_food_reminder_enabled"
         private const val KEY_LAST_WEIGHT_REMINDER_DATE = "ht_last_weight_reminder_date"
         private const val KEY_LAST_FOOD_REMINDER_DATE = "ht_last_food_reminder_date"
+        private const val KEY_CUSTOM_GEMINI_API_KEY = "ht_custom_gemini_api_key"
     }
 }
