@@ -13,16 +13,18 @@ if (typeof window !== 'undefined' && window.localStorage) {
 }
 
 export function getBaseUrl() {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
   // If running in development with Vite proxy:
   if (import.meta.env.DEV) {
     return '/api';
   }
 
-  // In production: if hosted on the same origin (e.g. on Render server), use window.location.origin
-  if (typeof window !== 'undefined' && window.location && window.location.origin) {
-    if (!window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')) {
-      return window.location.origin;
-    }
+  // In production: only use window.location.origin when served directly by the backend itself
+  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'pulse-7b4z.onrender.com') {
+    return window.location.origin;
   }
 
   return DEFAULT_REMOTE_URL;
@@ -78,21 +80,21 @@ async function executeFetch(url, options) {
 async function request(path, options = {}) {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const retryDelays = [2000, 4000];
 
-  try {
-    return await executeFetch(url, options);
-  } catch (firstErr) {
-    // If request failed and it wasn't a 4xx client auth error, retry once after a short pause (helps when Render is waking up)
-    const isAuthError = firstErr.message?.includes('401') || firstErr.message?.includes('403');
-    if (!isAuthError) {
-      try {
-        await new Promise((r) => setTimeout(r, 1200));
-        return await executeFetch(url, options);
-      } catch (retryErr) {
-        throw new Error(retryErr.message || 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı ve sunucu durumunu kontrol edin.');
+  for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+    try {
+      return await executeFetch(url, options);
+    } catch (err) {
+      const isAuthError = err.message?.includes('401') || err.message?.includes('403');
+      if (isAuthError || attempt === retryDelays.length) {
+        if (err.message === 'Failed to fetch' || err.message?.includes('NetworkError')) {
+          throw new Error('Sunucuya bağlanılamadı (Failed to fetch). Render sunucusu uyku modundan uyanıyor olabilir veya ağ/CORS engeli var. Lütfen 15-30 saniye sonra tekrar deneyin.');
+        }
+        throw err;
       }
+      await new Promise((r) => setTimeout(r, retryDelays[attempt]));
     }
-    throw firstErr;
   }
 }
 
