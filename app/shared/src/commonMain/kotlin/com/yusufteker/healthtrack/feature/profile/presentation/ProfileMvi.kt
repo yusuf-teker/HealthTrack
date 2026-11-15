@@ -16,6 +16,7 @@ data class ProfileState(
     val userId: Int = 0,
     val name: String = "",
     val username: String = "",
+    val profileImageUrl: String? = null,
     val weightKg: Double = 72.0,
     val targetWeightKg: Double = 70.0,
     val heightCm: Double = 175.0,
@@ -25,6 +26,9 @@ data class ProfileState(
     val nutritionGoal: NutritionGoal = NutritionGoal(id = "default", userId = 0),
     val workoutReminderFrequency: WorkoutReminderFrequency = WorkoutReminderFrequency.SMART_CADENCE,
     val weightReminderFrequency: WeightReminderFrequency = WeightReminderFrequency.EVERY_3_DAYS,
+    val foodReminderEnabled: Boolean = true,
+    val isAutoDeviceSyncEnabled: Boolean = true,
+    val hasConnectedDevice: Boolean = false,
     val isDarkMode: Boolean = true,
     val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
     val language: AppLanguage = LocalizationManager.currentLanguage,
@@ -74,6 +78,8 @@ sealed interface ProfileIntent {
     data class OnSaveNutritionGoal(val goal: NutritionGoal, val fitnessGoal: FitnessGoal) : ProfileIntent
     data class OnWorkoutReminderFrequencyChanged(val frequency: WorkoutReminderFrequency) : ProfileIntent
     data class OnWeightReminderFrequencyChanged(val frequency: WeightReminderFrequency) : ProfileIntent
+    data class OnFoodReminderChanged(val enabled: Boolean) : ProfileIntent
+    data class OnAutoDeviceSyncChanged(val enabled: Boolean) : ProfileIntent
     data class OnThemeModeChanged(val isDark: Boolean) : ProfileIntent
     data class OnThemeAccentChanged(val accent: AppThemeColor) : ProfileIntent
     data class OnLanguageChanged(val language: AppLanguage) : ProfileIntent

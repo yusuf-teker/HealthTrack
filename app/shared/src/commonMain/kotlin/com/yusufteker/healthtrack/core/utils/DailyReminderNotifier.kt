@@ -33,6 +33,11 @@ interface DailyReminderNotifier {
     fun scheduleMorningWeightReminder(hour: Int = 9, minute: Int = 0)
 
     /**
+     * Schedules the midday meal logging reminder (default: 13:30).
+     */
+    fun scheduleMiddayFoodReminder(hour: Int = 13, minute: Int = 30)
+
+    /**
      * Cancels any scheduled evening workout reminder alarm.
      */
     fun cancelEveningWorkoutReminder()
@@ -41,6 +46,11 @@ interface DailyReminderNotifier {
      * Cancels any scheduled morning weight reminder alarm.
      */
     fun cancelMorningWeightReminder()
+
+    /**
+     * Cancels any scheduled midday meal reminder alarm.
+     */
+    fun cancelMiddayFoodReminder()
 }
 
 /**

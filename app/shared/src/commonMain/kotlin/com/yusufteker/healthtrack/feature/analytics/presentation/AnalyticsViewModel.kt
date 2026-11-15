@@ -42,6 +42,7 @@ class AnalyticsViewModel(
     private var cachedFoods: List<FoodLog> = emptyList()
     private var cachedWorkouts: List<WorkoutLog> = emptyList()
     private var cachedWeights: List<WeightEntry> = emptyList()
+    private var cachedWaters: List<WaterEntry> = emptyList()
     private var cachedGoal: NutritionGoal = NutritionGoal(id = "default", userId = 0)
     private var cachedReports: List<HealthAiReport> = emptyList()
 
@@ -74,11 +75,14 @@ class AnalyticsViewModel(
                 database.observeNutritionGoal(userId),
                 database.observeAiReports(userId)
             ) { foods, workouts, weights, goal, reports ->
-                TelemetryBundle(foods, workouts, weights, goal, reports)
+                TelemetryBundle(foods, workouts, weights, emptyList(), goal, reports)
+            }.combine(database.observeAllWater(userId)) { bundle, waters ->
+                bundle.copy(waters = waters)
             }.collect { bundle ->
                 cachedFoods = bundle.foods
                 cachedWorkouts = bundle.workouts
                 cachedWeights = bundle.weights
+                cachedWaters = bundle.waters
                 cachedGoal = bundle.goal
                 cachedReports = bundle.reports
 
@@ -92,6 +96,7 @@ class AnalyticsViewModel(
         val foods: List<FoodLog>,
         val workouts: List<WorkoutLog>,
         val weights: List<WeightEntry>,
+        val waters: List<WaterEntry>,
         val goal: NutritionGoal,
         val reports: List<HealthAiReport>
     )
@@ -236,35 +241,97 @@ class AnalyticsViewModel(
         val s = _state.value
         val fitnessGoal = tokenStorage.getUserFitnessGoal()
         val fallbackWeight = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 72.0
+        val targetCalories = cachedGoal.calories.coerceAtLeast(1200)
+        val targetCarbsG = cachedGoal.carbsG.roundToInt().coerceAtLeast(60)
+        val targetFatG = cachedGoal.fatG.roundToInt().coerceAtLeast(30)
+        val targetFiberG = cachedGoal.fiberG.roundToInt().coerceAtLeast(25)
+
+        val dayLabelsTr = listOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
+        val dayLabelsEn = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val weekBars = (0 until 7).map { offset ->
+            val dateIso = shiftDateIso(s.selectedWeekMonday, offset)
+            val fDay = cachedFoods.filter { !it.isDeleted && it.date == dateIso }
+            val wDay = cachedWorkouts.filter { !it.isDeleted && it.date == dateIso }
+            val explicitW = wDay.filter { !it.isDailySteps }
+            val stepW = wDay.firstOrNull { it.isDailySteps }
+            val burned = WorkoutTelemetryHelper.calculateEffectiveDailyBurn(explicitW, stepW)
+            AnalyticsDayBar(
+                dateIso = dateIso,
+                shortLabelTr = dayLabelsTr[offset],
+                shortLabelEn = dayLabelsEn[offset],
+                intakeKcal = fDay.sumOf { it.totalCalories },
+                burnedKcal = burned,
+                targetKcal = targetCalories,
+                isSelected = s.periodType == AnalysisPeriodType.DAILY && dateIso == s.selectedDate
+            )
+        }
 
         if (s.periodType == AnalysisPeriodType.DAILY) {
             val dayFoods = cachedFoods.filter { it.date == s.selectedDate && !it.isDeleted }
             val dayWorkouts = cachedWorkouts.filter { it.date == s.selectedDate && !it.isDeleted }
-            val dayWeight = cachedWeights.filter { !it.isDeleted && it.date <= s.selectedDate }
-                .maxByOrNull { it.date }?.weightKg ?: fallbackWeight
+            val explicitWorkouts = dayWorkouts.filter { !it.isDailySteps }
+            val stepLog = dayWorkouts.firstOrNull { it.isDailySteps }
+            val calBurn = WorkoutTelemetryHelper.calculateEffectiveDailyBurn(explicitWorkouts, stepLog)
+            val activeWeightsBeforeOrOnDay = cachedWeights
+                .filter { !it.isDeleted && it.date <= s.selectedDate && it.weightKg > 0.0 }
+                .sortedBy { it.date }
+            val dayWeight = activeWeightsBeforeOrOnDay.lastOrNull()?.weightKg ?: fallbackWeight
+            val prevWeight = activeWeightsBeforeOrOnDay.dropLast(1).lastOrNull()?.weightKg
+            val weightDelta = prevWeight?.let { ((dayWeight - it) * 10.0).roundToInt() / 10.0 }
 
+            val allItems = dayFoods.flatMap { it.items }
             val calIn = dayFoods.sumOf { it.totalCalories }
-            val calBurn = dayWorkouts.sumOf { it.caloriesBurned }
-            val workMin = dayWorkouts.sumOf { it.durationMinutes }
-            val prot = dayFoods.flatMap { it.items }.sumOf { it.proteinG }.roundToInt()
-            val targetProt = calculateProteinTarget(dayWeight, fitnessGoal).roundToInt()
+            val workMin = explicitWorkouts.sumOf { it.durationMinutes }
+            val prot = allItems.sumOf { it.proteinG }.roundToInt()
+            val carbs = allItems.sumOf { it.carbsG }.roundToInt()
+            val fat = allItems.sumOf { it.fatG }.roundToInt()
+            val fiber = allItems.sumOf { it.fiberG }.roundToInt()
+            val targetProt = calculateProteinTarget(dayWeight, fitnessGoal).roundToInt().coerceAtLeast(40)
+
+            val dayWater = cachedWaters.firstOrNull { it.date == s.selectedDate }
+            val waterMl = dayWater?.amountMl ?: 0
+            val waterTarget = (dayWater?.targetMl ?: 2500).coerceAtLeast(1500)
 
             val matchingReport = cachedReports.firstOrNull {
                 it.periodType == AnalysisPeriodType.DAILY && it.startDate == s.selectedDate
             }
+
+            val insights = buildDeterministicInsights(
+                isDaily = true,
+                calIntake = calIn,
+                targetCalories = targetCalories,
+                calBurned = calBurn,
+                proteinG = prot,
+                targetProteinG = targetProt,
+                waterMl = waterMl,
+                waterTargetMl = waterTarget,
+                loggedDays = if (dayFoods.isNotEmpty() || explicitWorkouts.isNotEmpty()) 1 else 0,
+                workoutCount = explicitWorkouts.size
+            )
 
             _state.update {
                 it.copy(
                     currentReport = matchingReport,
                     recentReports = cachedReports,
                     previewCaloriesIntake = calIn,
-                    previewTargetCalories = cachedGoal.calories.coerceAtLeast(1200),
+                    previewTargetCalories = targetCalories,
                     previewCaloriesBurned = calBurn,
                     previewWorkoutMinutes = workMin,
                     previewProteinG = prot,
                     previewTargetProteinG = targetProt,
+                    previewCarbsG = carbs,
+                    previewTargetCarbsG = targetCarbsG,
+                    previewFatG = fat,
+                    previewTargetFatG = targetFatG,
+                    previewFiberG = fiber,
+                    previewTargetFiberG = targetFiberG,
+                    previewWaterMl = waterMl,
+                    previewWaterTargetMl = waterTarget,
                     previewWeightKg = dayWeight,
-                    previewLoggedDays = if (dayFoods.isNotEmpty() || dayWorkouts.isNotEmpty()) 1 else 0
+                    previewWeightDeltaKg = weightDelta,
+                    previewLoggedDays = if (dayFoods.isNotEmpty() || dayWorkouts.isNotEmpty()) 1 else 0,
+                    weeklyDailyBars = weekBars,
+                    deterministicInsights = insights
                 )
             }
         } else {
@@ -272,36 +339,197 @@ class AnalyticsViewModel(
             val sun = s.selectedWeekSunday
             val weekFoods = cachedFoods.filter { !it.isDeleted && it.date in mon..sun }
             val weekWorkouts = cachedWorkouts.filter { !it.isDeleted && it.date in mon..sun }
+            val explicitWeekWorkouts = weekWorkouts.filter { !it.isDailySteps }
             val loggedDays = weekFoods.filter { it.totalCalories > 0 }.map { it.date }.distinct().size
             val divisor = loggedDays.coerceAtLeast(1)
 
+            val allItems = weekFoods.flatMap { it.items }
             val avgCalIn = (weekFoods.sumOf { it.totalCalories }.toDouble() / divisor).roundToInt()
-            val totalBurn = weekWorkouts.sumOf { it.caloriesBurned }
-            val totalMin = weekWorkouts.sumOf { it.durationMinutes }
-            val avgProt = (weekFoods.flatMap { it.items }.sumOf { it.proteinG } / divisor).roundToInt()
-            val endWeight = cachedWeights.filter { !it.isDeleted && it.date <= sun }
+            val totalBurn = weekBars.sumOf { it.burnedKcal }
+            val totalMin = explicitWeekWorkouts.sumOf { it.durationMinutes }
+            val avgProt = (allItems.sumOf { it.proteinG } / divisor).roundToInt()
+            val avgCarbs = (allItems.sumOf { it.carbsG } / divisor).roundToInt()
+            val avgFat = (allItems.sumOf { it.fatG } / divisor).roundToInt()
+            val avgFiber = (allItems.sumOf { it.fiberG } / divisor).roundToInt()
+
+            val weekWeights = cachedWeights
+                .filter { !it.isDeleted && it.date in mon..sun && it.weightKg > 0.0 }
+                .sortedBy { it.date }
+            val endWeight = cachedWeights.filter { !it.isDeleted && it.date <= sun && it.weightKg > 0.0 }
                 .maxByOrNull { it.date }?.weightKg ?: fallbackWeight
-            val targetProt = calculateProteinTarget(endWeight, fitnessGoal).roundToInt()
+            val weekDelta = if (weekWeights.size >= 2) {
+                ((weekWeights.last().weightKg - weekWeights.first().weightKg) * 10.0).roundToInt() / 10.0
+            } else null
+            val targetProt = calculateProteinTarget(endWeight, fitnessGoal).roundToInt().coerceAtLeast(40)
+
+            val weekWaters = cachedWaters.filter { it.date in mon..sun && it.amountMl > 0 }
+            val avgWaterMl = if (weekWaters.isNotEmpty()) {
+                (weekWaters.sumOf { it.amountMl }.toDouble() / weekWaters.size).roundToInt()
+            } else 0
+            val avgWaterTarget = (weekWaters.lastOrNull()?.targetMl ?: 2500).coerceAtLeast(1500)
 
             val matchingReport = cachedReports.firstOrNull {
                 it.periodType == AnalysisPeriodType.WEEKLY && it.startDate == mon
             }
+
+            val insights = buildDeterministicInsights(
+                isDaily = false,
+                calIntake = avgCalIn,
+                targetCalories = targetCalories,
+                calBurned = totalBurn / 7,
+                proteinG = avgProt,
+                targetProteinG = targetProt,
+                waterMl = avgWaterMl,
+                waterTargetMl = avgWaterTarget,
+                loggedDays = loggedDays,
+                workoutCount = explicitWeekWorkouts.size
+            )
 
             _state.update {
                 it.copy(
                     currentReport = matchingReport,
                     recentReports = cachedReports,
                     previewCaloriesIntake = avgCalIn,
-                    previewTargetCalories = cachedGoal.calories.coerceAtLeast(1200),
+                    previewTargetCalories = targetCalories,
                     previewCaloriesBurned = totalBurn,
                     previewWorkoutMinutes = totalMin,
                     previewProteinG = avgProt,
                     previewTargetProteinG = targetProt,
+                    previewCarbsG = avgCarbs,
+                    previewTargetCarbsG = targetCarbsG,
+                    previewFatG = avgFat,
+                    previewTargetFatG = targetFatG,
+                    previewFiberG = avgFiber,
+                    previewTargetFiberG = targetFiberG,
+                    previewWaterMl = avgWaterMl,
+                    previewWaterTargetMl = avgWaterTarget,
                     previewWeightKg = endWeight,
-                    previewLoggedDays = loggedDays
+                    previewWeightDeltaKg = weekDelta,
+                    previewLoggedDays = loggedDays,
+                    weeklyDailyBars = weekBars,
+                    deterministicInsights = insights
                 )
             }
         }
+    }
+
+    private fun buildDeterministicInsights(
+        isDaily: Boolean,
+        calIntake: Int,
+        targetCalories: Int,
+        calBurned: Int,
+        proteinG: Int,
+        targetProteinG: Int,
+        waterMl: Int,
+        waterTargetMl: Int,
+        loggedDays: Int,
+        workoutCount: Int
+    ): List<AnalyticsInstantInsight> {
+        if (loggedDays == 0 && workoutCount == 0 && waterMl == 0) {
+            return listOf(
+                AnalyticsInstantInsight(
+                    titleTr = "Henüz bu dönem için veri yok",
+                    titleEn = "No telemetry yet for this period",
+                    detailTr = "Öğün, su veya antrenman ekledikçe AI kullanmadan anlık grafik ve içgörüler burada oluşur.",
+                    detailEn = "Log a meal, water, or workout to see live charts and instant rule-based insights without AI.",
+                    tone = InsightTone.INFO
+                )
+            )
+        }
+
+        val list = mutableListOf<AnalyticsInstantInsight>()
+        val netCalories = calIntake - calBurned
+        val calRatio = if (targetCalories > 0) calIntake.toDouble() / targetCalories else 0.0
+
+        when {
+            calIntake == 0 -> list.add(
+                AnalyticsInstantInsight(
+                    titleTr = "Kalori girişi bekleniyor",
+                    titleEn = "Waiting for meal intake",
+                    detailTr = "Günlük net enerji dengesini hesaplamak için öğün ekleyebilirsiniz.",
+                    detailEn = "Log meals to compute your net calorie balance.",
+                    tone = InsightTone.INFO
+                )
+            )
+            calRatio in 0.85..1.12 -> list.add(
+                AnalyticsInstantInsight(
+                    titleTr = "Kalori hedefi dengede ✓",
+                    titleEn = "Calorie intake on target ✓",
+                    detailTr = "${calIntake} / ${targetCalories} kcal (Net: $netCalories kcal). Sürdürülebilir aralıktasın.",
+                    detailEn = "${calIntake} / ${targetCalories} kcal (Net: $netCalories kcal). Right inside your sweet spot.",
+                    tone = InsightTone.POSITIVE
+                )
+            )
+            calRatio < 0.85 -> list.add(
+                AnalyticsInstantInsight(
+                    titleTr = "Hedefin altında alım",
+                    titleEn = "Below calorie target",
+                    detailTr = "Alım ($calIntake kcal) hedefin %${((1.0 - calRatio) * 100).roundToInt()} altında. Kas koruması için dengeli ara öğün değerlendirilebilir.",
+                    detailEn = "Intake ($calIntake kcal) is ${((1.0 - calRatio) * 100).roundToInt()}% under target. Consider a balanced snack to support recovery.",
+                    tone = InsightTone.ATTENTION
+                )
+            )
+            else -> list.add(
+                AnalyticsInstantInsight(
+                    titleTr = "Kalori hedefi aşıldı",
+                    titleEn = "Above calorie target",
+                    detailTr = "Alım hedefin ${calIntake - targetCalories} kcal üzerinde; aktif yürüyüş veya hafif kardiyo net dengeyi yumuşatabilir.",
+                    detailEn = "${calIntake - targetCalories} kcal over target; brisk walking or light cardio can smooth your net balance.",
+                    tone = InsightTone.ATTENTION
+                )
+            )
+        }
+
+        val protRatio = if (targetProteinG > 0) proteinG.toDouble() / targetProteinG else 0.0
+        if (proteinG > 0 || calIntake > 0) {
+            if (protRatio >= 0.85) {
+                list.add(
+                    AnalyticsInstantInsight(
+                        titleTr = "Protein uyumu güçlü (%${(protRatio * 100).roundToInt()})",
+                        titleEn = "Strong protein compliance (${(protRatio * 100).roundToInt()}%)",
+                        detailTr = "${proteinG}g / ${targetProteinG}g protein ile toparlanma ve tokluk desteği iyi.",
+                        detailEn = "${proteinG}g / ${targetProteinG}g protein supports satiety and muscle recovery.",
+                        tone = InsightTone.POSITIVE
+                    )
+                )
+            } else {
+                val missingP = (targetProteinG - proteinG).coerceAtLeast(10)
+                list.add(
+                    AnalyticsInstantInsight(
+                        titleTr = "Protein açığı: +${missingP}g önerilir",
+                        titleEn = "Protein gap: +${missingP}g recommended",
+                        detailTr = "Hedef ${targetProteinG}g iken ${proteinG}g alındı. Yoğurt, yumurta, lor veya tavuk ekleyebilirsin.",
+                        detailEn = "Currently ${proteinG}g vs ${targetProteinG}g goal. Eggs, Greek yogurt, or lean meat can close the gap.",
+                        tone = InsightTone.ATTENTION
+                    )
+                )
+            }
+        }
+
+        val waterPct = if (waterTargetMl > 0) (waterMl * 100) / waterTargetMl else 0
+        if (!isDaily) {
+            list.add(
+                AnalyticsInstantInsight(
+                    titleTr = "Haftalık hareket: $workoutCount seans",
+                    titleEn = "Weekly activity: $workoutCount sessions",
+                    detailTr = "Ort. günlük su alımı: ${waterMl}ml (%$waterPct). Haftalık aktif gün: $loggedDays/7.",
+                    detailEn = "Avg hydration: ${waterMl}ml ($waterPct%). Active nutrition days: $loggedDays/7.",
+                    tone = if (workoutCount >= 3 && waterPct >= 75) InsightTone.POSITIVE else InsightTone.INFO
+                )
+            )
+        } else if (waterMl > 0 || workoutCount > 0) {
+            list.add(
+                AnalyticsInstantInsight(
+                    titleTr = "Hidrasyon %$waterPct • Aktivite $workoutCount seans",
+                    titleEn = "Hydration $waterPct% • $workoutCount workout(s)",
+                    detailTr = "${waterMl} / ${waterTargetMl} ml su ve toplam $calBurned kcal hareket yakımı kaydedildi.",
+                    detailEn = "${waterMl} / ${waterTargetMl} ml water and $calBurned kcal active burn recorded.",
+                    tone = if (waterPct >= 80) InsightTone.POSITIVE else InsightTone.INFO
+                )
+            )
+        }
+
+        return list.take(3)
     }
 
     private fun generateReportForSelection() {

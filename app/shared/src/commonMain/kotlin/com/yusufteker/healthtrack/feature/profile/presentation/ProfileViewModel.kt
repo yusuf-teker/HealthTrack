@@ -127,6 +127,7 @@ class ProfileViewModel(
         val userId = tokenStorage.getUserId()
         val name = tokenStorage.getName()
         val username = tokenStorage.getUsername()
+        val profileImageUrl = tokenStorage.getProfileImageUrl()
         val height = tokenStorage.getUserHeight().takeIf { it > 0.0 } ?: 175.0
         val targetWeight = tokenStorage.getUserTargetWeight().takeIf { it > 0.0 } ?: 70.0
         val weight = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 72.0
@@ -135,6 +136,10 @@ class ProfileViewModel(
         val fitnessGoal = tokenStorage.getUserFitnessGoal()
         val workoutReminder = tokenStorage.getWorkoutReminderFrequency()
         val weightReminder = tokenStorage.getWeightReminderFrequency()
+        val foodReminder = tokenStorage.isFoodReminderEnabled()
+        val autoDeviceSync = tokenStorage.isAutoDeviceSyncEnabled()
+        val hasConnectedDevice = tokenStorage.hasConnectedDevice()
+        val lastDeviceSyncSummary = tokenStorage.getLastDeviceSyncSummary()
         val isDark = settings.getBoolean("dark_mode", true)
         val accent = AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id))
         val customGeminiApiKey = tokenStorage.getCustomGeminiApiKey().orEmpty()
@@ -143,6 +148,7 @@ class ProfileViewModel(
             userId = userId,
             name = name,
             username = username,
+            profileImageUrl = profileImageUrl,
             weightKg = weight,
             targetWeightKg = targetWeight,
             heightCm = height,
@@ -151,6 +157,10 @@ class ProfileViewModel(
             fitnessGoal = fitnessGoal,
             workoutReminderFrequency = workoutReminder,
             weightReminderFrequency = weightReminder,
+            foodReminderEnabled = foodReminder,
+            isAutoDeviceSyncEnabled = autoDeviceSync,
+            hasConnectedDevice = hasConnectedDevice,
+            lastDeviceSyncSummary = lastDeviceSyncSummary,
             isDarkMode = isDark,
             themeAccent = accent,
             language = LocalizationManager.currentLanguage,
@@ -280,6 +290,23 @@ class ProfileViewModel(
                     _effects.send(ProfileEffect.ShowToast(msg))
                 }
             }
+            is ProfileIntent.OnFoodReminderChanged -> {
+                tokenStorage.setFoodReminderEnabled(intent.enabled)
+                _state.update { it.copy(foodReminderEnabled = intent.enabled) }
+                val lang = LocalizationManager.currentLanguage
+                val msg = if (intent.enabled) {
+                    trEn("13:30 öğün hatırlatıcısı açıldı.", "1:30 PM meal reminder enabled.", lang)
+                } else {
+                    trEn("Öğün hatırlatıcısı kapatıldı.", "Meal reminder turned off.", lang)
+                }
+                viewModelScope.launch {
+                    _effects.send(ProfileEffect.ShowToast(msg))
+                }
+            }
+            is ProfileIntent.OnAutoDeviceSyncChanged -> {
+                tokenStorage.setAutoDeviceSyncEnabled(intent.enabled)
+                _state.update { it.copy(isAutoDeviceSyncEnabled = intent.enabled) }
+            }
             is ProfileIntent.OnThemeModeChanged -> {
                 settings.putBoolean("dark_mode", intent.isDark)
                 _state.update { it.copy(isDarkMode = intent.isDark) }
@@ -352,6 +379,7 @@ class ProfileViewModel(
                         _state.update {
                             it.copy(
                                 isDeviceSyncing = false,
+                                hasConnectedDevice = true,
                                 lastDeviceSyncSummary = msg,
                                 infoMessage = msg
                             )

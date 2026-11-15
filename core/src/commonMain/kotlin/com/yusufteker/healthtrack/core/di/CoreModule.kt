@@ -10,6 +10,7 @@ import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DailyMealPlanEngine
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
+import com.yusufteker.healthtrack.core.sync.FriendActivityMonitor
 import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.HealthReportAiGenerator
 import com.yusufteker.healthtrack.core.sync.SyncEngine
@@ -21,7 +22,8 @@ val coreModule = module {
     single { TokenStorage(get()) }
     single { HealthDatabase(get()) }
     single { HealthApiClient(get()) }
-    single { GamificationManager(get(), get()) }
+    single { GamificationManager(get(), get(), get()) }
+    single { FriendActivityMonitor(get(), get()) }
     single { SyncEngine(get(), get(), get(), getOrNull<GamificationManager>()) }
     single { DeviceHealthSyncManager(get(), get(), get(), getOrNull<GamificationManager>()) }
     single { HealthReportAiGenerator(get()) }

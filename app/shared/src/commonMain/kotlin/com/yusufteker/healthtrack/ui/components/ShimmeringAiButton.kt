@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,7 +58,9 @@ fun ShimmeringAiButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 44.dp,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp)
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
+    badgeText: String? = null,
+    isBadgeAlert: Boolean = false
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "ai_btn_shimmer")
 
@@ -177,8 +180,28 @@ fun ShimmeringAiButton(
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                     color = Color.White,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                if (!badgeText.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        color = if (isBadgeAlert) {
+                            Color(0xFFEF4444).copy(alpha = 0.85f)
+                        } else {
+                            Color.White.copy(alpha = 0.22f)
+                        },
+                        shape = RoundedCornerShape(999.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
         }
     }

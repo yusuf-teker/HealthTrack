@@ -71,6 +71,16 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 )
             }
 
+            override fun scheduleMiddayFoodReminder(hour: Int, minute: Int) {
+                scheduleDailyBroadcastAlarm(
+                    context = context,
+                    hour = hour,
+                    minute = minute,
+                    action = HealthReminderNotifications.ACTION_FOOD_REMINDER,
+                    requestCode = HealthReminderNotifications.FOOD_ALARM_REQUEST_CODE
+                )
+            }
+
             override fun cancelEveningWorkoutReminder() {
                 HealthReminderNotifications.cancelBroadcastAlarm(
                     context = context,
@@ -86,11 +96,19 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                     requestCode = HealthReminderNotifications.WEIGHT_ALARM_REQUEST_CODE
                 )
             }
+
+            override fun cancelMiddayFoodReminder() {
+                HealthReminderNotifications.cancelBroadcastAlarm(
+                    context = context,
+                    action = HealthReminderNotifications.ACTION_FOOD_REMINDER,
+                    requestCode = HealthReminderNotifications.FOOD_ALARM_REQUEST_CODE
+                )
+            }
         }
     }
 }
 
-private fun scheduleDailyBroadcastAlarm(
+internal fun scheduleDailyBroadcastAlarm(
     context: Context,
     hour: Int,
     minute: Int,

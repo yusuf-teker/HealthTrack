@@ -3,11 +3,15 @@ package com.yusufteker.healthtrack.feature.profile.presentation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
+import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -26,6 +30,13 @@ fun ProfileScreenRoot(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val dailyReminderNotifier = rememberDailyReminderNotifier()
+    val deviceHealthBridge = rememberDeviceHealthBridge()
+    var hasNotifPermission by remember { mutableStateOf(dailyReminderNotifier.hasPermission) }
+    var isDeviceAuthorized by remember { mutableStateOf(state.hasConnectedDevice) }
+
+    LaunchedEffect(deviceHealthBridge.status, state.hasConnectedDevice, state.isDeviceSyncing) {
+        isDeviceAuthorized = state.hasConnectedDevice || deviceHealthBridge.isAuthorized()
+    }
 
     LaunchedEffect(state.workoutReminderFrequency) {
         if (state.workoutReminderFrequency == WorkoutReminderFrequency.OFF) {
@@ -40,6 +51,14 @@ fun ProfileScreenRoot(
             dailyReminderNotifier.cancelMorningWeightReminder()
         } else {
             dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+        }
+    }
+
+    LaunchedEffect(state.foodReminderEnabled) {
+        if (state.foodReminderEnabled) {
+            dailyReminderNotifier.scheduleMiddayFoodReminder(hour = 13, minute = 30)
+        } else {
+            dailyReminderNotifier.cancelMiddayFoodReminder()
         }
     }
 
@@ -70,6 +89,13 @@ fun ProfileScreenRoot(
         onReplayOnboarding = onReplayOnboarding,
         onOpenWidgetPromo = onOpenWidgetPromo,
         onLogout = onLogout,
+        hasNotificationPermission = hasNotifPermission,
+        onRequestNotificationPermission = {
+            dailyReminderNotifier.requestPermission { granted ->
+                hasNotifPermission = granted
+            }
+        },
+        isDeviceAuthorized = isDeviceAuthorized,
         modifier = modifier
     )
 }

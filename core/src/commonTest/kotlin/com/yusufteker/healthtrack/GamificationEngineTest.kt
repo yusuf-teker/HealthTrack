@@ -235,6 +235,23 @@ class GamificationEngineTest {
         assertFalse(summary.achievements.first { it.badgeId == BadgeId.STREAK_MASTER }.isUnlocked)
         assertFalse(summary.achievements.first { it.badgeId == BadgeId.CALORIE_ENGINE }.isUnlocked)
         assertFalse(summary.achievements.first { it.badgeId == BadgeId.ENDURANCE_MINUTES }.isUnlocked)
+        assertFalse(summary.achievements.first { it.badgeId == BadgeId.DEVICE_BRIDGE }.isUnlocked)
+    }
+
+    @Test
+    fun evaluate_connectedDevice_unlocksDeviceBridgeBadge() {
+        val summary = GamificationEngine.evaluate(
+            foods = emptyList(),
+            workouts = emptyList(),
+            weights = emptyList(),
+            waters = emptyList(),
+            nutritionGoal = NutritionGoal(id = "g1", userId = 1),
+            todayIso = "2026-11-13",
+            hasConnectedDevice = true
+        )
+        val deviceBadge = summary.achievements.first { it.badgeId == BadgeId.DEVICE_BRIDGE }
+        assertTrue(deviceBadge.isUnlocked)
+        assertEquals(150, deviceBadge.earnedXp)
     }
 }
 

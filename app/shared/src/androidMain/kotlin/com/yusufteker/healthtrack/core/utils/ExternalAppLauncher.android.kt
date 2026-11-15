@@ -101,7 +101,7 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
 
     override fun sendToPlanoraTodo(title: String, items: List<String>): Boolean {
         if (items.isEmpty()) return false
-        val noteBody = items.joinToString("\n") { "• $it" }
+        val noteBody = items.joinToString("\n") { "- $it" }
         val formattedBody = buildString {
             appendLine(title)
             appendLine()
@@ -116,7 +116,7 @@ class AndroidExternalAppLauncher(private val context: Context) : ExternalAppLaun
                 val encodedTitle = Uri.encode(title)
                 val encodedNote = Uri.encode(noteBody)
                 val encodedItems = Uri.encode(items.joinToString(";") { it.trim() })
-                val planoraUri = Uri.parse("planora://share/task?title=$encodedTitle&note=$encodedNote&items=$encodedItems")
+                val planoraUri = Uri.parse("planora://share/task?title=$encodedTitle&note=$encodedNote&items=$encodedItems&sender=HealthTrack")
                 val viewIntent = Intent(Intent.ACTION_VIEW, planoraUri).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }

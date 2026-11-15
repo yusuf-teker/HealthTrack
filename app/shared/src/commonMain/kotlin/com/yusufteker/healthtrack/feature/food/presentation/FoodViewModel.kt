@@ -241,6 +241,7 @@ class FoodViewModel(
             is FoodIntent.OnDismissAiReview -> _state.update { it.copy(isAiReviewSheetOpen = false, pendingAiResult = null) }
             is FoodIntent.OnConfirmAiReview -> confirmAiReview()
             is FoodIntent.OnToggleFavoriteFood -> toggleFavorite(intent.foodId)
+            is FoodIntent.OnHideFrequentFood -> hideFrequentFood(intent.foodName)
             is FoodIntent.OnOpenAddCustomFoodDialog -> _state.update {
                 it.copy(
                     isAddCustomFoodDialogOpen = true,
@@ -313,16 +314,38 @@ class FoodViewModel(
 
             // ── Market Listesi & Planora ──
             is FoodIntent.OnOpenGroceryListSheet -> {
+                val formattedTitle = if (intent.title.isBlank()) {
+                    trEn("Market Alışveriş Listesi", "Grocery Shopping List")
+                } else {
+                    trEn("Market: ${intent.title}", "Grocery: ${intent.title}")
+                }
                 _state.update {
                     it.copy(
                         isGroceryListSheetOpen = true,
-                        groceryListTitle = intent.title,
+                        groceryListTitle = formattedTitle,
                         groceryItems = intent.items,
                         selectedGroceryItems = intent.items.toSet()
                     )
                 }
             }
             is FoodIntent.OnCloseGroceryListSheet -> _state.update { it.copy(isGroceryListSheetOpen = false) }
+            is FoodIntent.OnGroceryTitleChanged -> _state.update { it.copy(groceryListTitle = intent.title) }
+            is FoodIntent.OnAddCustomGroceryItem -> {
+                val clean = intent.item.trim()
+                if (clean.isNotEmpty()) {
+                    _state.update { current ->
+                        val updatedItems = if (current.groceryItems.contains(clean)) {
+                            current.groceryItems
+                        } else {
+                            current.groceryItems + clean
+                        }
+                        current.copy(
+                            groceryItems = updatedItems,
+                            selectedGroceryItems = current.selectedGroceryItems + clean
+                        )
+                    }
+                }
+            }
             is FoodIntent.OnToggleGroceryItem -> {
                 _state.update { current ->
                     val updated = current.selectedGroceryItems.toMutableSet()
@@ -472,20 +495,41 @@ class FoodViewModel(
         allFoodsObservationJob?.cancel()
         allFoodsObservationJob = viewModelScope.launch {
             database.observeAllFoods(userId).collect { allLogs ->
-                val frequent = allLogs
+                val hiddenNames = tokenStorage.getHiddenFrequentFoodNames(userId)
+                // Order logs most-recently-logged first so repeated/recent foods always bubble to index 0
+                val sortedLogs = allLogs.sortedWith(
+                    compareByDescending<FoodLog> { it.date }
+                        .thenByDescending { it.updatedAt }
+                )
+                val frequent = sortedLogs
                     .flatMap { it.items }
-                    .groupBy { it.name.trim().lowercase() }
-                    .values
-                    .sortedByDescending { it.size }
-                    .map { it.first() }
+                    .filter { item ->
+                        val norm = item.name.trim().lowercase()
+                        norm.isNotBlank() && !hiddenNames.contains(norm)
+                    }
+                    .distinctBy { it.name.trim().lowercase() }
                     .take(25)
 
-                cachedAllFoodLogs = allLogs
+                cachedAllFoodLogs = sortedLogs
                 recomputeRecent3DaysFoodNames(_state.value.selectedDate)
 
                 _state.update { it.copy(frequentFoods = frequent) }
                 updateSmartMealsAndSynergy()
             }
+        }
+    }
+
+    private fun hideFrequentFood(foodName: String) {
+        val userId = tokenStorage.getUserId()
+        if (userId <= 0) return
+        val normalized = foodName.trim().lowercase()
+        tokenStorage.hideFrequentFoodName(userId, normalized)
+        _state.update { current ->
+            current.copy(
+                frequentFoods = current.frequentFoods.filterNot {
+                    it.name.trim().lowercase() == normalized
+                }
+            )
         }
     }
 
@@ -792,11 +836,11 @@ class FoodViewModel(
         viewModelScope.launch {
             try {
                 val baseItems = existingLog?.items?.takeIf { it.isNotEmpty() } ?: _state.value.items
-                val combinedItems = mergeDuplicateFoodItems(
-                    (baseItems + aiResult.items).map { item ->
-                        if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
-                    }
-                )
+                val incomingItems = aiResult.items.map { item ->
+                    if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
+                }
+                // Place newly logged / repeated AI items first so recent items appear at top of log
+                val combinedItems = mergeDuplicateFoodItems(incomingItems + baseItems)
                 val totalCals = combinedItems.sumOf { it.calories }
                 val newLog = FoodLog(
                     id = logId,
@@ -901,7 +945,7 @@ class FoodViewModel(
             micronutrients = micronutrients,
             iconKey = iconKey
         )
-        val currentItems = mergeDuplicateFoodItems(_state.value.items + newItem)
+        val currentItems = mergeDuplicateFoodItems(listOf(newItem) + _state.value.items)
         updateItemsInDb(currentItems)
     }
 
@@ -910,7 +954,7 @@ class FoodViewModel(
         val normalized = itemsToAdd.map { item ->
             if (item.id.isBlank()) item.copy(id = Uuid.random().toString()) else item
         }
-        val currentItems = mergeDuplicateFoodItems(_state.value.items + normalized)
+        val currentItems = mergeDuplicateFoodItems(normalized + _state.value.items)
         updateItemsInDb(currentItems)
         if (!summaryNote.isNullOrBlank()) {
             _state.update { it.copy(infoMessage = summaryNote) }

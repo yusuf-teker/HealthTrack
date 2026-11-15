@@ -13,8 +13,10 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
             override fun sendNotification(payload: ScheduledReminderPayload) {}
             override fun scheduleEveningWorkoutReminder(hour: Int, minute: Int) {}
             override fun scheduleMorningWeightReminder(hour: Int, minute: Int) {}
+            override fun scheduleMiddayFoodReminder(hour: Int, minute: Int) {}
             override fun cancelEveningWorkoutReminder() {}
             override fun cancelMorningWeightReminder() {}
+            override fun cancelMiddayFoodReminder() {}
         }
     }
 }

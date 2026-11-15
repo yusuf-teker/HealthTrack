@@ -25,6 +25,7 @@ import platform.darwin.dispatch_get_main_queue
 
 private const val WORKOUT_REMINDER_ID = "ht_evening_workout_reminder"
 private const val WEIGHT_REMINDER_ID = "ht_morning_weight_reminder"
+private const val FOOD_REMINDER_ID = "ht_midday_food_reminder"
 
 @Composable
 actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
@@ -67,7 +68,11 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                     setUserInfo(mapOf<Any?, Any?>("open_tab" to payload.targetTab))
                 }
                 val trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval(1.0, repeats = false)
-                val identifier = if (payload.targetTab == "WORKOUT") WORKOUT_REMINDER_ID else WEIGHT_REMINDER_ID
+                val identifier = when (payload.targetTab) {
+                    "WORKOUT" -> WORKOUT_REMINDER_ID
+                    "FOOD" -> FOOD_REMINDER_ID
+                    else -> WEIGHT_REMINDER_ID
+                }
                 val request = UNNotificationRequest.requestWithIdentifier(identifier, content, trigger)
                 center.addNotificationRequest(request, withCompletionHandler = null)
             }
@@ -100,6 +105,20 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 )
             }
 
+            override fun scheduleMiddayFoodReminder(hour: Int, minute: Int) {
+                scheduleDailyCalendarReminder(
+                    identifier = FOOD_REMINDER_ID,
+                    title = trEn("🥗 Bugün Ne Yedin?", "🥗 What Did You Eat Today?"),
+                    body = trEn(
+                        "Öğününü kaydederek günlük kalori ve makro hedeflerini canlı tut.",
+                        "Log your meal to stay on top of your daily calorie and macro targets."
+                    ),
+                    targetTab = "FOOD",
+                    hour = hour,
+                    minute = minute
+                )
+            }
+
             override fun cancelEveningWorkoutReminder() {
                 UNUserNotificationCenter.currentNotificationCenter()
                     .removePendingNotificationRequestsWithIdentifiers(listOf(WORKOUT_REMINDER_ID))
@@ -108,6 +127,11 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
             override fun cancelMorningWeightReminder() {
                 UNUserNotificationCenter.currentNotificationCenter()
                     .removePendingNotificationRequestsWithIdentifiers(listOf(WEIGHT_REMINDER_ID))
+            }
+
+            override fun cancelMiddayFoodReminder() {
+                UNUserNotificationCenter.currentNotificationCenter()
+                    .removePendingNotificationRequestsWithIdentifiers(listOf(FOOD_REMINDER_ID))
             }
         }
     }

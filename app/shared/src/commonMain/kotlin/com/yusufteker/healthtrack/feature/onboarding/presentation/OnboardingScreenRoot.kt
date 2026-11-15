@@ -165,8 +165,8 @@ fun OnboardingScreenRoot(
                 caloriesBurned = 360,
                 durationMinutes = 45,
                 aiAnalysis = trEn(
-                    "Yüksek aerobik efor • Kalori bütçene +360 kcal alan açıldı.",
-                    "High aerobic effort • +360 kcal added to your daily budget.",
+                    "Yüksek aerobik efor • Günlük kalori hakkına +360 kcal eklendi.",
+                    "High aerobic effort • +360 kcal added to your daily calorie allowance.",
                     lang
                 )
             )

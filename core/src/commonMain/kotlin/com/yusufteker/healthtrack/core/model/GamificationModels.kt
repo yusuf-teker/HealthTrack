@@ -265,6 +265,19 @@ enum class BadgeId(
             BadgeStage(level = 3, targetCount = 30, xpReward = 360),
             BadgeStage(level = 4, targetCount = 60, xpReward = 720)
         )
+    ),
+    DEVICE_BRIDGE(
+        category = BadgeCategory.WEIGHT,
+        titleTr = "Cihaz Köprüsü",
+        titleEn = "Device Bridge",
+        descriptionTr = "En az 1 akıllı tartı veya akıllı saat bağlayıp verilerini eşitle.",
+        descriptionEn = "Connect and sync at least 1 smart scale or smartwatch.",
+        unitTr = "cihaz",
+        unitEn = "device",
+        accentColorHex = 0xFF06B6D4,
+        stages = listOf(
+            BadgeStage(level = 1, targetCount = 1, xpReward = 150)
+        )
     );
 
     val maxLevel: Int get() = stages.size

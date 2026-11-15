@@ -34,7 +34,8 @@ private val sampleSummary = GamificationSummary(
         GamificationAchievement(BadgeId.WORKOUT_DISCIPLINE, 12, 15, true, 12, 1, 4, 100, 220),
         GamificationAchievement(BadgeId.CALORIE_ENGINE, 6450, 10000, true, 6450, 2, 5, 350, 500),
         GamificationAchievement(BadgeId.ENDURANCE_MINUTES, 410, 500, true, 410, 1, 4, 100, 240),
-        GamificationAchievement(BadgeId.SCALE_TRACKER, 3, 5, false, 3, 0, 4, 0, 90)
+        GamificationAchievement(BadgeId.SCALE_TRACKER, 3, 5, false, 3, 0, 4, 0, 90),
+        GamificationAchievement(BadgeId.DEVICE_BRIDGE, 1, 1, true, 1, 1, 1, 150, 150)
     ),
     dailyQuests = listOf(
         GamificationQuest("daily_food", QuestPeriod.DAILY, "Bugün öğün kaydı gir", "Log a meal today", 1, 1, 25, true),

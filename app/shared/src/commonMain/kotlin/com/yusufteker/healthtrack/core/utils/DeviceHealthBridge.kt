@@ -32,6 +32,11 @@ interface DeviceHealthBridge {
     )
 
     /**
+     * Checks whether read permissions have already been granted on this device.
+     */
+    suspend fun isAuthorized(): Boolean
+
+    /**
      * Opens system Health Connect / Apple Health settings or Play Store installation page.
      */
     fun openHealthSettings()

@@ -9,6 +9,21 @@ data class LoginRequest(
 )
 
 @Serializable
+data class SendRegisterCodeRequest(
+    val email: String,
+    val username: String
+)
+
+@Serializable
+data class RegisterRequest(
+    val name: String,
+    val username: String,
+    val email: String,
+    val password: String,
+    val code: String
+)
+
+@Serializable
 data class RefreshTokenRequest(
     val refreshToken: String
 )
@@ -36,5 +51,6 @@ data class UserSession(
     val refreshToken: String,
     val avatarId: String? = null,
     val isPremium: Boolean = false,
-    val isLoggedIn: Boolean = false
+    val isLoggedIn: Boolean = false,
+    val profileImageUrl: String? = null
 )

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -538,7 +539,7 @@ fun SpotlightBubbleCard(
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Header Row: Step Badge + Optional Feedback Pill
+                // Header Row: Step Badge + Feedback Pill / Compact Skip Action
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -554,34 +555,56 @@ fun SpotlightBubbleCard(
                             text = spec.badge,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.7.sp
+                                letterSpacing = 0.6.sp
                             ),
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    if (!spec.feedbackPill.isNullOrBlank()) {
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = Color(0xFF10B981).copy(alpha = 0.16f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (!spec.feedbackPill.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = Color(0xFF10B981).copy(alpha = 0.16f)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier.size(12.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = spec.feedbackPill,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF10B981),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!spec.secondarySkipLabel.isNullOrBlank()) {
+                            TextButton(
+                                onClick = onSecondarySkip,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
                                 Text(
-                                    text = spec.feedbackPill,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF10B981),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    text = spec.secondarySkipLabel,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -594,80 +617,72 @@ fun SpotlightBubbleCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Text(
-                    text = spec.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 18.sp
-                )
+                if (spec.description.isNotBlank()) {
+                    Text(
+                        text = spec.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+                }
 
-                // Action Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (spec.showBackButton) {
-                        OutlinedButton(
-                            onClick = onBack,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                            modifier = Modifier.height(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = str("Geri", "Back"),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    if (!spec.primaryActionLabel.isNullOrBlank()) {
-                        Button(
-                            onClick = onPrimaryAction,
-                            enabled = spec.isPrimaryEnabled && !spec.isPrimaryLoading,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = Color.White
-                            ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .bounceClick()
-                        ) {
-                            if (spec.isPrimaryLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color.White
+                // Action Row: compact Back icon button + full-width Primary CTA
+                if (spec.showBackButton || !spec.primaryActionLabel.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (spec.showBackButton) {
+                            OutlinedButton(
+                                onClick = onBack,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier
+                                    .width(44.dp)
+                                    .height(42.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = str("Geri", "Back"),
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
                             }
-                            Text(
-                                text = spec.primaryActionLabel,
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                         }
-                    }
 
-                    if (!spec.secondarySkipLabel.isNullOrBlank()) {
-                        TextButton(
-                            onClick = onSecondarySkip,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            modifier = Modifier.height(40.dp)
-                        ) {
-                            Text(
-                                text = spec.secondarySkipLabel,
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        if (!spec.primaryActionLabel.isNullOrBlank()) {
+                            Button(
+                                onClick = onPrimaryAction,
+                                enabled = spec.isPrimaryEnabled && !spec.isPrimaryLoading,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 42.dp)
+                                    .bounceClick()
+                            ) {
+                                if (spec.isPrimaryLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = spec.primaryActionLabel,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }

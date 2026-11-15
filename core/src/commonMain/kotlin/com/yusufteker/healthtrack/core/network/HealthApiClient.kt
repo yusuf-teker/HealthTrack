@@ -138,6 +138,17 @@ data class PushRequestPayload(
 )
 
 @Serializable
+data class RegisterFcmTokenPayload(
+    val token: String,
+    val platform: String
+)
+
+@Serializable
+data class UnregisterFcmTokenPayload(
+    val token: String
+)
+
+@Serializable
 data class PushResponsePayload(
     val syncedFoodIds: List<String> = emptyList(),
     val syncedNutritionGoalId: String? = null,
@@ -194,7 +205,7 @@ class HealthApiClient(
             bearer {
                 sendWithoutRequest { request ->
                     val path = request.url.encodedPath
-                    !path.contains("auth/login") && !path.contains("auth/register") && !path.contains("auth/refresh")
+                    !path.contains("auth/login") && !path.contains("auth/register") && !path.contains("auth/send-register-code") && !path.contains("auth/refresh")
                 }
 
                 loadTokens {
@@ -241,7 +252,7 @@ class HealthApiClient(
             context.headers.remove(HttpHeaders.AcceptLanguage)
             context.headers.append(HttpHeaders.AcceptLanguage, langCode)
             val path = context.url.buildString()
-            val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/refresh")
+            val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/send-register-code") || path.contains("auth/refresh")
             if (!isAuthEndpoint) {
                 val token = tokenStorage.getAccessToken()
                 if (!token.isNullOrBlank()) {
@@ -268,6 +279,28 @@ class HealthApiClient(
             response.body<AuthResponse>()
         } else {
             throw response.toHttpApiException("Giriş başarısız", "Sign in failed", json)
+        }
+    }
+
+    suspend fun sendRegisterCode(req: SendRegisterCodeRequest): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/auth/send-register-code") {
+            contentType(ContentType.Application.Json)
+            setBody(req)
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("Doğrulama kodu gönderilemedi", "Could not send verification code", json)
+        }
+    }
+
+    suspend fun register(req: RegisterRequest): Result<AuthResponse> = safeApiCall {
+        val response = httpClient.post("/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody(req)
+        }
+        if (response.status.isSuccess()) {
+            response.body<AuthResponse>()
+        } else {
+            throw response.toHttpApiException("Kayıt başarısız", "Registration failed", json)
         }
     }
 
@@ -465,6 +498,26 @@ class HealthApiClient(
         val response = httpClient.post("/users/follow-requests/$requestId/reject")
         if (!response.status.isSuccess()) {
             throw response.toHttpApiException("İstek reddedilemedi", "Could not reject request", json)
+        }
+    }
+
+    suspend fun registerFcmToken(token: String, platform: String): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/fcm/register") {
+            contentType(ContentType.Application.Json)
+            setBody(RegisterFcmTokenPayload(token = token, platform = platform))
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("Push token kaydedilemedi", "Could not register push token", json)
+        }
+    }
+
+    suspend fun unregisterFcmToken(token: String): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/fcm/unregister") {
+            contentType(ContentType.Application.Json)
+            setBody(UnregisterFcmTokenPayload(token = token))
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("Push token kaldırılamadı", "Could not unregister push token", json)
         }
     }
 }

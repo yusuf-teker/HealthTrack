@@ -43,7 +43,7 @@ import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SmartMealMatcherBottomSheet(
     suggestions: List<SmartMealSuggestion>,
@@ -138,59 +138,17 @@ fun SmartMealMatcherBottomSheet(
                 }
             }
 
-            // ── Deficiency Status Banner ──
             val lowestMicros = nutrientBars
                 .filter { it.key != "calories" }
                 .sortedBy { it.percentage }
-                .take(3)
+                .take(2)
                 .map {
                     val label = localizedNutrientLabel(it)
                     val pct = it.percentage.toInt()
-                    str("$label (%$pct)", "$label ($pct%)")
+                    str("$label %$pct", "$label $pct%")
                 }
 
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = HealthColors.Primary.copy(alpha = 0.10f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = HealthColors.Primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Column {
-                        Text(
-                            text = str("Günün Açık Hedefleri", "Open Targets Today"),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = HealthColors.Primary
-                        )
-                        Text(
-                            text = if (lowestMicros.isNotEmpty()) {
-                                str(
-                                    "Düşük kalanlar: ${lowestMicros.joinToString(", ")} • Kalan: $remainingCalories kcal",
-                                    "Running low: ${lowestMicros.joinToString(", ")} • Remaining: $remainingCalories kcal"
-                                )
-                            } else {
-                                str("Kalan Kalori: $remainingCalories kcal", "Remaining Calories: $remainingCalories kcal")
-                            },
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-
-            // ── Filter Chips Row ──
+            // ── Filter Chips Row (Pinned for quick filtering) ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -224,96 +182,181 @@ fun SmartMealMatcherBottomSheet(
                 )
             }
 
-            // ── AI Custom Recipe Generator Trigger Button ──
-            OutlinedButton(
-                onClick = onRequestAiRecipe,
-                enabled = !isGeneratingAi,
-                modifier = Modifier.fillMaxWidth().height(44.dp).bounceClick(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = HealthColors.Primary
-                )
+            // ── Scrollable Content (Targets + AI Actions + Meal Cards) ──
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 28.dp)
             ) {
-                if (isGeneratingAi) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = HealthColors.Primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        str("Gemini AI Size Özel Yeni Tarif Hazırlıyor...", "Gemini AI is crafting a custom recipe..."),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = HealthColors.Primary
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        str("Yapay Zekadan Yeni Kişisel Tarif İste", "Ask AI for a New Personal Recipe"),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // ── AI Recipe Spotlight Hero Card (When AI generates a custom recipe) ──
-            AnimatedVisibility(
-                visible = latestAiRecipe != null,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                latestAiRecipe?.let { aiMeal ->
-                    AiRecipeSpotlightCard(
-                        meal = aiMeal,
-                        onAddMeal = { onAddMeal(aiMeal) },
-                        onOpenGrocery = { onOpenGroceryForMeal(aiMeal.title, aiMeal.ingredients) },
-                        onDismiss = onDismissAiRecipe
-                    )
-                }
-            }
-
-            // ── Matching Meal List ──
-            if (suggestions.isEmpty() && latestAiRecipe == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                // Compact Open Targets Pill
+                item(key = "targets_banner") {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = HealthColors.Primary.copy(alpha = 0.09f),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = str("Seçili filtrelere uygun öğün bulunamadı", "No meals match the selected filters"),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = str(
-                                "Filtreleri gevşetebilir veya AI ile yeni tarif üretebilirsiniz.",
-                                "You can relax the filters or generate a new recipe with AI."
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = HealthColors.Primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (lowestMicros.isNotEmpty()) {
+                                    str(
+                                        "Kalan: $remainingCalories kcal  •  Düşük: ${lowestMicros.joinToString(", ")}",
+                                        "Remaining: $remainingCalories kcal  •  Low: ${lowestMicros.joinToString(", ")}"
+                                    )
+                                } else {
+                                    str("Kalan Kalori: $remainingCalories kcal", "Remaining Calories: $remainingCalories kcal")
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                // AI Action Row: 4-Meal Menu + Custom AI Recipe
+                item(key = "ai_actions") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (onOpenDailyMealPlan != null) {
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = HealthColors.Primary.copy(alpha = 0.12f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable { onOpenDailyMealPlan() }
+                                    .bounceClick()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = str("Günün 4 Öğünlük AI Menüsü 🥗", "Today's 4-Meal AI Menu 🥗"),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = HealthColors.Primary
+                                        )
+                                        Text(
+                                            text = str(
+                                                "Tam günlük öğün planını görüntüle",
+                                                "View full daily meal plan"
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = HealthColors.Primary
+                                    ) {
+                                        Text(
+                                            text = str("Aç →", "Open →"),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = onRequestAiRecipe,
+                            enabled = !isGeneratingAi,
+                            modifier = Modifier.fillMaxWidth().height(44.dp).bounceClick(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = HealthColors.Primary
+                            )
+                        ) {
+                            if (isGeneratingAi) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = HealthColors.Primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    str("Gemini AI Tarif Hazırlıyor...", "Gemini AI is crafting a recipe..."),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = HealthColors.Primary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    str("Yapay Zekadan Kişisel Tarif İste", "Ask AI for a Personal Recipe"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // AI Recipe Spotlight Hero Card
+                if (latestAiRecipe != null) {
+                    item(key = "ai_spotlight") {
+                        AiRecipeSpotlightCard(
+                            meal = latestAiRecipe,
+                            onAddMeal = { onAddMeal(latestAiRecipe) },
+                            onOpenGrocery = { onOpenGroceryForMeal(latestAiRecipe.title, latestAiRecipe.ingredients) },
+                            onDismiss = onDismissAiRecipe
                         )
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 28.dp)
-                ) {
+
+                // Matching Meal List or Empty State
+                if (suggestions.isEmpty() && latestAiRecipe == null) {
+                    item(key = "empty_state") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = str("Seçili filtrelere uygun öğün bulunamadı", "No meals match the selected filters"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = str(
+                                    "Filtreleri gevşetebilir veya AI ile yeni tarif üretebilirsiniz.",
+                                    "You can relax the filters or generate a new recipe with AI."
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
                     items(suggestions, key = { it.id }) { meal ->
                         SmartMealCard(
                             meal = meal,
@@ -364,6 +407,7 @@ private fun FilterPill(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SmartMealCard(
     meal: SmartMealSuggestion,
@@ -380,8 +424,8 @@ private fun SmartMealCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Header: Title + Prep Time
             Row(
@@ -389,30 +433,33 @@ private fun SmartMealCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Text(
                         text = meal.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = meal.subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.bodySmall,
                         color = HealthColors.Primary
                     )
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    modifier = Modifier.padding(start = 6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(start = 8.dp, top = 2.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Timer,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     val timeText = when {
                         meal.prepTimeMinutes <= 0 -> str("Aç Ye", "Ready to Eat")
@@ -421,36 +468,17 @@ private fun SmartMealCard(
                     }
                     Text(
                         text = timeText,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Tags row
-            Row(
+            // Macro badge capsules (wrapping cleanly)
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                meal.tags.take(3).forEach { tag ->
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Text(
-                            text = tag,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-
-            // Macro badge capsules: Kcal, Protein, Fiber
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 MacroMiniPill(str("Kalori", "Calories"), "${meal.calories} kcal", Color(0xFFFF5722))
                 MacroMiniPill("Protein", "${meal.proteinG.toInt()}g", Color(0xFF8E24AA))
@@ -458,6 +486,29 @@ private fun SmartMealCard(
                 if (meal.keyMicros.isNotEmpty()) {
                     val firstMicro = meal.keyMicros.first()
                     MacroMiniPill(firstMicro.name, "${firstMicro.amount.toInt()}${firstMicro.unit}", Color(0xFF00B4D8))
+                }
+            }
+
+            // Concise tags (max 2)
+            if (meal.tags.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    meal.tags.take(2).forEach { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = tag,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
                 }
             }
 

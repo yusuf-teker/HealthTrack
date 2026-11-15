@@ -3,13 +3,15 @@ package com.yusufteker.healthtrack.core.sync
 import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.model.*
+import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import kotlinx.coroutines.flow.*
 import kotlin.time.TimeSource
 
 class GamificationManager(
     private val database: HealthDatabase,
-    private val settings: Settings
+    private val settings: Settings,
+    private val tokenStorage: TokenStorage? = null
 ) {
     private val _celebrationQueue = MutableStateFlow<List<CelebrationEvent>>(emptyList())
     private val _currentCelebration = MutableStateFlow<CelebrationEvent?>(null)
@@ -56,8 +58,19 @@ class GamificationManager(
         }
     }
 
+    private data class CombinedHealthInputs(
+        val foods: List<FoodLog>,
+        val workouts: List<WorkoutLog>,
+        val weights: List<WeightEntry>,
+        val waters: List<WaterEntry>,
+        val goal: NutritionGoal
+    )
+
     fun observeSummary(userId: Int): Flow<GamificationSummary> {
         if (userId <= 0) return flowOf(GamificationSummary())
+
+        val deviceConnectedFlow = tokenStorage?.hasConnectedDeviceFlow
+            ?: flowOf(settings.getBoolean(TokenStorage.KEY_HAS_CONNECTED_DEVICE, false))
 
         return combine(
             database.observeAllFoods(userId),
@@ -66,6 +79,13 @@ class GamificationManager(
             database.observeAllWater(userId),
             database.observeNutritionGoal(userId)
         ) { foods, workouts, weights, waters, goal ->
+            CombinedHealthInputs(foods, workouts, weights, waters, goal)
+        }.combine(deviceConnectedFlow) { inputs, hasConnectedDevice ->
+            val foods = inputs.foods
+            val workouts = inputs.workouts
+            val weights = inputs.weights
+            val waters = inputs.waters
+            val goal = inputs.goal
             val latestWeight = weights.firstOrNull { !it.isDeleted && it.weightKg > 0.0 }?.weightKg
             val todayIso = getTodayIso()
             val summary = GamificationEngine.evaluate(
@@ -76,7 +96,8 @@ class GamificationManager(
                 nutritionGoal = goal,
                 fitnessGoal = goal.parsedFitnessGoal,
                 latestWeightKg = latestWeight,
-                todayIso = todayIso
+                todayIso = todayIso,
+                hasConnectedDevice = hasConnectedDevice
             )
 
             val todayFoods = foods.filter { !it.isDeleted && it.date == todayIso && it.totalCalories > 0 }

@@ -43,9 +43,9 @@ class IosExternalAppLauncher : ExternalAppLauncher {
 
     override fun sendToPlanoraTodo(title: String, items: List<String>): Boolean {
         if (items.isEmpty()) return false
-        val noteBody = items.joinToString("\n") { "• $it" }
+        val noteBody = items.joinToString("\n") { "- $it" }
         val formattedItems = items.joinToString(";") { it.trim() }
-        val urlStr = "planora://share/task?title=${title.encodeURLParameter()}&note=${noteBody.encodeURLParameter()}&items=${formattedItems.encodeURLParameter()}"
+        val urlStr = "planora://share/task?title=${title.encodeURLParameter()}&note=${noteBody.encodeURLParameter()}&items=${formattedItems.encodeURLParameter()}&sender=HealthTrack"
         val url = NSURL.URLWithString(urlStr) ?: return false
         if (UIApplication.sharedApplication.canOpenURL(url)) {
             UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any>(), null)

@@ -6,7 +6,10 @@ import com.russhwolf.settings.Settings
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
+import com.yusufteker.healthtrack.core.model.AuthResponse
 import com.yusufteker.healthtrack.core.model.LoginRequest
+import com.yusufteker.healthtrack.core.model.RegisterRequest
+import com.yusufteker.healthtrack.core.model.SendRegisterCodeRequest
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
@@ -46,11 +49,24 @@ class AuthViewModel(
 
     fun onIntent(intent: AuthIntent) {
         when (intent) {
+            is AuthIntent.OnToggleAuthMode -> _state.update {
+                it.copy(isRegisterMode = intent.isRegister, errorMessage = null, infoMessage = null)
+            }
             is AuthIntent.OnIdentifierChanged -> _state.update { it.copy(identifier = intent.value, errorMessage = null) }
             is AuthIntent.OnPasswordChanged -> _state.update { it.copy(password = intent.value, errorMessage = null) }
+            is AuthIntent.OnRegisterNameChanged -> _state.update { it.copy(registerName = intent.value, errorMessage = null) }
+            is AuthIntent.OnRegisterUsernameChanged -> _state.update { it.copy(registerUsername = intent.value, errorMessage = null) }
+            is AuthIntent.OnRegisterEmailChanged -> _state.update { it.copy(registerEmail = intent.value, errorMessage = null) }
+            is AuthIntent.OnRegisterPasswordChanged -> _state.update { it.copy(registerPassword = intent.value, errorMessage = null) }
+            is AuthIntent.OnRegisterCodeChanged -> _state.update { it.copy(registerCode = intent.value.filter { ch -> ch.isDigit() }.take(6), errorMessage = null) }
             is AuthIntent.OnLanguageChanged -> LocalizationManager.setLanguage(intent.language, settings)
-            is AuthIntent.OnDismissError -> _state.update { it.copy(errorMessage = null) }
+            is AuthIntent.OnDismissError -> _state.update { it.copy(errorMessage = null, infoMessage = null) }
             is AuthIntent.OnLoginClicked -> performLogin()
+            is AuthIntent.OnSendRegisterCodeClicked -> sendRegisterCode()
+            is AuthIntent.OnRegisterClicked -> performRegister()
+            is AuthIntent.OnEditRegisterInfoClicked -> _state.update {
+                it.copy(isRegisterCodeSent = false, registerCode = "", errorMessage = null, infoMessage = null)
+            }
             is AuthIntent.OnLogoutClicked -> performLogout()
         }
     }
@@ -74,33 +90,11 @@ class AuthViewModel(
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
+            _state.update { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
 
             val result = apiClient.login(LoginRequest(identifier, password))
             result.onSuccess { response ->
-                tokenStorage.saveSession(
-                    userId = response.userId,
-                    name = response.name,
-                    username = response.username,
-                    accessToken = response.accessToken,
-                    refreshToken = response.refreshToken,
-                    avatarId = response.avatarId,
-                    isPremium = response.isPremium
-                )
-                tokenStorage.setPremium(response.isPremium, response.premiumUntil)
-
-                // Await initial sync so that weights, goals, workouts, and foods are restored
-                // BEFORE navigating to Home and before checking profile configuration.
-                try {
-                    syncEngine.sync(forceFullPull = true)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Napier.e("Giriş sonrası senkronizasyon hatası: ${e.message}", tag = "AUTH_LOG")
-                }
-
-                _state.update { it.copy(isLoading = false) }
-                _effects.send(AuthEffect.NavigateToHome)
+                handleAuthSuccess(response)
             }.onFailure { err ->
                 _state.update {
                     it.copy(
@@ -116,6 +110,138 @@ class AuthViewModel(
                 }
             }
         }
+    }
+
+    private fun sendRegisterCode() {
+        val name = _state.value.registerName.trim()
+        val username = _state.value.registerUsername.trim()
+        val email = _state.value.registerEmail.trim()
+        val password = _state.value.registerPassword.trim()
+        val lang = _state.value.language
+
+        if (name.isBlank() || username.length < 3 || !email.contains("@") || password.length < 6) {
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Lütfen ad soyad, en az 3 karakterli kullanıcı adı, geçerli e-posta ve en az 6 karakterli şifre giriniz.",
+                        "Please enter your name, a username (min 3 chars), valid email, and password (min 6 chars).",
+                        lang
+                    )
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
+            val result = apiClient.sendRegisterCode(
+                SendRegisterCodeRequest(email = email, username = username)
+            )
+            result.onSuccess {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isRegisterCodeSent = true,
+                        infoMessage = trEn(
+                            "Doğrulama kodu $email adresine gönderildi.",
+                            "Verification code sent to $email.",
+                            lang
+                        )
+                    )
+                }
+            }.onFailure { err ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = formatActionableApiError(
+                            error = err,
+                            operationTr = "Doğrulama kodu",
+                            operationEn = "Verification code",
+                            isCredentialAuth = false,
+                            language = _state.value.language
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun performRegister() {
+        val name = _state.value.registerName.trim()
+        val username = _state.value.registerUsername.trim()
+        val email = _state.value.registerEmail.trim()
+        val password = _state.value.registerPassword.trim()
+        val code = _state.value.registerCode.trim()
+        val lang = _state.value.language
+
+        if (code.length < 6) {
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Lütfen e-postanıza gelen 6 haneli doğrulama kodunu giriniz.",
+                        "Please enter the 6-digit verification code sent to your email.",
+                        lang
+                    )
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
+            val result = apiClient.register(
+                RegisterRequest(
+                    name = name,
+                    username = username,
+                    email = email,
+                    password = password,
+                    code = code
+                )
+            )
+            result.onSuccess { response ->
+                handleAuthSuccess(response)
+            }.onFailure { err ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = formatActionableApiError(
+                            error = err,
+                            operationTr = "Kayıt",
+                            operationEn = "Registration",
+                            isCredentialAuth = false,
+                            language = _state.value.language
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun handleAuthSuccess(response: AuthResponse) {
+        tokenStorage.saveSession(
+            userId = response.userId,
+            name = response.name,
+            username = response.username,
+            accessToken = response.accessToken,
+            refreshToken = response.refreshToken,
+            avatarId = response.avatarId,
+            profileImageUrl = response.profileImageUrl,
+            isPremium = response.isPremium
+        )
+        tokenStorage.setPremium(response.isPremium, response.premiumUntil)
+
+        // Await initial sync so that weights, goals, workouts, and foods are restored
+        // BEFORE navigating to Home and before checking profile configuration.
+        try {
+            syncEngine.sync(forceFullPull = true)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Napier.e("Giriş/Kayıt sonrası senkronizasyon hatası: ${e.message}", tag = "AUTH_LOG")
+        }
+
+        _state.update { it.copy(isLoading = false) }
+        _effects.send(AuthEffect.NavigateToHome)
     }
 
     private fun performLogout() {

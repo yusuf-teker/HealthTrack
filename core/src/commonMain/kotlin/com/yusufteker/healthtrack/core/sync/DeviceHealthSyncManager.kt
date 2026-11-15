@@ -330,6 +330,10 @@ class DeviceHealthSyncManager(
             platformName = snapshot.platformName
         )
 
+        tokenStorage.setHasConnectedDevice(true)
+        tokenStorage.setLastDeviceSyncMs(now)
+        tokenStorage.setLastDeviceSyncSummary(summary.toUserMessage())
+
         Napier.i(
             "DEVICE_SYNC: ${summary.toUserMessage()} (weights: +$importedWeights/~$updatedWeights/=$skippedWeights, workouts: +$importedWorkouts/~$updatedWorkouts/=$skippedWorkouts)",
             tag = "DEVICE_SYNC"

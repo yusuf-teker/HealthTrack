@@ -34,6 +34,8 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 onResult: (Result<DeviceHealthSnapshot>) -> Unit
             ) {}
 
+            override suspend fun isAuthorized(): Boolean = false
+
             override fun openHealthSettings() {}
         }
     }

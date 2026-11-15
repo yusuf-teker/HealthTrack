@@ -3,6 +3,7 @@
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Android Health Connect Read Permissions (Xiaomi Scale & Huawei Watch Bridge) -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
@@ -76,6 +77,15 @@
             android:name="com.yusufteker.healthtrack.core.utils.HealthReminderReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name="com.yusufteker.healthtrack.core.utils.BootCompletedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Home Screen Bio-Telemetry Widget (4x2 Responsive) -->
         <receiver
             android:name="com.yusufteker.healthtrack.widget.HealthTrackTelemetryWidgetProvider"
@@ -106,6 +116,14 @@
         <receiver
             android:name="com.yusufteker.healthtrack.widget.HealthTrackWidgetPinReceiver"
             android:exported="false" />
+
+        <service
+            android:name=".HealthTrackFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

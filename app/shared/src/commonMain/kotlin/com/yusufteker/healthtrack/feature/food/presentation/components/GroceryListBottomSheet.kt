@@ -8,17 +8,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,11 +40,16 @@ fun GroceryListBottomSheet(
     items: List<String>,
     selectedItems: Set<String>,
     onToggleItem: (String) -> Unit,
+    onTitleChange: (String) -> Unit = {},
+    onAddCustomItem: (String) -> Unit = {},
     onSendToPlanora: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val clipboardManager = LocalClipboardManager.current
+    var customItemInput by remember { mutableStateOf("") }
+    var copiedFeedback by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -111,24 +120,44 @@ fun GroceryListBottomSheet(
                 }
             }
 
-            // Info Banner
-            Surface(
+            // Editable Task Title
+            OutlinedTextField(
+                value = title,
+                onValueChange = onTitleChange,
+                label = { Text(str("Görev Başlığı", "Task Title")) },
+                placeholder = { Text(str("Market Alışveriş Listesi", "Grocery Shopping List")) },
+                singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF6366F1).copy(alpha = 0.10f),
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            // Quick Add Custom Ingredient Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                OutlinedTextField(
+                    value = customItemInput,
+                    onValueChange = { customItemInput = it },
+                    placeholder = { Text(str("Yeni malzeme ekle...", "Add ingredient...")) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                )
+                FilledIconButton(
+                    onClick = {
+                        if (customItemInput.isNotBlank()) {
+                            onAddCustomItem(customItemInput)
+                            customItemInput = ""
+                        }
+                    },
+                    enabled = customItemInput.isNotBlank(),
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Text(
-                        text = str(
-                            "Alınacak eksik malzemeleri seçin. Tek tıkla Planora uygulamanızın To-Do listesine aktarılacaktır.",
-                            "Select missing ingredients to buy. They will be sent to your Planora To-Do list in one tap."
-                        ),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = MaterialTheme.colorScheme.onSurface
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = str("Ekle", "Add")
                     )
                 }
             }
@@ -178,46 +207,83 @@ fun GroceryListBottomSheet(
                 }
             }
 
-            // Action Button: Send to Planora
-            Button(
-                onClick = onSendToPlanora,
-                enabled = selectedItems.isNotEmpty(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .bounceClick(),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6366F1),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFF6366F1).copy(alpha = 0.4f),
-                    disabledContentColor = Color.White
-                )
+            // Action Row: Copy + Send to Planora
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
+                OutlinedButton(
+                    onClick = {
+                        val effectiveTitle = title.ifBlank {
+                            "Market Alışveriş Listesi"
+                        }
+                        val formatted = buildString {
+                            appendLine(effectiveTitle)
+                            appendLine()
+                            selectedItems.forEach { appendLine("- $it") }
+                        }.trim()
+                        clipboardManager.setText(AnnotatedString(formatted))
+                        copiedFeedback = true
+                    },
+                    enabled = selectedItems.isNotEmpty(),
                     modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
+                        .height(48.dp)
+                        .bounceClick(),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
+                    Icon(
+                        imageVector = if (copiedFeedback) Icons.Default.Check else Icons.Default.ContentCopy,
+                        contentDescription = str("Kopyala", "Copy"),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "P",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Black,
+                        text = if (copiedFeedback) str("Kopyalandı", "Copied") else str("Kopyala", "Copy"),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Button(
+                    onClick = onSendToPlanora,
+                    enabled = selectedItems.isNotEmpty(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .bounceClick(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6366F1),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF6366F1).copy(alpha = 0.4f),
+                        disabledContentColor = Color.White
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "P",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = str(
+                            "Planora'ya Gönder (${selectedItems.size})",
+                            "Send to Planora (${selectedItems.size})"
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = str(
-                        "${selectedItems.size} Malzemeyi Planora'ya Gönder (To-Do)",
-                        "Send ${selectedItems.size} Items to Planora (To-Do)"
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
             }
         }
     }

@@ -87,6 +87,7 @@ fun HealthTrackTheme(
     )
 
     val colorScheme = if (darkTheme) darkScheme else lightScheme
+    SystemBarsAppearance(darkTheme = darkTheme)
 
     CompositionLocalProvider(
         LocalIsDarkTheme provides darkTheme,

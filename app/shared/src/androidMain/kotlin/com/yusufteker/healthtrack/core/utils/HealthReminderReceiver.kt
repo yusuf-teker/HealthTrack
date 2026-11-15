@@ -29,16 +29,20 @@ import java.util.Calendar
 internal object HealthReminderNotifications {
     const val ACTION_WORKOUT_REMINDER = "com.yusufteker.healthtrack.ACTION_WORKOUT_REMINDER"
     const val ACTION_WEIGHT_REMINDER = "com.yusufteker.healthtrack.ACTION_WEIGHT_REMINDER"
+    const val ACTION_FOOD_REMINDER = "com.yusufteker.healthtrack.ACTION_FOOD_REMINDER"
     const val ACTION_WEEKLY_REPORT_REMINDER = "com.yusufteker.healthtrack.ACTION_WEEKLY_REPORT_REMINDER"
 
     const val WORKOUT_ALARM_REQUEST_CODE = 401
     const val WEIGHT_ALARM_REQUEST_CODE = 402
+    const val FOOD_ALARM_REQUEST_CODE = 403
     const val WEEKLY_ALARM_REQUEST_CODE = 202
 
     const val WORKOUT_NOTIFICATION_ID = 3001
     const val WEIGHT_NOTIFICATION_ID = 3002
+    const val FOOD_NOTIFICATION_ID = 3003
     const val WEEKLY_REPORT_NOTIFICATION_ID = 2026
 
+    const val FOOD_CHANNEL_ID = "ht_food_reminders_channel"
     const val WEEKLY_REPORT_CHANNEL_ID = "ht_weekly_reports_channel"
 
     fun hasPermission(context: Context): Boolean {
@@ -85,6 +89,20 @@ internal object HealthReminderNotifications {
             }
             notificationManager.createNotificationChannel(weightChannel)
 
+            val foodChannel = NotificationChannel(
+                FOOD_CHANNEL_ID,
+                trEn("Öğün ve Beslenme Hatırlatıcıları", "Meal & Nutrition Reminders"),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = trEn(
+                    "Öğünlerini gün içinde kaydetmen için nazik hatırlatıcılar.",
+                    "Friendly reminders to log your meals during the day."
+                )
+                enableLights(true)
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(foodChannel)
+
             val weeklyReportChannel = NotificationChannel(
                 WEEKLY_REPORT_CHANNEL_ID,
                 trEn("Haftalık Sağlık Raporları", "Weekly Health Reports"),
@@ -123,11 +141,15 @@ internal object HealthReminderNotifications {
         if (!hasPermission(context)) return
         ensureNotificationChannels(context)
 
-        val requestCode = if (payload.targetTab == "WORKOUT") 301 else 302
-        val notificationId = if (payload.targetTab == "WORKOUT") {
-            WORKOUT_NOTIFICATION_ID
-        } else {
-            WEIGHT_NOTIFICATION_ID
+        val requestCode = when (payload.targetTab) {
+            "WORKOUT" -> 301
+            "FOOD" -> 303
+            else -> 302
+        }
+        val notificationId = when (payload.targetTab) {
+            "WORKOUT" -> WORKOUT_NOTIFICATION_ID
+            "FOOD" -> FOOD_NOTIFICATION_ID
+            else -> WEIGHT_NOTIFICATION_ID
         }
 
         val notification = NotificationCompat.Builder(context, payload.channelId)
@@ -284,6 +306,29 @@ class HealthReminderReceiver : BroadcastReceiver() {
                     tokenStorage.setLastWeightReminderDate(todayIso)
                 }
 
+                HealthReminderNotifications.ACTION_FOOD_REMINDER -> {
+                    val database = HealthDatabase(settings)
+                    val shouldSend = HealthReminderLogic.shouldSendFoodReminder(
+                        userId = userId,
+                        todayIso = todayIso,
+                        database = database,
+                        tokenStorage = tokenStorage
+                    )
+                    if (!shouldSend) return
+
+                    val (title, body) = HealthReminderLogic.buildFoodReminderContent()
+                    HealthReminderNotifications.postReminderNotification(
+                        context = context,
+                        payload = ScheduledReminderPayload(
+                            title = title,
+                            body = body,
+                            channelId = HealthReminderNotifications.FOOD_CHANNEL_ID,
+                            targetTab = "FOOD"
+                        )
+                    )
+                    tokenStorage.setLastFoodReminderDate(todayIso)
+                }
+
                 HealthReminderNotifications.ACTION_WEEKLY_REPORT_REMINDER -> {
                     if (!tokenStorage.isAutoWeeklyWhatsAppEnabled()) return
 
@@ -332,6 +377,72 @@ class HealthReminderReceiver : BroadcastReceiver() {
             }
         } catch (e: Exception) {
             Napier.e("HealthReminderReceiver failed: ${e.message}", e, tag = "NOTIFICATION")
+        }
+    }
+}
+
+/**
+ * Restores scheduled HealthTrack local notification alarms after device reboot or app update.
+ */
+class BootCompletedReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        val action = intent?.action ?: return
+        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) {
+            return
+        }
+        try {
+            val settings = Settings()
+            val tokenStorage = TokenStorage(settings)
+            if (!tokenStorage.isLoggedIn()) return
+
+            if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
+                scheduleDailyBroadcastAlarm(
+                    context = context,
+                    hour = tokenStorage.getWorkoutReminderHour(),
+                    minute = tokenStorage.getWorkoutReminderMinute(),
+                    action = HealthReminderNotifications.ACTION_WORKOUT_REMINDER,
+                    requestCode = HealthReminderNotifications.WORKOUT_ALARM_REQUEST_CODE
+                )
+            }
+            if (tokenStorage.getWeightReminderFrequency() != WeightReminderFrequency.OFF) {
+                scheduleDailyBroadcastAlarm(
+                    context = context,
+                    hour = 9,
+                    minute = 0,
+                    action = HealthReminderNotifications.ACTION_WEIGHT_REMINDER,
+                    requestCode = HealthReminderNotifications.WEIGHT_ALARM_REQUEST_CODE
+                )
+            }
+            if (tokenStorage.isFoodReminderEnabled()) {
+                scheduleDailyBroadcastAlarm(
+                    context = context,
+                    hour = 13,
+                    minute = 30,
+                    action = HealthReminderNotifications.ACTION_FOOD_REMINDER,
+                    requestCode = HealthReminderNotifications.FOOD_ALARM_REQUEST_CODE
+                )
+            }
+            if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
+                val calendar = Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+                    set(Calendar.HOUR_OF_DAY, 21)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                    if (timeInMillis <= System.currentTimeMillis()) {
+                        add(Calendar.WEEK_OF_YEAR, 1)
+                    }
+                }
+                HealthReminderNotifications.scheduleBroadcastAlarm(
+                    context = context,
+                    triggerAtMillis = calendar.timeInMillis,
+                    intervalMillis = AlarmManager.INTERVAL_DAY * 7,
+                    action = HealthReminderNotifications.ACTION_WEEKLY_REPORT_REMINDER,
+                    requestCode = HealthReminderNotifications.WEEKLY_ALARM_REQUEST_CODE
+                )
+            }
+        } catch (e: Exception) {
+            Napier.e("BootCompletedReceiver failed: ${e.message}", e, tag = "NOTIFICATION")
         }
     }
 }

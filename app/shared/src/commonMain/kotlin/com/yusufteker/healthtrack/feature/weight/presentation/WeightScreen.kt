@@ -138,14 +138,6 @@ fun WeightScreen(
                 onEditTarget = { onIntent(WeightIntent.OnSetEditingTarget(true)) },
                 onOpenAddWeight = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
                 onOpenReminder = { onIntent(WeightIntent.OnSetReminderDialogOpen(true)) },
-                onSyncScale = {
-                    if (!state.isSyncingScale) {
-                        onIntent(WeightIntent.OnScaleSyncStarted)
-                        deviceHealthBridge.syncLastDays(days = 30) { result ->
-                            onIntent(WeightIntent.OnScaleSnapshotReceived(result))
-                        }
-                    }
-                },
                 onOpenGuide = { showDeviceGuideDialog = true }
             )
 
@@ -226,28 +218,7 @@ fun WeightScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(72.dp))
-        }
-
-        // ── Floating Action Button: Clean '+' FAB ──
-        FloatingActionButton(
-            onClick = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 16.dp, end = 16.dp)
-                .size(56.dp)
-                .bounceClick(),
-            containerColor = HealthColors.Primary,
-            contentColor = HealthColors.OnPrimary,
-            shape = CircleShape,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = str("Kilo Ekle", "Add Weight"),
-                tint = HealthColors.OnPrimary,
-                modifier = Modifier.size(28.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // ── Floating Toast Notifications (Auto-dismissing) ──
@@ -469,7 +440,6 @@ private fun CurrentBioMassHeroCard(
     onEditTarget: () -> Unit,
     onOpenAddWeight: () -> Unit,
     onOpenReminder: () -> Unit,
-    onSyncScale: () -> Unit,
     onOpenGuide: () -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
@@ -686,23 +656,17 @@ private fun CurrentBioMassHeroCard(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.Start
                 ) {
                     Text(
                         text = str("Başlangıç: ${initial ?: "–"} kg", "Start: ${initial ?: "–"} kg"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = str("Hedef: $target kg", "Goal: $target kg"),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        fontWeight = FontWeight.Bold,
-                        color = HealthColors.Primary
-                    )
                 }
             }
 
-            // Compact Action Bar: [+ Kilo Ekle] & [⚖️ Tartıdan Çek]
+            // Compact Action Bar: [+ Kilo Ekle] & optional scale setup guide icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -728,31 +692,6 @@ private fun CurrentBioMassHeroCard(
                 }
 
                 if (showScaleSync) {
-                    OutlinedButton(
-                        onClick = onSyncScale,
-                        modifier = Modifier
-                            .height(42.dp)
-                            .bounceClick(),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.4f)),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        if (state.isSyncingScale) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 1.5.dp,
-                                color = HealthColors.Primary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = if (state.isSyncingScale) str("Okunuyor...", "Reading...") else str("⚖️ Tartıdan Çek", "⚖️ Sync Scale"),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = HealthColors.Primary
-                        )
-                    }
-
                     IconButton(
                         onClick = onOpenGuide,
                         modifier = Modifier.size(34.dp).bounceClick()

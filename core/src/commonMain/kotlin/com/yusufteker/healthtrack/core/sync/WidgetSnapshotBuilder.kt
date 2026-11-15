@@ -97,7 +97,8 @@ class WidgetSnapshotBuilder(
             nutritionGoal = goal,
             fitnessGoal = fitnessGoal,
             latestWeightKg = latestWeight,
-            todayIso = todayIso
+            todayIso = todayIso,
+            hasConnectedDevice = tokenStorage.hasConnectedDevice()
         )
 
         return WidgetTelemetrySnapshot(

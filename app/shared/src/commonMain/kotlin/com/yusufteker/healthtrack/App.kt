@@ -37,17 +37,20 @@ import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
 import com.yusufteker.healthtrack.core.model.GamificationSummary
+import com.yusufteker.healthtrack.core.model.PushTokenBus
 import com.yusufteker.healthtrack.core.model.UpdateStatus
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
+import com.yusufteker.healthtrack.core.sync.FriendActivityMonitor
 import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.sync.WidgetSnapshotBuilder
 import com.yusufteker.healthtrack.core.utils.ExternalApp
 import com.yusufteker.healthtrack.core.utils.WidgetDeepLinkBus
+import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.rememberAppVersion
 import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
@@ -64,6 +67,7 @@ import com.yusufteker.healthtrack.feature.gamification.presentation.Gamification
 import com.yusufteker.healthtrack.feature.gamification.presentation.GamificationSection
 import com.yusufteker.healthtrack.feature.onboarding.presentation.OnboardingScreenRoot
 import com.yusufteker.healthtrack.feature.premium.presentation.PremiumScreenRoot
+import com.yusufteker.healthtrack.feature.profile.presentation.InitialProfileSetupScreenRoot
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileScreenRoot
 import com.yusufteker.healthtrack.feature.weight.presentation.WeightScreenRoot
 import com.yusufteker.healthtrack.feature.workout.presentation.WorkoutScreenRoot
@@ -74,9 +78,11 @@ import com.yusufteker.healthtrack.theme.LocalBottomBarVisibility
 import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.ConfettiCelebrationOverlay
 import com.yusufteker.healthtrack.ui.components.ForceUpdateDialog
+import com.yusufteker.healthtrack.ui.components.FriendActivityBannerHost
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
 import com.yusufteker.healthtrack.ui.components.MotivationalToastHost
+import com.yusufteker.healthtrack.ui.components.NotificationPermissionDialog
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
 import com.yusufteker.healthtrack.ui.components.WidgetPromoDialog
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -129,6 +135,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val syncEngine: SyncEngine = koinInject()
             val deviceHealthSyncManager: DeviceHealthSyncManager = koinInject()
             val gamificationManager: GamificationManager = koinInject()
+            val friendActivityMonitor: FriendActivityMonitor = koinInject()
             val apiClient: HealthApiClient = koinInject()
             val checkAppVersionUseCase: CheckAppVersionUseCase = koinInject()
             val widgetSnapshotBuilder: WidgetSnapshotBuilder = koinInject()
@@ -154,6 +161,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }.collectAsState(initial = GamificationSummary())
             val activeCelebration by gamificationManager.currentCelebration.collectAsState()
             val activeMotivationalToast by gamificationManager.currentMotivationalToast.collectAsState()
+            val activeFriendBanner by friendActivityMonitor.currentBanner.collectAsState()
+            val observedPushToken by PushTokenBus.tokenFlow.collectAsState()
 
             var updateStatus by remember { mutableStateOf<UpdateStatus>(UpdateStatus.UpToDate) }
             var isOptionalUpdateDismissed by remember { mutableStateOf(false) }
@@ -183,9 +192,17 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             var isOnboardingVisible by remember { mutableStateOf(!tokenStorage.hasSeenOnboarding()) }
             var isPremiumScreenOpen by remember { mutableStateOf(false) }
             var gamificationSectionOpen by remember { mutableStateOf<GamificationSection?>(null) }
-            var isProfileScreenOpen by remember(session.isLoggedIn) {
-                mutableStateOf(session.isLoggedIn && !tokenStorage.isProfileConfigured() && database.getWeights(session.userId).isEmpty())
+            var isInitialSetupVisible by remember(session.isLoggedIn, session.userId) {
+                mutableStateOf(
+                    session.isLoggedIn &&
+                        !tokenStorage.isProfileConfigured() &&
+                        database.getWeights(session.userId).isEmpty()
+                )
             }
+            var isProfileScreenOpen by remember(session.isLoggedIn) {
+                mutableStateOf(false)
+            }
+            var isNotifPermDialogVisible by remember { mutableStateOf(false) }
 
             val pagerState = rememberPagerState(initialPage = initialTab.ordinal) { HealthTab.entries.size }
             val selectedTab = HealthTab.entries[pagerState.currentPage]
@@ -207,6 +224,11 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     } else {
                         dailyReminderNotifier.cancelMorningWeightReminder()
                     }
+                    if (tokenStorage.isFoodReminderEnabled()) {
+                        dailyReminderNotifier.scheduleMiddayFoodReminder(hour = 13, minute = 30)
+                    } else {
+                        dailyReminderNotifier.cancelMiddayFoodReminder()
+                    }
                     if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
                         weeklyReportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
                     } else {
@@ -215,6 +237,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 } else {
                     dailyReminderNotifier.cancelEveningWorkoutReminder()
                     dailyReminderNotifier.cancelMorningWeightReminder()
+                    dailyReminderNotifier.cancelMiddayFoodReminder()
                     weeklyReportNotifier.cancelSundayEveningReminder()
                 }
             }
@@ -234,6 +257,31 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 try {
                     Napier.base(DebugAntilog())
                 } catch (_: Exception) {}
+            }
+
+            // Collect incoming live pushes (FCM / APNs) immediately while app is open
+            LaunchedEffect(Unit) {
+                friendActivityMonitor.observeLivePushBus()
+            }
+
+            // Register latest push token whenever user signs in or token refreshes
+            LaunchedEffect(session.isLoggedIn, session.userId, observedPushToken) {
+                if (session.isLoggedIn && session.userId > 0) {
+                    val pushToken = observedPushToken ?: tokenStorage.getFcmToken()
+                    if (!pushToken.isNullOrBlank()) {
+                        val platformLabel = if (isIosPlatform) "IOS" else "ANDROID"
+                        apiClient.registerFcmToken(pushToken, platformLabel)
+                    }
+                }
+            }
+
+            // On launch/login, restore stored pushes delivered while closed (live pushes arrive via direct FCM)
+            LaunchedEffect(session.isLoggedIn, session.userId) {
+                if (session.isLoggedIn && session.userId > 0) {
+                    friendActivityMonitor.checkForUpdates(session.userId)
+                } else {
+                    friendActivityMonitor.clearAll()
+                }
             }
 
             // Keep Home Screen Widget telemetry always in sync with local database & theme
@@ -302,10 +350,26 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             val lifecycleOwner = LocalLifecycleOwner.current
-            DisposableEffect(lifecycleOwner, session.isLoggedIn, session.userId, isOnboardingVisible, isProfileScreenOpen) {
+            DisposableEffect(lifecycleOwner, session.isLoggedIn, session.userId, isOnboardingVisible, isProfileScreenOpen, isInitialSetupVisible) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         evaluateWidgetReminderAndSync()
+                        if (session.isLoggedIn && session.userId > 0) {
+                            friendActivityMonitor.flushPendingPushes()
+                            if (tokenStorage.isAutoDeviceSyncEnabled()) {
+                                val nowMs = currentTimeMillis()
+                                val minResumeIntervalMs = 5 * 60 * 1000L
+                                if (nowMs - tokenStorage.getLastDeviceSyncMs() >= minResumeIntervalMs) {
+                                    deviceHealthBridge.syncSilentlyIfAuthorized(days = 7) { result ->
+                                        result.onSuccess { snapshot ->
+                                            coroutineScope.launch {
+                                                deviceHealthSyncManager.mergeSnapshot(snapshot, syncToCloud = true)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -318,12 +382,31 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 session.isLoggedIn,
                 session.userId,
                 isOnboardingVisible,
+                isInitialSetupVisible,
                 isProfileScreenOpen,
                 isPremiumScreenOpen,
                 gamificationSectionOpen,
                 updateStatus
             ) {
                 evaluateWidgetReminderAndSync()
+                val canShowNotifPrompt = session.isLoggedIn &&
+                    session.userId > 0 &&
+                    !isOnboardingVisible &&
+                    !isInitialSetupVisible &&
+                    !isProfileScreenOpen &&
+                    !isPremiumScreenOpen &&
+                    gamificationSectionOpen == null &&
+                    updateStatus == UpdateStatus.UpToDate &&
+                    !isWidgetPromoDialogVisible &&
+                    !dailyReminderNotifier.hasPermission
+                if (canShowNotifPrompt) {
+                    val nowMs = currentTimeMillis()
+                    val cooldownMs = 3L * 24 * 60 * 60 * 1000L
+                    if (nowMs - tokenStorage.getLastNotifPermPromptMs() >= cooldownMs) {
+                        tokenStorage.setLastNotifPermPromptMs(nowMs)
+                        isNotifPermDialogVisible = true
+                    }
+                }
             }
 
             LaunchedEffect(session.isLoggedIn, session.userId) {
@@ -333,17 +416,20 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
                     }
                     syncEngine.sync()
-                    deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
-                        result.onSuccess { snapshot ->
-                            coroutineScope.launch {
-                                val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
-                                if (summary.totalChanges > 0) {
-                                    snackbarHostState.showSnackbar(summary.toUserMessage(currentLanguage))
+                    if (tokenStorage.isAutoDeviceSyncEnabled()) {
+                        deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
+                            result.onSuccess { snapshot ->
+                                coroutineScope.launch {
+                                    val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                                    if (summary.totalChanges > 0) {
+                                        snackbarHostState.showSnackbar(summary.toUserMessage(currentLanguage))
+                                    }
                                 }
                             }
                         }
                     }
                     if (database.getWeights(session.userId).isNotEmpty()) {
+                        isInitialSetupVisible = false
                         isProfileScreenOpen = false
                     }
                 } else if (!session.isLoggedIn) {
@@ -385,6 +471,11 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onLoginSuccess = {
                             // User logged in
                         },
+                        onShowToast = showToast
+                    )
+                } else if (isInitialSetupVisible) {
+                    InitialProfileSetupScreenRoot(
+                        onComplete = { isInitialSetupVisible = false },
                         onShowToast = showToast
                     )
                 } else if (isPremiumScreenOpen) {
@@ -434,7 +525,11 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             isPremiumScreenOpen = false
                             gamificationSectionOpen = null
                             gamificationManager.clearAllCelebrations()
+                            friendActivityMonitor.clearAll()
                             coroutineScope.launch {
+                                tokenStorage.getFcmToken()?.let { token ->
+                                    runCatching { apiClient.unregisterFcmToken(token) }
+                                }
                                 database.clearAll()
                                 tokenStorage.clearSession()
                             }
@@ -725,6 +820,18 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     )
                 }
 
+                // Top In-App Friend Activity Push Popup (Launch-restored & live)
+                FriendActivityBannerHost(
+                    event = activeFriendBanner,
+                    onOpenLeaderboard = {
+                        isProfileScreenOpen = false
+                        isPremiumScreenOpen = false
+                        gamificationSectionOpen = GamificationSection.LEADERBOARD
+                    },
+                    onDismiss = { friendActivityMonitor.dismissCurrentBanner() },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+
                 // Global Motivational Reward Toast (+XP & goal progress on every active entry)
                 MotivationalToastHost(
                     event = activeMotivationalToast,
@@ -737,6 +844,28 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     event = activeCelebration,
                     onDismiss = { gamificationManager.dismissCurrentCelebration() }
                 )
+
+                if (isNotifPermDialogVisible) {
+                    NotificationPermissionDialog(
+                        onAllowClick = {
+                            isNotifPermDialogVisible = false
+                            dailyReminderNotifier.requestPermission { granted ->
+                                showToast(
+                                    if (granted) {
+                                        trEn("Bildirimler açıldı!", "Notifications enabled!", currentLanguage)
+                                    } else {
+                                        trEn(
+                                            "Bildirim izni verilmedi. Profil > Bildirim & Tema'dan açabilirsiniz.",
+                                            "Notifications declined. You can enable them in Profile > Alerts & Theme.",
+                                            currentLanguage
+                                        )
+                                    }
+                                )
+                            }
+                        },
+                        onLaterClick = { isNotifPermDialogVisible = false }
+                    )
+                }
 
                 // Daily Widget Reminder Popup (Max 1x/day if widget is not yet added)
                 if (isWidgetPromoDialogVisible) {

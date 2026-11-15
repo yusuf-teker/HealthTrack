@@ -138,6 +138,7 @@ sealed interface FoodIntent {
     data object OnDismissInfoMessage : FoodIntent
     data object OnDismissErrorMessage : FoodIntent
     data class OnToggleFavoriteFood(val foodId: String) : FoodIntent
+    data class OnHideFrequentFood(val foodName: String) : FoodIntent
     data object OnOpenAddCustomFoodDialog : FoodIntent
     data object OnCloseAddCustomFoodDialog : FoodIntent
     data class OnSaveCustomFood(
@@ -193,6 +194,8 @@ sealed interface FoodIntent {
     // ── Market Listesi & Planora Intent'leri ──
     data class OnOpenGroceryListSheet(val title: String, val items: List<String>) : FoodIntent
     data object OnCloseGroceryListSheet : FoodIntent
+    data class OnGroceryTitleChanged(val title: String) : FoodIntent
+    data class OnAddCustomGroceryItem(val item: String) : FoodIntent
     data class OnToggleGroceryItem(val item: String) : FoodIntent
     data class OnSendGroceryToPlanora(val appLauncher: ExternalAppLauncher) : FoodIntent
 

@@ -67,6 +67,9 @@ fun ProfileScreen(
     onReplayOnboarding: () -> Unit = {},
     onOpenWidgetPromo: (() -> Unit)? = null,
     onLogout: () -> Unit = {},
+    hasNotificationPermission: Boolean = true,
+    onRequestNotificationPermission: () -> Unit = {},
+    isDeviceAuthorized: Boolean = state.hasConnectedDevice,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -90,8 +93,9 @@ fun ProfileScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = str("Profil & Ayarlar", "Profile & Settings"),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        text = str("Profil", "Profile"),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1
                     )
                 },
                 navigationIcon = {
@@ -103,29 +107,6 @@ fun ProfileScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = str("Geri", "Back"),
                             tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                actions = {
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
-                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        GradientText(
-                            text = "H",
-                            colors = HealthColors.GradientPrimary,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black)
                         )
                     }
                 },
@@ -330,26 +311,20 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.30f)
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = state.name.firstOrNull()?.uppercase() ?: state.username.firstOrNull()?.uppercase() ?: "U",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        com.yusufteker.healthtrack.ui.components.AvatarImage(
+                            profileImageUrl = state.profileImageUrl,
+                            fallbackInitial = state.name.firstOrNull()?.uppercase()
+                                ?: state.username.firstOrNull()?.uppercase() ?: "U",
+                            modifier = Modifier.size(50.dp),
+                            fallbackColor = MaterialTheme.colorScheme.primary,
+                            fallbackBackgroundBrush = Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.30f)
+                                )
+                            ),
+                            textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
+                        )
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -418,8 +393,9 @@ fun ProfileScreen(
                             modifier = Modifier.weight(0.8f)
                         )
                         ProfileStatPill(
-                            label = "BMI (${state.localizedBmiCategory(lang)})",
+                            label = "BMI",
                             value = "${state.bmi}",
+                            subLabel = state.localizedBmiCategory(lang),
                             highlight = true,
                             modifier = Modifier.weight(0.95f)
                         )
@@ -615,6 +591,53 @@ fun ProfileScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
 
+                        if (!hasNotificationPermission) {
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.NotificationsOff,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = str("Bildirim İzni Kapalı", "Notifications Blocked"),
+                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Text(
+                                            text = str(
+                                                "Hatırlatıcılar ve arkadaş bildirimleri için izin verin.",
+                                                "Allow permission for reminders and friend alerts."
+                                            ),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                                        )
+                                    }
+                                    FilledTonalButton(
+                                        onClick = onRequestNotificationPermission,
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = str("İzin Ver", "Allow"),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // 1. Antrenman / Spora Teşvik Bildirimi Satırı
                         Surface(
                             onClick = { showWorkoutReminderDialog = true },
@@ -660,13 +683,6 @@ fun ProfileScreen(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = HealthColors.Primary,
                                             fontWeight = FontWeight.SemiBold
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = state.workoutReminderFrequency.localizedDescription(lang),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            lineHeight = 14.sp
                                         )
                                     }
                                 }
@@ -720,20 +736,10 @@ fun ProfileScreen(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = state.weightReminderFrequency.localizedTitle(lang),
+                                            text = state.weightReminderFrequency.localizedTitle(lang) + str(" · 09:00", " · 09:00 AM"),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = HealthColors.NutrientProtein,
                                             fontWeight = FontWeight.SemiBold
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = str(
-                                                "Her sabah 08:30'da güncel vücut ağırlığını kaydetmen için uyarır.",
-                                                "Reminds you every morning at 08:30 to log your current weight."
-                                            ),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            lineHeight = 14.sp
                                         )
                                     }
                                 }
@@ -742,6 +748,65 @@ fun ProfileScreen(
                                     contentDescription = str("Düzenle", "Edit"),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // 3. Öğün / Öğle Yemeği Bildirimi Satırı (13:30)
+                        Surface(
+                            onClick = { onIntent(ProfileIntent.OnFoodReminderChanged(!state.foodReminderEnabled)) },
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bounceClick()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(HealthColors.Primary.copy(alpha = 0.16f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Restaurant,
+                                            contentDescription = null,
+                                            tint = HealthColors.Primary,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = str("Öğün Kontrol Hatırlatıcısı", "Meal Check-in Reminder"),
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = if (state.foodReminderEnabled) {
+                                                str("Açık · 13:30 (öğün girilmemişse)", "Enabled · 1:30 PM (if no meal logged)")
+                                            } else {
+                                                str("Kapalı", "Disabled")
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (state.foodReminderEnabled) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                                Switch(
+                                    checked = state.foodReminderEnabled,
+                                    onCheckedChange = { onIntent(ProfileIntent.OnFoodReminderChanged(it)) }
                                 )
                             }
                         }
@@ -1013,14 +1078,51 @@ fun ProfileScreen(
                                 }
                             }
                             Column {
-                                Text(
-                                    text = str("Akıllı Saat & Tartı (${deviceHealthBridge.platformName})", "Smart Watch & Scale (${deviceHealthBridge.platformName})"),
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = str("Akıllı Saat & Tartı", "Smart Watch & Scale"),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    val (badgeText, badgeColor) = when {
+                                        deviceHealthBridge.status == HealthPlatformStatus.NOT_SUPPORTED ->
+                                            str("Desteklenmiyor", "Unsupported") to MaterialTheme.colorScheme.onSurfaceVariant
+                                        deviceHealthBridge.status == HealthPlatformStatus.NOT_INSTALLED ->
+                                            str("Kurulu Değil", "Not Installed") to Color(0xFFF97316)
+                                        isDeviceAuthorized || state.hasConnectedDevice ->
+                                            str("Bağlı ✓", "Connected ✓") to Color(0xFF10B981)
+                                        else ->
+                                            str("İzin Gerekli", "Permission Needed") to Color(0xFFF59E0B)
+                                    }
+                                    Surface(
+                                        color = badgeColor.copy(alpha = 0.16f),
+                                        shape = RoundedCornerShape(999.dp),
+                                        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.35f))
+                                    ) {
+                                        Text(
+                                            text = badgeText,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp
+                                            ),
+                                            color = badgeColor,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
                                 Text(
                                     text = state.lastDeviceSyncSummary
-                                        ?: str("Tartı ve saat verilerini eşitle", "Sync smart scale and watch data"),
+                                        ?: str(
+                                            "${deviceHealthBridge.platformName} · Tartı ve saat verilerini eşitle",
+                                            "${deviceHealthBridge.platformName} · Sync smart scale & watch data"
+                                        ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1090,6 +1192,35 @@ fun ProfileScreen(
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = str("Otomatik Cihaz Senkronizasyonu", "Automatic Device Sync"),
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = str(
+                                    "Uygulama açılışında ve ön plana gelince arka planda sessizce günceller.",
+                                    "Silently syncs measurements & workouts on launch and resume."
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = state.isAutoDeviceSyncEnabled,
+                            onCheckedChange = { onIntent(ProfileIntent.OnAutoDeviceSyncChanged(it)) }
+                        )
                     }
                 }
             }
@@ -1234,8 +1365,8 @@ fun ProfileScreen(
                     }
                     Text(
                         text = str(
-                            "Tıbbi Uyarı: HealthTrack yalnızca kişisel takip amaçlıdır; tıbbi tavsiye, teşhis veya tedavi yerine geçmez. Sağlık kararlarınızda mutlaka hekiminize danışınız.",
-                            "Medical Disclaimer: HealthTrack is for personal tracking only and does not replace medical advice, diagnosis, or treatment. Always consult your physician for health decisions."
+                            "HealthTrack yalnızca kişisel takip amaçlıdır; tıbbi tavsiye yerine geçmez.",
+                            "HealthTrack is for personal tracking only and does not replace medical advice."
                         ),
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1243,18 +1374,18 @@ fun ProfileScreen(
                 }
             }
 
-            // ── İnteraktif Tanıtım Turunu Tekrar İzle ──
+            // ── Tanıtım Turu ──
             OutlinedButton(
                 onClick = onReplayOnboarding,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(46.dp)
                     .bounceClick(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.primary
                 ),
-                border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
             ) {
                 Icon(
                     imageVector = Icons.Rounded.AutoAwesome,
@@ -1264,58 +1395,75 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = str("İnteraktif Tanıtım Turunu İzle", "Replay Interactive App Tour"),
+                    text = str("Tanıtım Turunu İzle", "Replay App Tour"),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            // ── Section 5: Çıkış Yap & Hesap Silme ──
-            OutlinedButton(
-                onClick = { showLogoutDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .bounceClick(),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                ),
-                border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.45f))
+            // ── Section 5: Hesap Yönetimi (Çıkış & Silme) ──
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = str("Çıkış Yap", "Sign Out"),
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = str("Hesaptan Çıkış Yap", "Sign Out"),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = str("Hesap Yönetimi", "Account Management"),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = { showLogoutDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .bounceClick(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                            contentDescription = str("Çıkış Yap", "Sign Out"),
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = str("Çıkış Yap", "Sign Out"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
 
-            TextButton(
-                onClick = { showDeleteAccountDialog = true },
-                enabled = !state.isDeletingAccount,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.DeleteForever,
-                    contentDescription = str("Hesabı Sil", "Delete Account"),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (state.isDeletingAccount) str("Hesap Siliniyor...", "Deleting Account...") else str("Hesabı Kalıcı Olarak Sil", "Permanently Delete Account"),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
-                )
+                    TextButton(
+                        onClick = { showDeleteAccountDialog = true },
+                        enabled = !state.isDeletingAccount,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteForever,
+                            contentDescription = str("Hesabı Sil", "Delete Account"),
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (state.isDeletingAccount) str("Hesap Siliniyor...", "Deleting Account...") else str("Hesabı Kalıcı Olarak Sil", "Permanently Delete Account"),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
+                        )
+                    }
+                }
             }
             }
 
@@ -1572,6 +1720,7 @@ fun ProfileScreen(
 private fun ProfileStatPill(
     label: String,
     value: String,
+    subLabel: String? = null,
     highlight: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -1592,6 +1741,14 @@ private fun ProfileStatPill(
             color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             maxLines = 1
         )
+        if (!subLabel.isNullOrBlank()) {
+            Text(
+                text = subLabel,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                maxLines = 1
+            )
+        }
     }
 }
 

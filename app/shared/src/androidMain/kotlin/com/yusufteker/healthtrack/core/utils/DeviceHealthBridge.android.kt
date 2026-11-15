@@ -169,6 +169,17 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                 }
             }
 
+            override suspend fun isAuthorized(): Boolean {
+                if (status != HealthPlatformStatus.AVAILABLE) return false
+                return try {
+                    val client = HealthConnectClient.getOrCreate(context)
+                    val granted = client.permissionController.getGrantedPermissions()
+                    granted.any { it in CORE_READ_PERMISSIONS }
+                } catch (_: Exception) {
+                    false
+                }
+            }
+
             override fun openHealthSettings() {
                 try {
                     val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {

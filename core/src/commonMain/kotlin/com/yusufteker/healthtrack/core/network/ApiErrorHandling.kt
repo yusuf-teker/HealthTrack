@@ -156,20 +156,39 @@ fun formatActionableApiError(
             rawMessage.contains("timeout", ignoreCase = true) ||
             rawMessage.contains("UnresolvedAddress", ignoreCase = true) ||
             rawMessage.contains("UnknownHost", ignoreCase = true) ||
+            rawMessage.contains("Unable to resolve host", ignoreCase = true) ||
+            rawMessage.contains("No address associated", ignoreCase = true) ||
+            rawMessage.contains("Failed to connect", ignoreCase = true) ||
+            rawMessage.contains("unreachable", ignoreCase = true) ||
+            rawMessage.contains("refused", ignoreCase = true) ||
             rawMessage.contains("Socket", ignoreCase = true) ||
-            rawMessage.contains("Network", ignoreCase = true) ->
+            rawMessage.contains("Network", ignoreCase = true) ||
+            rawMessage.contains("SSL", ignoreCase = true) ||
+            rawMessage.contains("Certificate", ignoreCase = true) ||
+            rawMessage.contains("Broken pipe", ignoreCase = true) ||
+            rawMessage.contains("Connection reset", ignoreCase = true) ->
             trEn(
                 "$operationTr sırasında sunucuya bağlanılamadı veya zaman aşımına uğradı. İnternet bağlantınızı kontrol ediniz.",
                 "$operationEn failed due to connection or timeout. Please check your internet connection.",
                 language
             )
 
-        else ->
-            trEn(
-                "$operationTr başarısız: ${detailText.ifBlank { "Bilinmeyen hata" }}",
-                "$operationEn failed: ${detailText.ifBlank { "Unknown error" }}",
-                language
-            )
+        else -> {
+            val safeDetail = serverDetail?.takeIf { it.isNotBlank() }
+            if (safeDetail != null) {
+                trEn(
+                    "$operationTr başarısız: $safeDetail",
+                    "$operationEn failed: $safeDetail",
+                    language
+                )
+            } else {
+                trEn(
+                    "$operationTr sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+                    "$operationEn failed due to an unexpected error. Please try again.",
+                    language
+                )
+            }
+        }
     }
 }
 

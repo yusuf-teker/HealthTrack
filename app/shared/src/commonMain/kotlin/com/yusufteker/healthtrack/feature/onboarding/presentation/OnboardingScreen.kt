@@ -54,6 +54,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -238,9 +239,9 @@ private fun OnboardingTopBar(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    HealthBrandLogo(size = 32.dp)
+                    HealthBrandLogo(size = 30.dp)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -248,7 +249,7 @@ private fun OnboardingTopBar(
                         OnboardingStep.entries.forEach { step ->
                             val isCurrent = step == currentStep
                             val isPast = step.ordinal < currentStep.ordinal
-                            val pillWidth by animateDpAsState(targetValue = if (isCurrent) 24.dp else 8.dp)
+                            val pillWidth by animateDpAsState(targetValue = if (isCurrent) 18.dp else 6.dp)
                             val pillColor by animateColorAsState(
                                 targetValue = when {
                                     isCurrent -> MaterialTheme.colorScheme.primary
@@ -270,21 +271,23 @@ private fun OnboardingTopBar(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     LanguageSelectorPill(
                         selectedLanguage = lang,
-                        onLanguageSelected = onLanguageSelected
+                        onLanguageSelected = onLanguageSelected,
+                        showNativeNames = false
                     )
                     if (currentStep != OnboardingStep.READY_TO_START) {
                         TextButton(
                             onClick = onSkip,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = str("Atla", "Skip"),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
                             )
                         }
                     }
@@ -362,59 +365,59 @@ private fun buildBubbleSpec(
             val isTyping = state.foodPhase == FoodDemoPhase.TYPING
             val hasText = state.foodState.rawText.isNotBlank()
             SpotlightBubbleSpec(
-                badge = trEn("1/4 • BESLENME (1/4)", "1/4 • NUTRITION (1/4)", lang),
-                title = trEn("Ne Yediğini Doğal Dilde Yaz", "Type What You Ate Naturally", lang),
+                badge = trEn("1/4 • BESLENME", "1/4 • NUTRITION", lang),
+                title = trEn("Öğününü Yaz", "Type Your Meal", lang),
                 description = trEn(
-                    "Vurgulanan kutuya dokunup kendin yazabilir veya aşağıdaki butona basarak örnek öğünün nasıl yazıldığını görebilirsin.",
-                    "Tap the highlighted field to type your own meal, or tap below to watch a sample meal get typed."
+                    "Kutuya yazabilir ya da tek dokunuşla örnek öğünü doldurabilirsin.",
+                    "Type your meal in the box or fill a sample meal below."
                 ),
                 primaryActionLabel = when {
-                    isTyping -> trEn("✍️ Yazılıyor...", "✍️ Typing...", lang)
-                    hasText -> trEn("✨ Devam: AI ile Hesapla →", "✨ Next: Calculate with AI →", lang)
-                    else -> trEn("✍️ Örnek Öğünü Yaz", "✍️ Type Sample Meal", lang)
+                    isTyping -> trEn("Yazılıyor...", "Typing...", lang)
+                    hasText -> trEn("AI ile Hesapla →", "Calculate with AI →", lang)
+                    else -> trEn("Örnek Öğün Yaz", "Type Sample Meal", lang)
                 },
                 isPrimaryLoading = isTyping,
                 isPrimaryEnabled = !isTyping,
-                secondarySkipLabel = trEn("Atla →", "Skip →", lang),
+                secondarySkipLabel = trEn("Atla", "Skip", lang),
                 showBackButton = false,
                 preferAbove = true
             )
         }
 
         OnboardingMicroStep.FOOD_CALCULATE -> SpotlightBubbleSpec(
-            badge = trEn("1/4 • BESLENME (2/4)", "1/4 • NUTRITION (2/4)", lang),
-            title = trEn("Gemini AI ile Hesapla", "Calculate with Gemini AI", lang),
+            badge = trEn("1/4 • BESLENME", "1/4 • NUTRITION", lang),
+            title = trEn("AI ile Analiz Et", "Analyze with AI", lang),
             description = trEn(
-                "Harika! Şimdi parlayan 'AI ile Hesapla' butonuna dokun — Gemini her besini kalori ve makrolarına ayırıp özet panelini açsın.",
-                "Nice! Tap the glowing 'Calculate with AI' button — Gemini will break down calories & macros in a review sheet."
+                "Kalori ve makroları ayırmak için butona dokun.",
+                "Tap the button to break down calories and macros."
             ),
-            primaryActionLabel = trEn("✨ AI ile Hesapla", "✨ Calculate with AI", lang),
+            primaryActionLabel = trEn("AI ile Hesapla", "Calculate with AI", lang),
             secondarySkipLabel = null,
             showBackButton = true,
             preferAbove = true
         )
 
         OnboardingMicroStep.FOOD_REVIEW_SHEET -> SpotlightBubbleSpec(
-            badge = trEn("1/4 • BESLENME (3/4)", "1/4 • NUTRITION (3/4)", lang),
-            title = trEn("Öğünü İncele & Ekle", "Review & Add Meal", lang),
+            badge = trEn("1/4 • BESLENME", "1/4 • NUTRITION", lang),
+            title = trEn("Öğünü Onayla", "Confirm Meal", lang),
             description = trEn(
-                "Gemini öğününü ayrıştırdı. 'Onayla ve Günlüğe Ekle'ye dokun ve kalori halkanın değişimini izle.",
-                "Gemini broke down your meal. Tap 'Confirm & Add to Log' to watch your calorie ring update."
+                "Ayrıştırılan değerleri kontrol edip günlüğüne ekle.",
+                "Review the breakdown and add it to your log."
             ),
-            primaryActionLabel = trEn("✓ Onayla ve Ekle", "✓ Confirm & Add", lang),
+            primaryActionLabel = trEn("Onayla ve Ekle", "Confirm & Add", lang),
             showBackButton = true,
             preferAbove = true
         )
 
         OnboardingMicroStep.FOOD_RESULT_GAUGE -> SpotlightBubbleSpec(
-            badge = trEn("1/4 • BESLENME (4/4)", "1/4 • NUTRITION (4/4)", lang),
-            title = trEn("Kalori Halkan & Makro Barların Güncellendi!", "Calorie Ring & Macro Bars Updated!", lang),
+            badge = trEn("1/4 • BESLENME", "1/4 • NUTRITION", lang),
+            title = trEn("Hedeflerin Güncellendi", "Targets Updated", lang),
             description = trEn(
-                "Alınan kalori 380 → 665 kcal oldu; Protein, Karbonhidrat ve Yağ barların anında doldu.",
-                "Calories jumped 380 → 665 kcal, and your Protein, Carbs, and Fat bars filled automatically."
+                "Alınan kalori 380 → 665 kcal'a yükseldi ve makro barların doldu.",
+                "Calories rose 380 → 665 kcal and your macro bars updated."
             ),
             feedbackPill = state.demoFeedbackPill,
-            primaryActionLabel = trEn("Sonraki: Spor & Denge →", "Next: Workout & Balance →", lang),
+            primaryActionLabel = trEn("Sonraki: Spor →", "Next: Workouts →", lang),
             showBackButton = true,
             preferAbove = false
         )
@@ -423,98 +426,98 @@ private fun buildBubbleSpec(
             val isTyping = state.workoutPhase == WorkoutDemoPhase.TYPING
             val hasText = state.workoutState.rawText.isNotBlank()
             SpotlightBubbleSpec(
-                badge = trEn("2/4 • SPOR (1/3)", "2/4 • WORKOUTS (1/3)", lang),
-                title = trEn("Yaptığın Sporu Yaz", "Describe Your Workout", lang),
+                badge = trEn("2/4 • SPOR", "2/4 • WORKOUTS", lang),
+                title = trEn("Antrenmanını Yaz", "Log Your Workout", lang),
                 description = trEn(
-                    "İşaretli kutuya antrenmanını yaz veya örnek koşuyu doldur; güncel kilon (72.4 kg) baz alınarak yakım hesaplansın.",
-                    "Type your workout in the highlighted box or fill the sample run — burn is calculated using your 72.4 kg weight."
+                    "Yakılan kalori güncel kilona (72.4 kg) göre hesaplanır.",
+                    "Calorie burn is calculated using your 72.4 kg weight."
                 ),
                 primaryActionLabel = when {
-                    isTyping -> trEn("✍️ Yazılıyor...", "✍️ Typing...", lang)
-                    hasText -> trEn("✨ Devam: Kalori Hesapla →", "✨ Next: Calculate Burn →", lang)
-                    else -> trEn("🏃 Örnek Antrenmanı Yaz", "🏃 Type Sample Workout", lang)
+                    isTyping -> trEn("Yazılıyor...", "Typing...", lang)
+                    hasText -> trEn("Kaloriyi Hesapla →", "Calculate Burn →", lang)
+                    else -> trEn("Örnek Spor Yaz", "Fill Sample Run", lang)
                 },
                 isPrimaryLoading = isTyping,
                 isPrimaryEnabled = !isTyping,
-                secondarySkipLabel = trEn("Atla →", "Skip →", lang),
+                secondarySkipLabel = trEn("Atla", "Skip", lang),
                 showBackButton = true,
                 preferAbove = true
             )
         }
 
         OnboardingMicroStep.WORKOUT_CALCULATE -> SpotlightBubbleSpec(
-            badge = trEn("2/4 • SPOR (2/3)", "2/4 • WORKOUTS (2/3)", lang),
-            title = trEn("Yakılan Kaloriyi Hesapla", "Calculate Burned Calories", lang),
+            badge = trEn("2/4 • SPOR", "2/4 • WORKOUTS", lang),
+            title = trEn("Yakımı Hesapla", "Calculate Burn", lang),
             description = trEn(
-                "Şimdi 'AI ile Hesapla'ya dokun! Yakılan kalori hem efor halkana hem de günlük beslenme bütçene eklenecek.",
-                "Tap 'Calculate with AI'! Burned calories will update your effort ring and expand your daily food budget."
+                "Yakılan kalori hem efor halkana hem günlük kalori hedefine eklenir.",
+                "Burned calories update both your ring and daily calorie target."
             ),
-            primaryActionLabel = trEn("✨ AI ile Hesapla (-360 kcal)", "✨ Calculate (-360 kcal)", lang),
+            primaryActionLabel = trEn("AI ile Hesapla (-360 kcal)", "Calculate (-360 kcal)", lang),
             showBackButton = true,
             preferAbove = true
         )
 
         OnboardingMicroStep.WORKOUT_RESULT_GAUGE -> SpotlightBubbleSpec(
-            badge = trEn("2/4 • SPOR (3/3)", "2/4 • WORKOUTS (3/3)", lang),
-            title = trEn("Efor Halkan & Net Bütçen Değişti!", "Effort Ring & Net Budget Updated!", lang),
+            badge = trEn("2/4 • SPOR", "2/4 • WORKOUTS", lang),
+            title = trEn("Efor Hedefi Tamam", "Workout Goal Hit", lang),
             description = trEn(
-                "Yakılan kalori 210 → 570 kcal'a yükseldi ve günlük hedefin %114 ile tamamlandı! Net kalori bütçen de güncellendi.",
-                "Burned calories jumped 210 → 570 kcal (114% goal hit!), automatically adjusting your daily net calories."
+                "Yakılan kalori 570 kcal'a çıktı ve kalan kalori hakkın arttı.",
+                "Burn reached 570 kcal and your remaining calorie allowance increased."
             ),
             feedbackPill = state.demoFeedbackPill,
-            primaryActionLabel = trEn("Sonraki: Akıllı Kilo →", "Next: Smart Weight →", lang),
+            primaryActionLabel = trEn("Sonraki: Kilo →", "Next: Weight →", lang),
             showBackButton = true,
             preferAbove = false
         )
 
         OnboardingMicroStep.WEIGHT_ADD -> SpotlightBubbleSpec(
-            badge = trEn("3/4 • AKILLI KİLO (1/2)", "3/4 • SMART WEIGHT (1/2)", lang),
-            title = trEn("Bugünün Tartımını Ekle", "Log Today's Weigh-in", lang),
+            badge = trEn("3/4 • KİLO", "3/4 • WEIGHT", lang),
+            title = trEn("Tartım Ekle", "Log Weigh-in", lang),
             description = trEn(
-                "'Kilo Ekle' butonuna dokunup kendi kilonu girebilir veya tek dokunuşla 72.1 kg örnek ölçümünü ekleyebilirsin.",
-                "Tap 'Add Weight' to enter a weigh-in or tap below to log today's 72.1 kg sample weigh-in."
+                "Kendi kilonu gir veya 72.1 kg örnek ölçümünü ekle.",
+                "Enter your weight or log a 72.1 kg sample weigh-in."
             ),
-            primaryActionLabel = trEn("⚖️ Örnek Tartıyı Ekle (72.1 kg)", "⚖️ Log Sample Weight (72.1 kg)", lang),
-            secondarySkipLabel = trEn("Atla →", "Skip →", lang),
+            primaryActionLabel = trEn("72.1 kg Ekle", "Log 72.1 kg", lang),
+            secondarySkipLabel = trEn("Atla", "Skip", lang),
             showBackButton = true,
             preferAbove = false
         )
 
         OnboardingMicroStep.WEIGHT_RESULT_CHART -> SpotlightBubbleSpec(
-            badge = trEn("3/4 • AKILLI KİLO (2/2)", "3/4 • SMART WEIGHT (2/2)", lang),
-            title = trEn("Kilo Eğrin & Trendin Güncellendi!", "Weight Curve & Trend Updated!", lang),
+            badge = trEn("3/4 • KİLO", "3/4 • WEIGHT", lang),
+            title = trEn("Trendin Güncellendi", "Trend Updated", lang),
             description = trEn(
-                "72.1 kg grafiğe eklendi ve trend -1.5 kg olarak güncellendi. Protein ve kalori hedeflerin her tartımda otomatik uyarlanır.",
-                "72.1 kg is plotted on your curve (-1.5 kg trend). Protein & calorie targets automatically adapt to your new weight."
+                "Kilo eğrin (-1.5 kg) ve protein hedeflerin otomatik güncellendi.",
+                "Your curve (-1.5 kg) and protein targets updated automatically."
             ),
             feedbackPill = state.demoFeedbackPill,
-            primaryActionLabel = trEn("Sonraki: AI Koç & Rapor →", "Next: AI Coach & Report →", lang),
+            primaryActionLabel = trEn("Sonraki: AI Rapor →", "Next: AI Coach →", lang),
             showBackButton = true,
             preferAbove = true
         )
 
         OnboardingMicroStep.ANALYTICS_GENERATE -> SpotlightBubbleSpec(
-            badge = trEn("4/4 • AI KOÇ (1/2)", "4/4 • AI COACH (1/2)", lang),
-            title = trEn("Haftalık AI Raporunu Oluştur", "Generate Weekly AI Report", lang),
+            badge = trEn("4/4 • AI KOÇ", "4/4 • AI COACH", lang),
+            title = trEn("Haftalık AI Raporu", "Weekly AI Report", lang),
             description = trEn(
-                "Beslenme, spor ve kilo verilerini birleştiren kişisel analiz için 'Seçili Haftayı AI ile Analiz Et' butonuna dokun.",
-                "Tap 'Analyze Selected Week with AI' to combine your nutrition, workout, and weight data into one report."
+                "Beslenme, spor ve kilo verilerini tek raporda özetle.",
+                "Summarize your nutrition, workout, and weight data in one report."
             ),
-            primaryActionLabel = trEn("📊 Haftalık AI Raporunu Oluştur", "📊 Generate Weekly Report", lang),
-            secondarySkipLabel = trEn("Atla →", "Skip →", lang),
+            primaryActionLabel = trEn("Rapor Oluştur", "Generate Report", lang),
+            secondarySkipLabel = trEn("Atla", "Skip", lang),
             showBackButton = true,
             preferAbove = false
         )
 
         OnboardingMicroStep.ANALYTICS_RESULT_REPORT -> SpotlightBubbleSpec(
-            badge = trEn("4/4 • AI KOÇ (2/2)", "4/4 • AI COACH (2/2)", lang),
-            title = trEn("Haftalık Skorun & Önerilerin Hazır!", "Weekly Score & Insights Ready!", lang),
+            badge = trEn("4/4 • AI KOÇ", "4/4 • AI COACH", lang),
+            title = trEn("Raporun Hazır", "Report Ready", lang),
             description = trEn(
-                "88/100 skorun, güçlü yönlerin ve kişisel önerilerin oluşturuldu — dilersen tek dokunuşla WhatsApp'tan da paylaşabilirsin.",
-                "Your 88/100 score, highlights, and actionable tips are ready — and shareable to WhatsApp in one tap."
+                "88/100 skorun, öne çıkanlar ve haftalık önerilerin oluşturuldu.",
+                "Your 88/100 score, highlights, and tips are ready."
             ),
             feedbackPill = state.demoFeedbackPill,
-            primaryActionLabel = trEn("Turu Tamamla 🚀", "Finish Tour 🚀", lang),
+            primaryActionLabel = trEn("Turu Tamamla", "Finish Tour", lang),
             showBackButton = true,
             preferAbove = false
         )
@@ -584,8 +587,8 @@ private fun OnboardingReadyView(
 
                 Text(
                     text = str(
-                        "Tüm sağlık telemetrin tek yerde: yapay zeka destekli beslenme, akıllı saat & tartı senkronu ve haftalık koçluk.",
-                        "All your health telemetry in one place: AI-powered nutrition, smartwatch & scale sync, and weekly coaching."
+                        "Beslenme, antrenman, kilo ve haftalık AI analizi tek yerde.",
+                        "Nutrition, workouts, weight, and weekly AI insights in one place."
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -598,45 +601,64 @@ private fun OnboardingReadyView(
                 ) {
                     ReadyPillarCard(
                         icon = Icons.Default.Restaurant,
-                        title = str("Gemini Beslenme & Makro", "Gemini Nutrition & Macros"),
-                        subtitle = str("Doğal dilde yaz, fotoğraf veya barkod okut; makrolar otomatik hesaplansın.", "Write naturally, snap a photo or barcode; macros calculate automatically.")
+                        title = str("AI Beslenme", "AI Nutrition"),
+                        subtitle = str("Yaz, fotoğraf çek veya barkod okut; makrolar otomatik hesaplansın.", "Type, snap, or scan; macros calculate automatically.")
                     )
                     ReadyPillarCard(
                         icon = Icons.AutoMirrored.Filled.DirectionsRun,
-                        title = str("Spor & Akıllı Saat Dengesi", "Workouts & Watch Balance"),
-                        subtitle = str("Health Connect / Apple Health ile adımlarını ve antrenmanlarını senkronize et.", "Sync steps and workouts seamlessly with Health Connect / Apple Health.")
+                        title = str("Spor & Saat Dengesi", "Workouts & Watch"),
+                        subtitle = str("Adım ve antrenmanları Health Connect / Apple Health ile eşitle.", "Sync steps and workouts with Health Connect / Apple Health.")
                     )
                     ReadyPillarCard(
                         icon = Icons.Default.MonitorWeight,
-                        title = str("Dinamik Kilo & Protein Hedefi", "Dynamic Weight & Protein Targets"),
-                        subtitle = str("Güncel kilona göre protein ve kalori hedeflerin her gün otomatik uyarlanır.", "Protein and calorie targets adapt daily to your current weight.")
+                        title = str("Dinamik Kilo Hedefi", "Dynamic Targets"),
+                        subtitle = str("Kalori ve protein hedeflerin kilona göre güncellenir.", "Calorie and protein targets adapt to your weight.")
                     )
                     ReadyPillarCard(
                         icon = Icons.Default.AutoAwesome,
-                        title = str("Haftalık AI Koç & Seriler", "Weekly AI Coach & Streaks"),
-                        subtitle = str("XP kazan, rozetlerin kilidini aç ve haftalık özetini WhatsApp'tan al.", "Earn XP, unlock badges, and get your weekly summary via WhatsApp.")
+                        title = str("Haftalık AI Koç & Seriler", "Weekly AI Coach"),
+                        subtitle = str("Kişisel analizler al, XP kazan ve serini koru.", "Get weekly insights, earn XP, and build streaks.")
                     )
                 }
             }
 
             Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 tonalElevation = 4.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    OutlinedButton(
+                        onClick = { onIntent(OnboardingIntent.OnPreviousStep) },
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.height(48.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = str("Geri", "Back"),
+                            maxLines = 1
+                        )
+                    }
+
                     Button(
                         onClick = { onIntent(OnboardingIntent.OnFinish) },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
+                            .weight(1f)
+                            .height(48.dp)
                             .bounceClick(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
@@ -649,21 +671,9 @@ private fun OnboardingReadyView(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = str("Hemen Başla", "Get Started"),
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1
                         )
-                    }
-
-                    TextButton(
-                        onClick = { onIntent(OnboardingIntent.OnPreviousStep) },
-                        modifier = Modifier.align(Alignment.Start)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = str("Tura Geri Dön", "Back to Tour"))
                     }
                 }
             }

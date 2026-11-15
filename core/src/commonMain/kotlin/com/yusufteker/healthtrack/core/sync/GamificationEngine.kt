@@ -27,7 +27,8 @@ object GamificationEngine {
         nutritionGoal: NutritionGoal,
         fitnessGoal: FitnessGoal = nutritionGoal.parsedFitnessGoal,
         latestWeightKg: Double? = null,
-        todayIso: String = getTodayIso()
+        todayIso: String = getTodayIso(),
+        hasConnectedDevice: Boolean = false
     ): GamificationSummary {
         val activeFoods = foods.filter { !it.isDeleted && it.totalCalories > 0 }
         // Exclude passive daily step entries synced from Health Connect / Apple Health so
@@ -131,7 +132,8 @@ object GamificationEngine {
             achievement(BadgeId.WORKOUT_DISCIPLINE, totalWorkoutSessions),
             achievement(BadgeId.CALORIE_ENGINE, totalCaloriesBurned),
             achievement(BadgeId.ENDURANCE_MINUTES, totalWorkoutMinutes),
-            achievement(BadgeId.SCALE_TRACKER, activeWeights.size)
+            achievement(BadgeId.SCALE_TRACKER, activeWeights.size),
+            achievement(BadgeId.DEVICE_BRIDGE, if (hasConnectedDevice) 1 else 0)
         )
 
         // Today stats & Bio-Score (0..100)

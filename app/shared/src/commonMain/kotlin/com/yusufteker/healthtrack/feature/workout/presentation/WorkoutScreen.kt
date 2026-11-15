@@ -301,68 +301,52 @@ fun WorkoutScreen(
                     maxLines = 3
                 )
 
-                // Quick Logging Chips (No duplicate mic chip)
-                val runChipText = str("30 dk koşu", "30 min run")
-                val weightsChipText = str("45 dk ağırlık antrenmanı", "45 min weight training")
-                val hiitChipText = str("20 dk HIIT kardiyo", "20 min HIIT cardio")
-                val walkChipText = str("40 dk tempolu yürüyüş", "40 min brisk walk")
+                // Quick Logging Chips (Most recent workouts first, filled up to 4 with smart defaults)
+                val defaultChips = listOf(
+                    str("+ 30 dk Koşu", "+ 30 min Run") to str("30 dk koşu", "30 min run"),
+                    str("+ 45 dk Ağırlık", "+ 45 min Weights") to str("45 dk ağırlık antrenmanı", "45 min weight training"),
+                    str("+ 20 dk HIIT", "+ 20 min HIIT") to str("20 dk HIIT kardiyo", "20 min HIIT cardio"),
+                    str("+ 40 dk Yürüyüş", "+ 40 min Walk") to str("40 dk tempolu yürüyüş", "40 min brisk walk")
+                )
+                val recentChips = remember(state.allWorkouts) {
+                    state.allWorkouts
+                        .filter { !it.isDeleted && !it.isDailySteps && it.rawText.isNotBlank() }
+                        .sortedWith(compareByDescending<WorkoutLog> { it.date }.thenByDescending { it.updatedAt })
+                        .map { it.rawText.trim() }
+                        .distinctBy { it.lowercase() }
+                        .take(4)
+                        .map { raw ->
+                            val short = if (raw.length > 22) "${raw.take(22)}…" else raw
+                            "+ $short" to raw
+                        }
+                }
+                val combinedChips = remember(recentChips, defaultChips) {
+                    val seen = recentChips.map { it.second.lowercase() }.toMutableSet()
+                    val result = recentChips.toMutableList()
+                    defaultChips.forEach { (label, prompt) ->
+                        if (result.size < 4 && seen.add(prompt.lowercase())) {
+                            result.add(label to prompt)
+                        }
+                    }
+                    result
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    WorkoutQuickChip(label = str("+ 30 dk Koşu", "+ 30 min Run")) {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $runChipText" else runChipText
-                        onIntent(WorkoutIntent.OnRawTextChanged(current))
-                    }
-                    WorkoutQuickChip(label = str("+ 45 dk Ağırlık", "+ 45 min Weights")) {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $weightsChipText" else weightsChipText
-                        onIntent(WorkoutIntent.OnRawTextChanged(current))
-                    }
-                    WorkoutQuickChip(label = str("+ 20 dk HIIT", "+ 20 min HIIT")) {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $hiitChipText" else hiitChipText
-                        onIntent(WorkoutIntent.OnRawTextChanged(current))
-                    }
-                    WorkoutQuickChip(label = str("+ 40 dk Yürüyüş", "+ 40 min Walk")) {
-                        val current = if (state.rawText.isNotBlank()) "${state.rawText}, $walkChipText" else walkChipText
-                        onIntent(WorkoutIntent.OnRawTextChanged(current))
-                    }
-                }
-
-                val workoutAiQuota = state.aiQuota
-                if (!state.hasCustomGeminiKey && workoutAiQuota != null) {
-                    val isExhausted = workoutAiQuota.dailyRemaining <= 0
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (workoutAiQuota.isPremium) {
-                                str(
-                                    "Premium AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}",
-                                    "Premium AI Quota: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
-                                )
-                            } else {
-                                str(
-                                    "Günlük AI Hakkı: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}",
-                                    "Daily AI Quota: ${workoutAiQuota.dailyRemaining}/${workoutAiQuota.dailyLimit}"
-                                )
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (isExhausted) {
-                            Text(
-                                text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = HealthColors.Primary
-                            )
+                    combinedChips.forEach { (label, promptText) ->
+                        WorkoutQuickChip(label = label) {
+                            val current = if (state.rawText.isNotBlank()) "${state.rawText}, $promptText" else promptText
+                            onIntent(WorkoutIntent.OnRawTextChanged(current))
                         }
                     }
                 }
+
+                val workoutAiQuota = state.aiQuota?.takeIf { !state.hasCustomGeminiKey }
+                val isWorkoutQuotaExhausted = workoutAiQuota != null && workoutAiQuota.dailyRemaining <= 0
+                val workoutQuotaBadge = workoutAiQuota?.let { "${it.dailyRemaining}/${it.dailyLimit}" }
 
                 // AI Calculate Button
                 ShimmeringAiButton(
@@ -370,6 +354,8 @@ fun WorkoutScreen(
                         "AI ile Hesapla (${state.userWeightKg} kg bazlı)",
                         "Calculate with AI (${state.userWeightKg} kg)"
                     ),
+                    badgeText = workoutQuotaBadge,
+                    isBadgeAlert = isWorkoutQuotaExhausted,
                     isLoading = state.isCalculatingAi,
                     enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
                     onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },
@@ -378,6 +364,14 @@ fun WorkoutScreen(
                         .spotlightTarget(SpotlightTargetId.WORKOUT_CALCULATE_BUTTON),
                     height = 44.dp
                 )
+
+                if (isWorkoutQuotaExhausted) {
+                    Text(
+                        text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = HealthColors.Primary
+                    )
+                }
 
                 // Manual Fields Section (Expanded via Header Pill)
                 if (showManualFields) {
@@ -445,85 +439,27 @@ fun WorkoutScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Text(
+                text = if (isSelectedToday) {
+                    str("Bugünkü Aktiviteler", "Today's Activities")
+                } else {
+                    str("${formatDisplayDateTr(state.selectedDate, lang)} Aktiviteleri", "${formatDisplayDateTr(state.selectedDate, lang)} Activities")
+                },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            IconButton(
+                onClick = { showDeviceGuideDialog = true },
+                modifier = Modifier.size(28.dp).bounceClick()
             ) {
-                Text(
-                    text = if (isSelectedToday) {
-                        str("Bugünkü Aktiviteler", "Today's Activities")
-                    } else {
-                        str("${formatDisplayDateTr(state.selectedDate, lang)} Aktiviteleri", "${formatDisplayDateTr(state.selectedDate, lang)} Activities")
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                Icon(
+                    imageVector = Icons.Default.HelpOutline,
+                    contentDescription = str("Saat Nasıl Bağlanır?", "How to Connect Watch?"),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = str("${state.workouts.size} Kayıt", "${state.workouts.size} Logged"),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                if (deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED) {
-                    Surface(
-                        onClick = {
-                            if (!state.isSyncingWatch) {
-                                onIntent(WorkoutIntent.OnWatchSyncStarted)
-                                deviceHealthBridge.syncLastDays(days = 30) { result ->
-                                    onIntent(WorkoutIntent.OnWatchSnapshotReceived(result))
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(999.dp),
-                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f),
-                        modifier = Modifier.bounceClick()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            if (state.isSyncingWatch) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(12.dp),
-                                    strokeWidth = 1.5.dp,
-                                    color = MaterialTheme.colorScheme.tertiary
-                                )
-                            }
-                            Text(
-                                text = if (state.isSyncingWatch) str("Saat Okunuyor...", "Reading Watch...") else str("⌚ Saatten Çek", "⌚ Sync Watch"),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        }
-                    }
-                }
-
-                IconButton(
-                    onClick = { showDeviceGuideDialog = true },
-                    modifier = Modifier.size(28.dp).bounceClick()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.HelpOutline,
-                        contentDescription = str("Saat Nasıl Bağlanır?", "How to Connect Watch?"),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
             }
         }
 
@@ -954,7 +890,7 @@ private fun WorkoutStrainHeroCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "-${state.totalCaloriesBurned}",
+                        text = if (state.totalCaloriesBurned > 0) "-${state.totalCaloriesBurned}" else "0",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.tertiary

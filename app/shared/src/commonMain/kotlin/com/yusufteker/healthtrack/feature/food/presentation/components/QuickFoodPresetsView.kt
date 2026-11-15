@@ -44,6 +44,7 @@ import com.yusufteker.healthtrack.ui.components.bounceClick
 enum class FoodCategory(val labelTr: String, val labelEn: String) {
     ALL("Tümü", "All"),
     FAVORITES("★ Favorilerim", "★ Favorites"),
+    FREQUENT("🕒 Sık Kullanılanlar", "🕒 Frequent"),
     CUSTOM("🏷️ Envanterim", "🏷️ Inventory"),
     PROTEIN("Protein", "Protein"),
     BREAKFAST("Kahvaltılık", "Breakfast"),
@@ -74,7 +75,8 @@ data class FoodPreset(
     val iconKey: String? = null,
     val micronutrients: List<Micronutrient> = emptyList(),
     val isMix: Boolean = false,
-    val ingredientCount: Int = 0
+    val ingredientCount: Int = 0,
+    val isFrequentEntry: Boolean = false
 ) {
     fun localizedName(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(nameTr, nameEn, language)
@@ -1176,7 +1178,8 @@ fun QuickFoodPresetsView(
     onDeleteCustomFood: ((String) -> Unit)? = null,
     onSelectFood: ((preset: FoodPreset, quantity: Int) -> Unit)? = null,
     onAddFoodWithDetails: ((name: String, portion: String, calories: Int, protein: Double, carbs: Double, fat: Double, fiber: Double, micronutrients: List<Micronutrient>, iconKey: String?) -> Unit)? = null,
-    onOpenInventoryStudio: ((CustomFoodItem?) -> Unit)? = null
+    onOpenInventoryStudio: ((CustomFoodItem?) -> Unit)? = null,
+    onHideFrequentFood: ((String) -> Unit)? = null
 ) {
     val isDark = LocalIsDarkTheme.current
     val lang = appLang()
@@ -1186,32 +1189,74 @@ fun QuickFoodPresetsView(
     var selectedCategory by remember { mutableStateOf(FoodCategory.ALL) }
     val multipliers = remember { mutableStateMapOf<String, Int>() }
 
-    // Unified Presets = Built-in Presets + User Custom Items
+    // Unified Presets = User Custom Items + Built-in Presets
     val allCombinedPresets = remember(customFoods) {
         val customPresets = customFoods.map { it.toPreset() }
         customPresets + VERIFIED_FOOD_PRESETS
     }
 
+    // Recent / Frequent logged meals converted to FoodPresets (most recently logged first)
+    val frequentPresets = remember(frequentFoods, allCombinedPresets) {
+        val catalogByName = allCombinedPresets.associateBy { normalizeSearchText(it.nameTr) }
+        frequentFoods.map { item ->
+            val norm = normalizeSearchText(item.name)
+            val catalogMatch = catalogByName[norm]
+            FoodPreset(
+                id = catalogMatch?.id ?: "freq_$norm",
+                nameTr = item.name,
+                nameEn = item.name,
+                unitStep = 1,
+                unitLabelTr = item.formattedPortion.ifBlank { "1 porsiyon" },
+                unitLabelEn = item.formattedPortion.ifBlank { "1 serving" },
+                baseCalories = item.calories,
+                baseProteinG = item.proteinG,
+                baseCarbsG = item.carbsG,
+                baseFatG = item.fatG,
+                baseFiberG = item.fiberG,
+                category = FoodCategory.FREQUENT,
+                tags = listOf("sık", "frequent", item.name),
+                isCustom = catalogMatch?.isCustom ?: false,
+                brand = catalogMatch?.brand,
+                iconKey = item.iconKey ?: catalogMatch?.iconKey,
+                micronutrients = item.micronutrients,
+                isFrequentEntry = true
+            )
+        }
+    }
+
     // Real-time Turkish-aware filter
-    val filteredPresets = remember(allCombinedPresets, searchQuery, selectedCategory, favoriteFoodIds) {
+    val filteredPresets = remember(allCombinedPresets, frequentPresets, searchQuery, selectedCategory, favoriteFoodIds) {
         val queryNorm = normalizeSearchText(searchQuery)
-        allCombinedPresets.filter { preset ->
-            val matchesCategory = when (selectedCategory) {
-                FoodCategory.ALL -> true
-                FoodCategory.FAVORITES -> favoriteFoodIds.contains(preset.id)
-                FoodCategory.CUSTOM -> preset.isCustom
-                else -> preset.category == selectedCategory
+        val sourceList = if (selectedCategory == FoodCategory.FREQUENT) {
+            frequentPresets
+        } else {
+            val baseFiltered = allCombinedPresets.filter { preset ->
+                when (selectedCategory) {
+                    FoodCategory.ALL -> true
+                    FoodCategory.FAVORITES -> favoriteFoodIds.contains(preset.id)
+                    FoodCategory.CUSTOM -> preset.isCustom
+                    else -> preset.category == selectedCategory
+                }
             }
-            if (!matchesCategory) return@filter false
-
-            if (queryNorm.isBlank()) return@filter true
-
-            val nameTrNorm = normalizeSearchText(preset.nameTr)
-            val nameEnNorm = normalizeSearchText(preset.nameEn)
-            val brandNorm = normalizeSearchText(preset.brand ?: "")
-            val matchesTags = preset.tags.any { normalizeSearchText(it).contains(queryNorm) }
-
-            nameTrNorm.contains(queryNorm) || nameEnNorm.contains(queryNorm) || brandNorm.contains(queryNorm) || matchesTags
+            if (selectedCategory == FoodCategory.FAVORITES) {
+                val favOrder = favoriteFoodIds.toList()
+                baseFiltered.sortedBy { preset ->
+                    favOrder.indexOf(preset.id).let { if (it == -1) Int.MAX_VALUE else it }
+                }
+            } else {
+                baseFiltered
+            }
+        }
+        if (queryNorm.isBlank()) {
+            sourceList
+        } else {
+            sourceList.filter { preset ->
+                val nameTrNorm = normalizeSearchText(preset.nameTr)
+                val nameEnNorm = normalizeSearchText(preset.nameEn)
+                val brandNorm = normalizeSearchText(preset.brand ?: "")
+                val matchesTags = preset.tags.any { normalizeSearchText(it).contains(queryNorm) }
+                nameTrNorm.contains(queryNorm) || nameEnNorm.contains(queryNorm) || brandNorm.contains(queryNorm) || matchesTags
+            }
         }
     }
 
@@ -1228,9 +1273,10 @@ fun QuickFoodPresetsView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             FoodCategory.entries.forEach { category ->
-                // Show badge counts for Favorites and Custom
+                // Show badge counts for Favorites, Frequent, and Custom
                 val badgeCount = when (category) {
                     FoodCategory.FAVORITES -> favoriteFoodIds.size
+                    FoodCategory.FREQUENT -> frequentPresets.size
                     FoodCategory.CUSTOM -> customFoods.size
                     else -> null
                 }
@@ -1286,7 +1332,63 @@ fun QuickFoodPresetsView(
             }
         }
 
-        // ── 2. Results View: Compact Empty State OR Horizontal Cards Strip ──
+        // ── 2. Top Search Bar ──
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = {
+                Text(
+                    text = str("Besin veya marka ara...", "Search food or brand..."),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = str("Ara", "Search"),
+                    tint = HealthColors.Primary.copy(alpha = 0.8f),
+                    modifier = Modifier.size(19.dp)
+                )
+            },
+            trailingIcon = {
+                AnimatedVisibility(
+                    visible = searchQuery.isNotEmpty(),
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    IconButton(
+                        onClick = {
+                            searchQuery = ""
+                            keyboardController?.hide()
+                        },
+                        modifier = Modifier.size(28.dp).bounceClick()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = str("Temizle", "Clear"),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = HealthColors.Primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.38f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)
+            )
+        )
+
+        // ── 3. Results View: Compact Empty State OR Horizontal Cards Strip ──
         if (filteredPresets.isEmpty()) {
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -1302,6 +1404,7 @@ fun QuickFoodPresetsView(
                     Text(
                         text = when (selectedCategory) {
                             FoodCategory.FAVORITES -> str("Henüz favori yiyecek eklemediniz", "You haven't added any favorite foods yet")
+                            FoodCategory.FREQUENT -> str("Sık kullandığınız öğünler burada listelenir", "Your frequently logged meals will appear here")
                             FoodCategory.CUSTOM -> str("Envanterinizde henüz ürün bulunmuyor", "Your inventory has no items yet")
                             else -> str("\"$searchQuery\" ile eşleşen besin bulunamadı", "No foods found matching \"$searchQuery\"")
                         },
@@ -1393,8 +1496,11 @@ fun QuickFoodPresetsView(
                         onToggleFavorite = {
                             onToggleFavorite?.invoke(preset.id)
                         },
-                        onDeleteCustom = if (preset.isCustom && onDeleteCustomFood != null) {
+                        onDeleteCustom = if (preset.isCustom && onDeleteCustomFood != null && !preset.isFrequentEntry) {
                             { onDeleteCustomFood(preset.id) }
+                        } else null,
+                        onHideFrequent = if (preset.isFrequentEntry && onHideFrequentFood != null) {
+                            { onHideFrequentFood(preset.localizedName(lang)) }
                         } else null,
                         onDecrement = {
                             if (count > 1) {
@@ -1440,62 +1546,6 @@ fun QuickFoodPresetsView(
                 }
             }
         }
-
-        // ── 3. Bottom Search Bar (Moved to Bottom to Reduce Top Clutter) ──
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = {
-                Text(
-                    text = str("Besin veya marka ara...", "Search food or brand..."),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = str("Ara", "Search"),
-                    tint = HealthColors.Primary.copy(alpha = 0.8f),
-                    modifier = Modifier.size(19.dp)
-                )
-            },
-            trailingIcon = {
-                AnimatedVisibility(
-                    visible = searchQuery.isNotEmpty(),
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    IconButton(
-                        onClick = {
-                            searchQuery = ""
-                            keyboardController?.hide()
-                        },
-                        modifier = Modifier.size(28.dp).bounceClick()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = str("Temizle", "Clear"),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = HealthColors.Primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.38f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)
-            )
-        )
     }
 }
 
@@ -1512,6 +1562,7 @@ private fun PresetFoodCard(
     onOpenStudio: (() -> Unit)? = null,
     onToggleFavorite: () -> Unit,
     onDeleteCustom: (() -> Unit)?,
+    onHideFrequent: (() -> Unit)? = null,
     onDecrement: () -> Unit,
     onIncrement: () -> Unit,
     onAdd: () -> Unit
@@ -1521,15 +1572,16 @@ private fun PresetFoodCard(
     GlassCard(
         modifier = Modifier
             .width(190.dp)
+            .height(216.dp)
             .clickable(onClick = onCardClick),
         shape = RoundedCornerShape(20.dp),
         elevation = 6.dp
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             // Food Title & Star Favorite Action
             Row(
@@ -1582,6 +1634,20 @@ private fun PresetFoodCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onHideFrequent != null) {
+                        IconButton(
+                            onClick = onHideFrequent,
+                            modifier = Modifier.size(24.dp).bounceClick()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = str("Listeden Kaldır", "Remove from Frequent"),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+
                     if (onDeleteCustom != null) {
                         IconButton(
                             onClick = onDeleteCustom,

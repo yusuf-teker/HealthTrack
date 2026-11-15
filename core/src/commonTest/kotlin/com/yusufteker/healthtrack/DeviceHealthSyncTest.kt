@@ -200,5 +200,111 @@ class DeviceHealthSyncTest {
         assertEquals(1, summaryAfterDelete.skippedWorkouts)
         assertTrue(database.getAllWorkoutsForSync(1).none { !it.isDeleted })
     }
+
+    @Test
+    fun `Apple Health Huawei Watch tennis yoga and daily steps sync preserves telemetry and updates idempotently`() = runTest {
+        val (database, _, manager) = createTestFixture()
+
+        val baseTime = 1_700_000_000_000L
+        val tennis = DeviceWorkoutRecord(
+            externalId = "hk_tennis_1",
+            date = "2026-11-15",
+            category = DeviceExerciseCategory.TENNIS,
+            durationMinutes = 60,
+            caloriesBurned = 460,
+            distanceMeters = 3100.0,
+            steps = 4150,
+            avgHeartRateBpm = 144,
+            startTimeMillis = baseTime,
+            endTimeMillis = baseTime + 60 * 60_000L,
+            sourcePackage = "com.huawei.health",
+            sourceName = "Huawei Health"
+        )
+        val yoga = DeviceWorkoutRecord(
+            externalId = "hk_yoga_1",
+            date = "2026-11-15",
+            category = DeviceExerciseCategory.YOGA,
+            durationMinutes = 45,
+            caloriesBurned = 155,
+            avgHeartRateBpm = 102,
+            startTimeMillis = baseTime + 3 * 3_600_000L,
+            endTimeMillis = baseTime + 3 * 3_600_000L + 45 * 60_000L,
+            sourcePackage = "com.huawei.health",
+            sourceName = "Huawei Health"
+        )
+        val dailySteps = DeviceWorkoutRecord(
+            externalId = "hk_steps_2026-11-15",
+            date = "2026-11-15",
+            category = DeviceExerciseCategory.DAILY_STEPS,
+            customTitle = "6200 Adım • Günlük Hareket",
+            durationMinutes = 62,
+            caloriesBurned = 210,
+            distanceMeters = 4650.0,
+            steps = 6200,
+            avgHeartRateBpm = 86,
+            startTimeMillis = baseTime + 6 * 3_600_000L,
+            endTimeMillis = baseTime + 12 * 3_600_000L,
+            sourcePackage = "com.huawei.health",
+            sourceName = "Huawei Health"
+        )
+
+        val initialSnapshot = DeviceHealthSnapshot(
+            workouts = listOf(tennis, yoga, dailySteps),
+            platformName = "Apple Health"
+        )
+
+        val firstSummary = manager.mergeSnapshot(initialSnapshot, syncToCloud = false)
+        assertEquals(3, firstSummary.importedWorkouts)
+        assertEquals(0, firstSummary.updatedWorkouts)
+        assertEquals("Apple Health", firstSummary.platformName)
+
+        val savedWorkouts = database.getAllWorkoutsForSync(1).filter { !it.isDeleted }
+        assertEquals(3, savedWorkouts.size)
+
+        val savedTennis = savedWorkouts.first { it.rawText.contains("Tenis", ignoreCase = true) || it.rawText.contains("Tennis", ignoreCase = true) }
+        assertEquals(460, savedTennis.caloriesBurned)
+        assertTrue(savedTennis.aiAnalysis!!.contains("Huawei Health"))
+        assertTrue(savedTennis.aiAnalysis!!.contains("3.1 km"))
+        assertTrue(savedTennis.aiAnalysis!!.contains("4150"))
+        assertTrue(savedTennis.aiAnalysis!!.contains("144 bpm"))
+
+        val savedYoga = savedWorkouts.first { it.rawText.contains("Yoga", ignoreCase = true) }
+        assertEquals(155, savedYoga.caloriesBurned)
+        assertTrue(savedYoga.aiAnalysis!!.contains("102 bpm"))
+
+        val savedSteps = savedWorkouts.first { it.id.endsWith("_steps") }
+        assertEquals(210, savedSteps.caloriesBurned)
+        assertTrue(savedSteps.aiAnalysis!!.contains("6200"))
+
+        // Repeat exact same snapshot -> 0 imported, 0 updated, 3 skipped
+        val repeatSummary = manager.mergeSnapshot(initialSnapshot, syncToCloud = false)
+        assertEquals(0, repeatSummary.importedWorkouts)
+        assertEquals(0, repeatSummary.updatedWorkouts)
+        assertEquals(3, repeatSummary.skippedWorkouts)
+
+        // Watch syncs more steps later that day -> updates existing DAILY_STEPS record cleanly
+        val laterSteps = dailySteps.copy(
+            customTitle = "8400 Adım • Günlük Hareket",
+            durationMinutes = 84,
+            caloriesBurned = 290,
+            distanceMeters = 6300.0,
+            steps = 8400
+        )
+        val updateSummary = manager.mergeSnapshot(
+            DeviceHealthSnapshot(
+                workouts = listOf(tennis, yoga, laterSteps),
+                platformName = "Apple Health"
+            ),
+            syncToCloud = false
+        )
+        assertEquals(0, updateSummary.importedWorkouts)
+        assertEquals(1, updateSummary.updatedWorkouts)
+        assertEquals(2, updateSummary.skippedWorkouts)
+
+        val updatedSteps = database.getAllWorkoutsForSync(1).first { it.id.endsWith("_steps") }
+        assertEquals(290, updatedSteps.caloriesBurned)
+        assertEquals(84, updatedSteps.durationMinutes)
+        assertTrue(updatedSteps.aiAnalysis!!.contains("8400"))
+    }
 }
 

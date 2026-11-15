@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
@@ -212,14 +211,6 @@ fun FoodScreen(
                 onWeightClick = onNavigateToWeight
             )
 
-            // ── Günün 4 Öğünlük AI Yemek Önerisi Banner'ı (Günde 1 Defa) ──
-            if (state.isDailyMealSuggestionBannerVisible) {
-                DailyMealSuggestionBanner(
-                    onOpenPlan = { onIntent(FoodIntent.OnOpenDailyMealPlan) },
-                    onDismiss = { onIntent(FoodIntent.OnDismissDailyMealPlanBanner) }
-                )
-            }
-
             // ── Hidrasyon (2.A) & "Ne Yesem?" Akıllı Öğün (1) & Besin Sinerjisi (2.B) ──
             FoodHydrationAndSmartMealRow(
                 waterEntry = state.waterEntry,
@@ -369,19 +360,6 @@ fun FoodScreen(
                                         )
                                     }
                                 }
-                                IconButton(
-                                    onClick = { onIntent(FoodIntent.OnOpenPhotoScanSheet) },
-                                    modifier = Modifier.size(34.dp).clip(CircleShape)
-                                        .background(HealthColors.Primary.copy(alpha = 0.15f))
-                                        .bounceClick()
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CameraAlt,
-                                        contentDescription = str("Besin Etiketi Tara", "Scan Nutrition Label"),
-                                        tint = HealthColors.Primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
                                 if (speechLauncher.isAvailable) {
                                     val voicePrompt = str("Ne yediniz? Sesinizle söyleyin...", "What did you eat? Speak now...")
                                     IconButton(
@@ -423,70 +401,45 @@ fun FoodScreen(
                         maxLines = 3
                     )
 
-                    // Quick Suggestion Chips (No duplicate mic chip)
-                    val chip2EggsText = str("2 yumurta", "2 eggs")
-                    val chipOatMilkText = str("1 kase yulaf ve süt", "1 bowl oats & milk")
-                    val chipChickenText = str("150g ızgara tavuk", "150g grilled chicken")
-                    val chipCoffeeText = str("1 fincan filtre kahve", "1 cup black coffee")
+                    // Quick Suggestion Chips (Most recent logged foods first, filled up to 4 with smart defaults)
+                    val defaultQuickChips = listOf(
+                        str("+ 2 Yumurta", "+ 2 Eggs") to str("2 yumurta", "2 eggs"),
+                        str("+ Yulaf & Süt", "+ Oats & Milk") to str("1 kase yulaf ve süt", "1 bowl oats & milk"),
+                        str("+ Izgara Tavuk", "+ Grilled Chicken") to str("150g ızgara tavuk", "150g grilled chicken"),
+                        str("+ Filtre Kahve", "+ Filter Coffee") to str("1 fincan filtre kahve", "1 cup black coffee")
+                    )
+                    val recentQuickChips = remember(state.frequentFoods) {
+                        state.frequentFoods.take(4).map { item ->
+                            val shortName = if (item.name.length > 18) "${item.name.take(18)}…" else item.name
+                            val prompt = if (item.formattedPortion.isNotBlank()) "${item.formattedPortion} ${item.name}" else item.name
+                            "+ $shortName" to prompt
+                        }
+                    }
+                    val combinedQuickChips = remember(recentQuickChips, defaultQuickChips) {
+                        val seen = recentQuickChips.map { it.second.lowercase() }.toMutableSet()
+                        val merged = recentQuickChips.toMutableList()
+                        defaultQuickChips.forEach { (label, prompt) ->
+                            if (merged.size < 4 && seen.add(prompt.lowercase())) {
+                                merged.add(label to prompt)
+                            }
+                        }
+                        merged
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        QuickChip(label = str("+ 2 Yumurta", "+ 2 Eggs")) {
-                            val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, $chip2EggsText" else chip2EggsText
-                            onIntent(FoodIntent.OnRawTextChanged(current))
-                        }
-                        QuickChip(label = str("+ Yulaf & Süt", "+ Oats & Milk")) {
-                            val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, $chipOatMilkText" else chipOatMilkText
-                            onIntent(FoodIntent.OnRawTextChanged(current))
-                        }
-                        QuickChip(label = str("+ Izgara Tavuk", "+ Grilled Chicken")) {
-                            val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, $chipChickenText" else chipChickenText
-                            onIntent(FoodIntent.OnRawTextChanged(current))
-                        }
-                        QuickChip(label = str("+ Filtre Kahve", "+ Filter Coffee")) {
-                            val current =
-                                if (state.rawText.isNotBlank()) "${state.rawText}, $chipCoffeeText" else chipCoffeeText
-                            onIntent(FoodIntent.OnRawTextChanged(current))
-                        }
-                    }
-
-                    val foodAiQuota = state.aiQuota
-                    if (!state.hasCustomGeminiKey && foodAiQuota != null) {
-                        val isExhausted = foodAiQuota.dailyRemaining <= 0
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (foodAiQuota.isPremium) {
-                                    str(
-                                        "Premium AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}",
-                                        "Premium AI Quota: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
-                                    )
-                                } else {
-                                    str(
-                                        "Günlük AI Hakkı: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}",
-                                        "Daily AI Quota: ${foodAiQuota.dailyRemaining}/${foodAiQuota.dailyLimit}"
-                                    )
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (isExhausted) {
-                                Text(
-                                    text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = HealthColors.Primary
-                                )
+                        combinedQuickChips.forEach { (label, promptText) ->
+                            QuickChip(label = label) {
+                                val current = if (state.rawText.isNotBlank()) "${state.rawText}, $promptText" else promptText
+                                onIntent(FoodIntent.OnRawTextChanged(current))
                             }
                         }
                     }
+
+                    val foodAiQuota = state.aiQuota?.takeIf { !state.hasCustomGeminiKey }
+                    val isFoodQuotaExhausted = foodAiQuota != null && foodAiQuota.dailyRemaining <= 0
+                    val foodQuotaBadge = foodAiQuota?.let { "${it.dailyRemaining}/${it.dailyLimit}" }
 
                     // Action Row: Calculate with AI + Optional Raw Save
                     Row(
@@ -496,6 +449,8 @@ fun FoodScreen(
                     ) {
                         ShimmeringAiButton(
                             text = str("AI ile Hesapla", "Calculate with AI"),
+                            badgeText = foodQuotaBadge,
+                            isBadgeAlert = isFoodQuotaExhausted,
                             isLoading = state.isCalculatingAi,
                             enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
                             onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
@@ -527,6 +482,14 @@ fun FoodScreen(
                             }
                         }
                     }
+
+                    if (isFoodQuotaExhausted) {
+                        Text(
+                            text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = HealthColors.Primary
+                        )
+                    }
                 }
             }
 
@@ -540,28 +503,7 @@ fun FoodScreen(
                 onClearAll = { onIntent(FoodIntent.OnClearFoodLog) },
                 onAddClick = { showManualAddSheet = true })
 
-            Spacer(modifier = Modifier.height(76.dp))
-        }
-
-        // ── Floating Action Button: Clean '+' FAB ──
-        FloatingActionButton(
-            onClick = { showManualAddSheet = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 16.dp, end = 16.dp)
-                .size(56.dp)
-                .bounceClick(),
-            containerColor = HealthColors.Primary,
-            contentColor = HealthColors.OnPrimary,
-            shape = CircleShape,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = str("Ekle", "Add"),
-                tint = HealthColors.OnPrimary,
-                modifier = Modifier.size(28.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // ── Floating Toast Notifications (Auto-dismissing) ──
@@ -688,6 +630,7 @@ fun FoodScreen(
                 currentDailyCalories = state.totalCalories,
                 dailyTargetCalories = state.nutritionGoal.calories,
                 onToggleFavorite = { onIntent(FoodIntent.OnToggleFavoriteFood(it)) },
+                onHideFrequentFood = { onIntent(FoodIntent.OnHideFrequentFood(it)) },
                 onOpenAddCustomFood = { onIntent(FoodIntent.OnOpenAddCustomFoodDialog) },
                 onDeleteCustomFood = { onIntent(FoodIntent.OnDeleteCustomFood(it)) },
                 onOpenInventoryStudio = { customItem ->
@@ -805,6 +748,10 @@ fun FoodScreen(
                 },
                 onRequestAiRecipe = { onIntent(FoodIntent.OnRequestCustomAiMealSuggestion) },
                 onDismissAiRecipe = { onIntent(FoodIntent.OnDismissAiRecipe) },
+                onOpenDailyMealPlan = {
+                    onIntent(FoodIntent.OnCloseSmartMealSheet)
+                    onIntent(FoodIntent.OnOpenDailyMealPlan)
+                },
                 onDismiss = { onIntent(FoodIntent.OnCloseSmartMealSheet) }
             )
         }
@@ -816,6 +763,8 @@ fun FoodScreen(
                 items = state.groceryItems,
                 selectedItems = state.selectedGroceryItems,
                 onToggleItem = { onIntent(FoodIntent.OnToggleGroceryItem(it)) },
+                onTitleChange = { onIntent(FoodIntent.OnGroceryTitleChanged(it)) },
+                onAddCustomItem = { onIntent(FoodIntent.OnAddCustomGroceryItem(it)) },
                 onSendToPlanora = { onIntent(FoodIntent.OnSendGroceryToPlanora(appLauncher)) },
                 onDismiss = { onIntent(FoodIntent.OnCloseGroceryListSheet) }
             )
@@ -876,7 +825,8 @@ private fun ManualAddBottomSheet(
     onToggleFavorite: ((String) -> Unit)? = null,
     onOpenAddCustomFood: (() -> Unit)? = null,
     onDeleteCustomFood: ((String) -> Unit)? = null,
-    onOpenInventoryStudio: ((com.yusufteker.healthtrack.core.model.CustomFoodItem?) -> Unit)? = null
+    onOpenInventoryStudio: ((com.yusufteker.healthtrack.core.model.CustomFoodItem?) -> Unit)? = null,
+    onHideFrequentFood: ((String) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isDark = LocalIsDarkTheme.current
@@ -1009,6 +959,7 @@ private fun ManualAddBottomSheet(
                     onOpenAddCustomFood = onOpenAddCustomFood,
                     onDeleteCustomFood = onDeleteCustomFood,
                     onOpenInventoryStudio = onOpenInventoryStudio,
+                    onHideFrequentFood = onHideFrequentFood,
                     onAddFood = { pName, pPortion, pCal, pProt, pCarb, pFat, pFib ->
                         onAdd(pName, pPortion, pCal, pProt, pCarb, pFat, pFib)
                     },

@@ -187,26 +187,20 @@ fun FoodTableCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
+                        .padding(vertical = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = str("Henüz bu güne ait öğün eklenmedi.", "No meals logged for this day yet."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (onAddClick != null) {
-                        OutlinedButton(
-                            onClick = onAddClick,
-                            shape = RoundedCornerShape(999.dp),
-                            modifier = Modifier.bounceClick()
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = HealthColors.Primary)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(str("Öğün Ekle", "Add Meal"), fontWeight = FontWeight.SemiBold)
-                        }
-                    }
+                    Text(
+                        text = str("Yukarıdaki Öğün Ekle kartından hızlıca ekleyebilirsin.", "Use the Add Meal card above to log a meal."),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
                 }
             } else {
                 Column(

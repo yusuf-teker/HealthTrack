@@ -243,20 +243,6 @@ fun FoodHydrationAndSmartMealRow(
             }
 
             // ── "Ne Yesem?" Smart Meal Matcher Bento Card ──
-            val weakestMicros = nutrientBars
-                .filter { it.key != "calories" }
-                .sortedBy { it.percentage }
-                .take(2)
-                .map { localizedNutrientLabel(it) }
-            val deficitHeadline = when {
-                weakestMicros.isNotEmpty() -> str(
-                    "${weakestMicros.joinToString(" & ")} Açığı",
-                    "Low ${weakestMicros.joinToString(" & ")}"
-                )
-                remainingCalories > 200 -> str("$remainingCalories kcal Kalan", "$remainingCalories kcal Left")
-                else -> str("Dengeli Beslenme", "Balanced Nutrition")
-            }
-
             GlassCard(
                 modifier = Modifier
                     .weight(1f)
@@ -318,26 +304,16 @@ fun FoodHydrationAndSmartMealRow(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = deficitHeadline,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = HealthColors.Primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = str(
-                                "Eksik makro & mikrona göre öğün önerisi al",
-                                "Get meal ideas based on missing macros & micros"
-                            ),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = str(
+                            "Eksik besinlere göre öğün & 4 öğünlük AI menüsü",
+                            "Meal ideas & 4-meal AI menu for your gaps"
+                        ),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
                     Surface(
                         shape = RoundedCornerShape(8.dp),
@@ -398,10 +374,8 @@ fun FoodHydrationAndSmartMealRow(
                             )
                             Text(
                                 text = topTip.description,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(

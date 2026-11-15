@@ -10,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.google.firebase.messaging.FirebaseMessaging
 import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.detectSystemLanguage
@@ -33,6 +34,15 @@ class MainActivity : ComponentActivity() {
 
         val initialTab = resolveTabFromIntent(intent)
         dispatchDeepLinkIfPresent(intent)
+        try {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                if (!token.isNullOrBlank()) {
+                    HealthTrackFirebaseMessagingService.saveFcmToken(this, token)
+                }
+            }
+        } catch (_: Throwable) {
+            // FirebaseMessaging may be uninitialized in isolated preview/test environments
+        }
 
         setContent {
             App(initialTab = initialTab)

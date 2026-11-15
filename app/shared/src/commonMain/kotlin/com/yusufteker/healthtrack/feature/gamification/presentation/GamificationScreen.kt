@@ -43,9 +43,11 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MilitaryTech
 import androidx.compose.material.icons.rounded.MonitorWeight
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Public
@@ -721,6 +723,7 @@ private fun badgeIconFor(badgeId: BadgeId): ImageVector = when (badgeId) {
     BadgeId.CALORIE_ENGINE -> Icons.Rounded.LocalFireDepartment
     BadgeId.ENDURANCE_MINUTES -> Icons.Rounded.Timer
     BadgeId.SCALE_TRACKER -> Icons.Rounded.MonitorWeight
+    BadgeId.DEVICE_BRIDGE -> Icons.Rounded.Watch
 }
 
 @Composable
@@ -842,10 +845,9 @@ private fun BadgeGridCard(
 
             Text(
                 text = badge.localizedDescription(lang),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 3
             )
 
             // Mini stage pips for tiered badges
@@ -1116,79 +1118,95 @@ private fun LeaderboardSection(
 ) {
     val lang = appLang()
 
-    // Scope & Period Row
-    Row(
+    // Unified Compact Filter Header (Scope + Period + Category)
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        shape = RoundedCornerShape(16.dp),
+        color = if (isDark) Color(0xFF101727) else Color(0xFFF3F6FA),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
     ) {
-        // Global vs Friends
-        LeaderboardScope.entries.forEach { scopeItem ->
-            val selected = state.scope == scopeItem
-            val icon = if (scopeItem == LeaderboardScope.GLOBAL) Icons.Rounded.Public else Icons.Rounded.Group
-            FilterChipPill(
-                label = if (scopeItem == LeaderboardScope.FRIENDS && state.leaderboard != null) {
-                    "${scopeItem.localizedTitle(lang)} (${state.leaderboard.friendsCount})"
-                } else {
-                    scopeItem.localizedTitle(lang)
-                },
-                icon = icon,
-                selected = selected,
-                onClick = { onIntent(GamificationIntent.OnScopeSelected(scopeItem)) }
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Daily vs Weekly
-        Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = if (isDark) Color(0xFF131B2E) else Color(0xFFE8EEF5),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(modifier = Modifier.padding(3.dp)) {
-                LeaderboardPeriod.entries.forEach { periodItem ->
-                    val selected = state.period == periodItem
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
-                            )
-                            .clickable { onIntent(GamificationIntent.OnPeriodSelected(periodItem)) }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = periodItem.localizedTitle(lang),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            // Scope & Period Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LeaderboardScope.entries.forEach { scopeItem ->
+                        val selected = state.scope == scopeItem
+                        val icon = if (scopeItem == LeaderboardScope.GLOBAL) Icons.Rounded.Public else Icons.Rounded.Group
+                        FilterChipPill(
+                            label = if (scopeItem == LeaderboardScope.FRIENDS && state.leaderboard != null) {
+                                "${scopeItem.localizedTitle(lang)} (${state.leaderboard.friendsCount})"
+                            } else {
+                                scopeItem.localizedTitle(lang)
+                            },
+                            icon = icon,
+                            selected = selected,
+                            onClick = { onIntent(GamificationIntent.OnScopeSelected(scopeItem)) }
                         )
                     }
                 }
-            }
-        }
-    }
 
-    // Category Horizontal Chips
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        LeaderboardCategory.entries.forEach { cat ->
-            val icon = when (cat) {
-                LeaderboardCategory.DISCIPLINE_XP -> Icons.Rounded.Shield
-                LeaderboardCategory.CALORIES_BURNED -> Icons.Rounded.LocalFireDepartment
-                LeaderboardCategory.HEALTHY_EATING -> Icons.Rounded.Restaurant
-                LeaderboardCategory.WORKOUT_MINUTES -> Icons.Rounded.Timer
+                // Daily vs Weekly
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (isDark) Color(0xFF172138) else Color(0xFFE4EBF3)
+                ) {
+                    Row(modifier = Modifier.padding(2.dp)) {
+                        LeaderboardPeriod.entries.forEach { periodItem ->
+                            val selected = state.period == periodItem
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                    )
+                                    .clickable { onIntent(GamificationIntent.OnPeriodSelected(periodItem)) }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = periodItem.localizedTitle(lang),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            FilterChipPill(
-                label = cat.localizedTitle(lang),
-                icon = icon,
-                selected = state.category == cat,
-                onClick = { onIntent(GamificationIntent.OnCategorySelected(cat)) }
-            )
+
+            // Category Horizontal Chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                LeaderboardCategory.entries.forEach { cat ->
+                    val icon = when (cat) {
+                        LeaderboardCategory.DISCIPLINE_XP -> Icons.Rounded.Shield
+                        LeaderboardCategory.CALORIES_BURNED -> Icons.Rounded.LocalFireDepartment
+                        LeaderboardCategory.HEALTHY_EATING -> Icons.Rounded.Restaurant
+                        LeaderboardCategory.WORKOUT_MINUTES -> Icons.Rounded.Timer
+                    }
+                    FilterChipPill(
+                        label = cat.localizedTitle(lang),
+                        icon = icon,
+                        selected = state.category == cat,
+                        onClick = { onIntent(GamificationIntent.OnCategorySelected(cat)) }
+                    )
+                }
+            }
         }
     }
 
@@ -1340,7 +1358,7 @@ private fun LeaderboardSection(
                         MyRankSummaryBanner(entry = me)
                     }
 
-                    // Top 3 Podium (show when at least 2 entries exist, or even 1)
+                    // Top 3 Podium
                     val topThree = data.entries.take(3)
                     LeaderboardPodium(entries = topThree, isDark = isDark)
 
@@ -1512,20 +1530,16 @@ private fun PodiumSlot(
         }
 
         // Avatar circle
-        Box(
+        com.yusufteker.healthtrack.ui.components.AvatarImage(
+            profileImageUrl = entry.profileImageUrl,
+            fallbackInitial = entry.name.take(1).uppercase().ifBlank { "?" },
             modifier = Modifier
                 .size(if (isChampion) 56.dp else 46.dp)
-                .clip(CircleShape)
-                .background(medalColor.copy(alpha = 0.18f))
                 .border(2.dp, medalColor.copy(alpha = glowAlpha), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = entry.name.take(1).uppercase().ifBlank { "?" },
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
-                color = medalColor
-            )
-        }
+            fallbackColor = medalColor,
+            fallbackBackgroundColor = medalColor.copy(alpha = 0.18f),
+            textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black)
+        )
 
         Text(
             text = if (entry.isCurrentUser) str("Sen", "You") else entry.name,
@@ -1582,6 +1596,65 @@ private fun PodiumSlot(
 }
 
 @Composable
+private fun LeaderboardRankMedalSlot(
+    rank: Int,
+    highlight: Boolean
+) {
+    val medalColor: Color? = when (rank) {
+        1 -> Color(0xFFFACC15) // Gold
+        2 -> Color(0xFFCBD5E1) // Silver
+        3 -> Color(0xFFD97706) // Bronze
+        in 4..10 -> Color(0xFFC87551) // Copper
+        else -> null // Plain number without medal
+    }
+
+    if (medalColor != null) {
+        val medalIcon = when {
+            rank == 1 -> Icons.Rounded.EmojiEvents
+            rank <= 3 -> Icons.Rounded.WorkspacePremium
+            else -> Icons.Rounded.MilitaryTech
+        }
+        Column(
+            modifier = Modifier.width(34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(medalColor.copy(alpha = 0.20f))
+                    .border(1.dp, medalColor.copy(alpha = 0.55f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = medalIcon,
+                    contentDescription = null,
+                    tint = medalColor,
+                    modifier = Modifier.size(15.dp)
+                )
+            }
+            Text(
+                text = "#$rank",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold
+                ),
+                color = if (highlight) HealthColors.PrimaryGlow else medalColor
+            )
+        }
+    } else {
+        Text(
+            text = "#$rank",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+            color = if (highlight) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(34.dp)
+        )
+    }
+}
+
+@Composable
 private fun LeaderboardRowCard(entry: LeaderboardEntryDto) {
     val highlight = entry.isCurrentUser
     GlassCard(
@@ -1599,32 +1672,20 @@ private fun LeaderboardRowCard(entry: LeaderboardEntryDto) {
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = "#${entry.rank}",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
-                    color = if (highlight) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(30.dp)
-                )
+                LeaderboardRankMedalSlot(rank = entry.rank, highlight = highlight)
 
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(
-                            (if (highlight) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.primary)
-                                .copy(alpha = 0.16f)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = entry.name.take(1).uppercase().ifBlank { "?" },
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = if (highlight) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.primary
-                    )
-                }
+                com.yusufteker.healthtrack.ui.components.AvatarImage(
+                    profileImageUrl = entry.profileImageUrl,
+                    fallbackInitial = entry.name.take(1).uppercase().ifBlank { "?" },
+                    modifier = Modifier.size(38.dp),
+                    fallbackColor = if (highlight) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.primary,
+                    fallbackBackgroundColor = (if (highlight) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.primary)
+                        .copy(alpha = 0.16f),
+                    textStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(

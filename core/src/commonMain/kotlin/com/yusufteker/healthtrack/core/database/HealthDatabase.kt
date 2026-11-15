@@ -197,7 +197,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
             userFavorites.remove(foodId)
             false
         } else {
-            userFavorites.add(foodId)
+            userFavorites.add(0, foodId)
             true
         }
         current[userId] = userFavorites

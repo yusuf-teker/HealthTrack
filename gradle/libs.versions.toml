@@ -26,6 +26,7 @@ androidx-room = "2.7.2"
 androidx-sqlite = "2.5.2"
 androidx-healthConnect = "1.1.0-alpha11"
 napier = "2.7.1"
+coil = "3.2.0"
 googleServices = "4.4.2"
 firebaseBom = "33.10.0"
 
@@ -86,6 +87,10 @@ multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-t
 # Logging
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 
+# Image Loading (Coil 3)
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
+
 # Room & SQLite KMP
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
 androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "androidx-sqlite" }
@@ -98,6 +103,7 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
