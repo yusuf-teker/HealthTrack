@@ -2,6 +2,8 @@ package com.yusufteker.healthtrack.ui.components.preview
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +18,7 @@ import com.yusufteker.healthtrack.core.model.BadgeId
 import com.yusufteker.healthtrack.core.model.CelebrationEvent
 import com.yusufteker.healthtrack.core.model.CelebrationType
 import com.yusufteker.healthtrack.core.model.MotivationalToastEvent
+import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.WidgetTelemetrySnapshot
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 import com.yusufteker.healthtrack.ui.components.*
@@ -437,5 +440,189 @@ fun WidgetPromoDialogLightPreview() {
             onDismissForToday = {},
             onDisableDailyReminder = {}
         )
+    }
+}
+
+@Preview
+@Composable
+fun SportIconsDarkPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Row(
+            modifier = Modifier
+                .background(Color(0xFF0B0F19))
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SportIcons.SELECTABLE_SPORTS.forEach { sport ->
+                val accent = sport.accentColor()
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(accent.copy(alpha = 0.16f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = sport.iconVector(),
+                        contentDescription = sport.titleTr,
+                        tint = accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
+fun SportIconsLightPreview() {
+    HealthTrackTheme(darkTheme = false) {
+        Row(
+            modifier = Modifier
+                .background(Color(0xFFF8FAFC))
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SportIcons.SELECTABLE_SPORTS.forEach { sport ->
+                val accent = sport.accentColor()
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(accent.copy(alpha = 0.16f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = sport.iconVector(),
+                        contentDescription = sport.titleTr,
+                        tint = accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
+fun SportProgressPopupDarkPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0B0F19))
+        ) {
+            ConfettiCelebrationOverlay(
+                event = CelebrationEvent(
+                    id = "preview_tennis_progress",
+                    type = CelebrationType.SPORT_PROGRESS,
+                    titleTr = "Tenis Ustası • Sv. 2 İlerlemesi",
+                    titleEn = "Tennis Ace • Lv. 2 Progress",
+                    subtitleTr = "Seviye 2 (Gümüş Madalya) için 1/3 tamamlandı • 2 antrenman kaldı!",
+                    subtitleEn = "1/3 completed toward Lv. 2 (Silver Medal) • 2 left!",
+                    xpBonus = 30,
+                    badgeId = BadgeId.SPORT_TENNIS,
+                    badgeStageLevel = 1,
+                    nextStageLevel = 2,
+                    progressCurrent = 1,
+                    progressTarget = 3,
+                    previousProgressFraction = 0f,
+                    targetProgressFraction = 1f / 3f,
+                    showConfetti = false
+                ),
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun SportMedalUnlockedLightPreview() {
+    HealthTrackTheme(darkTheme = false) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8FAFC))
+        ) {
+            ConfettiCelebrationOverlay(
+                event = CelebrationEvent(
+                    id = "preview_tennis_lv2",
+                    type = CelebrationType.BADGE_UNLOCKED,
+                    titleTr = "Yeni Madalya Kazandın! • Sv. 2",
+                    titleEn = "Medal Upgraded! • Lv. 2",
+                    subtitleTr = "Tenis Ustası Sv. 2 (Gümüş Madalya) açıldı! 3/3 tamamlandı.",
+                    subtitleEn = "Tennis Ace Lv. 2 (Silver Medal) unlocked! 3/3 completed.",
+                    xpBonus = 150,
+                    badgeId = BadgeId.SPORT_TENNIS,
+                    badgeStageLevel = 2,
+                    nextStageLevel = 2,
+                    progressCurrent = 3,
+                    progressTarget = 3,
+                    previousProgressFraction = 2f / 3f,
+                    targetProgressFraction = 1f,
+                    showConfetti = true
+                ),
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun HealthyMealCelebrationOverlayPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0B0F19))
+        ) {
+            ConfettiCelebrationOverlay(
+                event = CelebrationEvent(
+                    id = "preview_healthy_meal",
+                    type = CelebrationType.HEALTHY_MEAL_LOGGED,
+                    titleTr = "Tebrikler! Sağlıklı Öğün 🥗",
+                    titleEn = "Congrats! Healthy Meal 🥗",
+                    subtitleTr = "Muhteşem bir seçim! Yüksek protein ve temiz içerikle vücudunu en iyi şekilde besledin.",
+                    subtitleEn = "Outstanding choice! You fueled your body with clean nutrients and strong protein.",
+                    xpBonus = 25,
+                    showConfetti = true,
+                    autoDismissMs = 2000L,
+                    healthScore = 92
+                ),
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun HealthyMealCelebrationOverlayLightPreview() {
+    HealthTrackTheme(darkTheme = false) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8FAFC))
+        ) {
+            ConfettiCelebrationOverlay(
+                event = CelebrationEvent(
+                    id = "preview_healthy_meal_light",
+                    type = CelebrationType.HEALTHY_MEAL_LOGGED,
+                    titleTr = "Tebrikler! Sağlıklı Öğün 🥗",
+                    titleEn = "Congrats! Healthy Meal 🥗",
+                    subtitleTr = "Muhteşem bir seçim! Yüksek protein ve temiz içerikle vücudunu en iyi şekilde besledin.",
+                    subtitleEn = "Outstanding choice! You fueled your body with clean nutrients and strong protein.",
+                    xpBonus = 25,
+                    showConfetti = true,
+                    autoDismissMs = 2000L,
+                    healthScore = 92
+                ),
+                onDismiss = {}
+            )
+        }
     }
 }

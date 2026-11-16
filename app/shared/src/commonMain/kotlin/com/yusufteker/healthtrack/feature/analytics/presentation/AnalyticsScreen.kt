@@ -971,6 +971,10 @@ private fun WhatsAppAutomationCard(
     onSendLatestWeeklyNow: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    var phoneInput by remember { mutableStateOf(whatsAppPhone) }
+    LaunchedEffect(whatsAppPhone) {
+        if (phoneInput != whatsAppPhone) phoneInput = whatsAppPhone
+    }
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -1097,8 +1101,11 @@ private fun WhatsAppAutomationCard(
                     }
 
                     OutlinedTextField(
-                        value = whatsAppPhone,
-                        onValueChange = onPhoneChange,
+                        value = phoneInput,
+                        onValueChange = {
+                            phoneInput = it
+                            onPhoneChange(it)
+                        },
                         label = { Text(str("Hedef WhatsApp Numarası (Opsiyonel)", "Target WhatsApp Number (Optional)")) },
                         placeholder = { Text(str("Örn: 05551234567", "e.g., +905551234567")) },
                         singleLine = true,

@@ -12,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
+import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.utils.formatDayMonthYear
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
@@ -61,10 +63,13 @@ import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.HealthToastHost
 import com.yusufteker.healthtrack.ui.components.ShimmeringAiButton
+import com.yusufteker.healthtrack.ui.components.SportIcons
 import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
+import com.yusufteker.healthtrack.ui.components.accentColor
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.iconVector
 import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import kotlinx.coroutines.launch
 
@@ -81,6 +86,18 @@ fun WorkoutScreen(
     var showManualFields by remember { mutableStateOf(false) }
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
     var workoutPendingDelete by remember { mutableStateOf<WorkoutLog?>(null) }
+    var rawTextInput by remember { mutableStateOf(state.rawText) }
+    var manualCaloriesInput by remember { mutableStateOf(state.manualCalories) }
+    var manualDurationInput by remember { mutableStateOf(state.manualDuration) }
+    LaunchedEffect(state.rawText) {
+        if (rawTextInput != state.rawText) rawTextInput = state.rawText
+    }
+    LaunchedEffect(state.manualCalories) {
+        if (manualCaloriesInput != state.manualCalories) manualCaloriesInput = state.manualCalories
+    }
+    LaunchedEffect(state.manualDuration) {
+        if (manualDurationInput != state.manualDuration) manualDurationInput = state.manualDuration
+    }
 
     val todayIso = remember { getTodayIso() }
     val isSelectedToday = state.selectedDate == todayIso
@@ -267,10 +284,43 @@ fun WorkoutScreen(
                     }
                 }
 
+                // Minimalist Sport Category Icon Selector
+                val detectedSports = remember(rawTextInput) {
+                    if (rawTextInput.isBlank()) emptySet() else SportType.detectAll(rawTextInput)
+                }
+                SportCategorySelectorRow(
+                    selectedSports = detectedSports,
+                    onSportClick = { sport ->
+                        val template = sport.localizedTemplate(lang)
+                        val trimmed = rawTextInput.trim()
+                        val isExact = trimmed.equals(template, ignoreCase = true)
+                        if (isExact) {
+                            rawTextInput = ""
+                            onIntent(WorkoutIntent.OnRawTextChanged(""))
+                        } else {
+                            val isAnyTemplate = SportIcons.SELECTABLE_SPORTS.any {
+                                trimmed.equals(it.localizedTemplate(lang), ignoreCase = true)
+                            }
+                            val updated = if (trimmed.isEmpty() || isAnyTemplate) {
+                                template
+                            } else if (sport in detectedSports) {
+                                trimmed
+                            } else {
+                                "$trimmed, $template"
+                            }
+                            rawTextInput = updated
+                            onIntent(WorkoutIntent.OnRawTextChanged(updated))
+                        }
+                    }
+                )
+
                 // Compact Expandable Text Input Well
                 OutlinedTextField(
-                    value = state.rawText,
-                    onValueChange = { onIntent(WorkoutIntent.OnRawTextChanged(it)) },
+                    value = rawTextInput,
+                    onValueChange = {
+                        rawTextInput = it
+                        onIntent(WorkoutIntent.OnRawTextChanged(it))
+                    },
                     placeholder = {
                         Text(
                             str(
@@ -287,9 +337,12 @@ fun WorkoutScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.padding(end = 6.dp)
                         ) {
-                            if (state.rawText.isNotBlank()) {
+                            if (rawTextInput.isNotBlank()) {
                                 IconButton(
-                                    onClick = { onIntent(WorkoutIntent.OnRawTextChanged("")) },
+                                    onClick = {
+                                        rawTextInput = ""
+                                        onIntent(WorkoutIntent.OnRawTextChanged(""))
+                                    },
                                     modifier = Modifier.size(28.dp).bounceClick()
                                 ) {
                                     Icon(
@@ -308,8 +361,9 @@ fun WorkoutScreen(
                                 IconButton(
                                     onClick = {
                                         speechLauncher.launch(voicePrompt) { spokenText ->
-                                            val current = state.rawText.trim()
+                                            val current = rawTextInput.trim()
                                             val updated = if (current.isBlank()) spokenText else "$current, $spokenText"
+                                            rawTextInput = updated
                                             onIntent(WorkoutIntent.OnRawTextChanged(updated))
                                         }
                                     },
@@ -379,8 +433,14 @@ fun WorkoutScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     combinedChips.forEach { (label, promptText) ->
-                        WorkoutQuickChip(label = label) {
-                            val current = if (state.rawText.isNotBlank()) "${state.rawText}, $promptText" else promptText
+                        val chipSport = SportType.fromRawText(promptText)
+                        WorkoutQuickChip(
+                            label = label,
+                            icon = if (chipSport != SportType.OTHER) chipSport.iconVector() else null,
+                            iconTint = chipSport.accentColor()
+                        ) {
+                            val current = if (rawTextInput.isNotBlank()) "$rawTextInput, $promptText" else promptText
+                            rawTextInput = current
                             onIntent(WorkoutIntent.OnRawTextChanged(current))
                         }
                     }
@@ -399,7 +459,7 @@ fun WorkoutScreen(
                     badgeText = workoutQuotaBadge,
                     isBadgeAlert = isWorkoutQuotaExhausted,
                     isLoading = state.isCalculatingAi,
-                    enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
+                    enabled = !state.isCalculatingAi && rawTextInput.isNotBlank(),
                     onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -432,8 +492,11 @@ fun WorkoutScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             OutlinedTextField(
-                                value = state.manualCalories,
-                                onValueChange = { onIntent(WorkoutIntent.OnManualCaloriesChanged(it)) },
+                                value = manualCaloriesInput,
+                                onValueChange = {
+                                    manualCaloriesInput = it
+                                    onIntent(WorkoutIntent.OnManualCaloriesChanged(it))
+                                },
                                 label = { Text(str("Kalori (kcal)", "Calories (kcal)")) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
@@ -441,8 +504,11 @@ fun WorkoutScreen(
                                 singleLine = true
                             )
                             OutlinedTextField(
-                                value = state.manualDuration,
-                                onValueChange = { onIntent(WorkoutIntent.OnManualDurationChanged(it)) },
+                                value = manualDurationInput,
+                                onValueChange = {
+                                    manualDurationInput = it
+                                    onIntent(WorkoutIntent.OnManualDurationChanged(it))
+                                },
                                 label = { Text(str("Süre (dk)", "Duration (min)")) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
@@ -522,7 +588,7 @@ fun WorkoutScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FitnessCenter,
+                            imageVector = SportIcons.FitnessDumbbellIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.size(30.dp)
@@ -956,91 +1022,16 @@ private data class WorkoutVisual(
 private fun resolveWorkoutVisual(workout: WorkoutLog): WorkoutVisual {
     if (workout.isDailySteps) {
         return WorkoutVisual(
-            icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+            icon = SportIcons.WalkingIcon,
             color = HealthColors.NutrientFiber
         )
     }
 
-    val text = workout.rawText.lowercase()
-    return when {
-        text.contains("eliptik") || text.contains("elliptical") ||
-            text.contains("bisiklet") || text.contains("cycling") ||
-            text.contains("pedal") || text.contains("spin") -> {
-            WorkoutVisual(
-                icon = Icons.AutoMirrored.Filled.DirectionsBike,
-                color = HealthColors.Primary
-            )
-        }
-        text.contains("kürek") || text.contains("kurek") || text.contains("rowing") -> {
-            WorkoutVisual(
-                icon = Icons.Default.Rowing,
-                color = HealthColors.Secondary
-            )
-        }
-        text.contains("yürüyüş") || text.contains("yuruyus") || text.contains("walking") ||
-            text.contains("yürü") || text.contains("adım") -> {
-            WorkoutVisual(
-                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
-                color = HealthColors.NutrientFiber
-            )
-        }
-        text.contains("yüzme") || text.contains("yuzme") || text.contains("swimming") || text.contains("havuz") -> {
-            WorkoutVisual(
-                icon = Icons.Default.Pool,
-                color = HealthColors.NutrientVitD
-            )
-        }
-        text.contains("ağırlık") || text.contains("agirlik") || text.contains("fitness") ||
-            text.contains("bodybuilding") || text.contains("gym") || text.contains("dumbell") ||
-            text.contains("dambıl") || text.contains("bench") || text.contains("squat") || text.contains("deadlift") -> {
-            WorkoutVisual(
-                icon = Icons.Default.FitnessCenter,
-                color = HealthColors.NutrientCarbs
-            )
-        }
-        text.contains("yoga") || text.contains("pilates") || text.contains("esneme") || text.contains("stretching") -> {
-            WorkoutVisual(
-                icon = Icons.Default.SelfImprovement,
-                color = HealthColors.SecondaryAccent
-            )
-        }
-        text.contains("basketbol") || text.contains("basketball") -> {
-            WorkoutVisual(
-                icon = Icons.Default.SportsBasketball,
-                color = HealthColors.NutrientCarbs
-            )
-        }
-        text.contains("futbol") || text.contains("football") || text.contains("soccer") -> {
-            WorkoutVisual(
-                icon = Icons.Default.SportsSoccer,
-                color = HealthColors.NutrientFiber
-            )
-        }
-        text.contains("tenis") || text.contains("tennis") -> {
-            WorkoutVisual(
-                icon = Icons.Default.SportsTennis,
-                color = HealthColors.Secondary
-            )
-        }
-        text.contains("boks") || text.contains("boxing") || text.contains("mma") || text.contains("kickboks") || text.contains("dövüş") -> {
-            WorkoutVisual(
-                icon = Icons.Default.SportsMma,
-                color = HealthColors.NutrientIron
-            )
-        }
-        text.contains("hiking") || text.contains("tırmanış") || text.contains("dağ") -> {
-            WorkoutVisual(
-                icon = Icons.Default.Hiking,
-                color = HealthColors.Tertiary
-            )
-        }
-        else -> {
-            WorkoutVisual(
-                icon = Icons.AutoMirrored.Filled.DirectionsRun,
-                color = HealthColors.Tertiary
-            )
-        }
-    }
+    val sport = SportType.fromRawText(workout.rawText)
+    return WorkoutVisual(
+        icon = sport.iconVector(),
+        color = sport.accentColor()
+    )
 }
 
 /**
@@ -1146,8 +1137,77 @@ private fun LuxuryWorkoutItem(
 }
 
 @Composable
+private fun SportCategorySelectorRow(
+    selectedSports: Set<SportType>,
+    onSportClick: (SportType) -> Unit
+) {
+    val lang = appLang()
+    val isDark = LocalIsDarkTheme.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SportIcons.SELECTABLE_SPORTS.forEach { sport ->
+            val isSelected = sport in selectedSports
+            val accent = sport.accentColor()
+            val containerColor = when {
+                isSelected -> accent.copy(alpha = 0.20f)
+                isDark -> HealthColors.SurfaceContainerHigh.copy(alpha = 0.72f)
+                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            }
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = containerColor,
+                border = if (isSelected) {
+                    BorderStroke(1.25.dp, accent.copy(alpha = 0.7f))
+                } else {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onSportClick(sport) }
+                    .bounceClick()
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(accent.copy(alpha = if (isSelected) 0.24f else 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = sport.iconVector(),
+                            contentDescription = sport.localizedTitle(lang),
+                            tint = if (isSelected) accent else accent.copy(alpha = 0.88f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = sport.localizedTitle(lang),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        color = if (isSelected) accent else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun WorkoutQuickChip(
     label: String,
+    icon: ImageVector? = null,
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     onClick: () -> Unit
 ) {
     Box(
@@ -1158,12 +1218,25 @@ private fun WorkoutQuickChip(
             .padding(horizontal = 12.dp, vertical = 6.dp)
             .bounceClick()
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -1209,7 +1282,7 @@ private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.DirectionsWalk,
+                            imageVector = SportIcons.WalkingIcon,
                             contentDescription = null,
                             tint = HealthColors.Primary,
                             modifier = Modifier.size(24.dp)

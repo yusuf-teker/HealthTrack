@@ -1,6 +1,228 @@
 package com.yusufteker.healthtrack.core.model
 
+import com.yusufteker.healthtrack.core.i18n.AppLanguage
+import com.yusufteker.healthtrack.core.i18n.LocalizationManager
+import com.yusufteker.healthtrack.core.i18n.trEn
 import kotlinx.serialization.Serializable
+
+@Serializable
+enum class MealHealthTier {
+    EXCELLENT, // 80..100
+    BALANCED,  // 60..79
+    FLEXIBLE   // 0..59
+}
+
+@Serializable
+data class MealHealthEvaluation(
+    val score: Int,
+    val tier: MealHealthTier,
+    val badgeTitleTr: String,
+    val badgeTitleEn: String,
+    val encouragingQuoteTr: String,
+    val encouragingQuoteEn: String,
+    val highlightTagsTr: List<String> = emptyList(),
+    val highlightTagsEn: List<String> = emptyList()
+) {
+    val isHealthyCelebrationWorthy: Boolean
+        get() = score >= 80
+
+    fun localizedBadgeTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(badgeTitleTr, badgeTitleEn, language)
+
+    fun localizedQuote(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        trEn(encouragingQuoteTr, encouragingQuoteEn, language)
+
+    fun localizedHighlights(language: AppLanguage = LocalizationManager.currentLanguage): List<String> =
+        if (language == AppLanguage.EN) highlightTagsEn else highlightTagsTr
+}
+
+object MealHealthEvaluator {
+
+    private val positiveKeywordGroups: List<List<String>> = listOf(
+        listOf("yumurta", "egg"),
+        listOf("tavuk", "chicken", "hindi", "turkey"),
+        listOf("balık", "balik", "fish", "somon", "salmon", "ton", "tuna"),
+        listOf("yoğurt", "yogurt", "kefir", "süzme", "suzme", "lor", "süt", "sut", "milk"),
+        listOf("yulaf", "oat"),
+        listOf("salata", "salad", "brokoli", "broccoli", "ıspanak", "ispanak", "spinach", "sebze", "vegetable", "yeşillik", "yesillik"),
+        listOf("avokado", "avocado", "zeytinyağ", "zeytinyag", "olive"),
+        listOf("mercimek", "lentil", "nohut", "chickpea", "fasulye", "bean", "kinoa", "quinoa"),
+        listOf("ceviz", "walnut", "badem", "almond", "chia"),
+        listOf("elma", "apple", "muz", "banana", "çilek", "cilek", "berry")
+    )
+
+    private val processedKeywordGroups: List<List<String>> = listOf(
+        listOf("kola", "cola", "gazoz", "soda"),
+        listOf("cips", "chips"),
+        listOf("kızartma", "kizartma", "fries", "fried"),
+        listOf("pasta", "cake", "donut", "baklava", "şerbet", "serbet"),
+        listOf("şekerleme", "sekerleme", "candy", "jelibon"),
+        listOf("gofret", "wafer", "bisküvi", "biskuvi", "cookie"),
+        listOf("fast food", "hamburger", "pizza"),
+        listOf("sosis", "salam")
+    )
+
+    fun evaluate(
+        items: List<FoodItem>,
+        totalCalories: Int,
+        summary: String = "",
+        explicitScore: Int? = null,
+        explicitPraise: String? = null
+    ): MealHealthEvaluation {
+        if (items.isEmpty() && totalCalories <= 0 && explicitScore == null) {
+            return MealHealthEvaluation(
+                score = 0,
+                tier = MealHealthTier.FLEXIBLE,
+                badgeTitleTr = "Değerlendirme Bekleniyor",
+                badgeTitleEn = "Pending Analysis",
+                encouragingQuoteTr = "Öğün içeriğini eklediğinde yapay zeka sağlık puanını hesaplayacak.",
+                encouragingQuoteEn = "Add meal items so AI can calculate your health score."
+            )
+        }
+
+        val cals = (totalCalories.takeIf { it > 0 } ?: items.sumOf { it.calories }).coerceAtLeast(1)
+        val totalProtein = items.sumOf { it.proteinG }
+        val totalFiber = items.sumOf { it.fiberG }
+        val totalFat = items.sumOf { it.fatG }
+        val proteinCalRatio = (totalProtein * 4.0) / cals.toDouble()
+        val microCount = items
+            .flatMap { it.micronutrients }
+            .map { it.name.trim().lowercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .size
+
+        val combinedText = buildString {
+            items.forEach {
+                append(it.name.lowercase())
+                append(' ')
+            }
+            append(summary.lowercase())
+        }
+
+        val positiveGroupHits = positiveKeywordGroups.count { group ->
+            group.any { kw -> combinedText.contains(kw) }
+        }
+        val processedGroupHits = processedKeywordGroups.count { group ->
+            group.any { kw -> combinedText.contains(kw) }
+        }
+
+        val computedScore = run {
+            var score = 68
+
+            score += when {
+                proteinCalRatio >= 0.25 || (totalProtein >= 25.0 && proteinCalRatio >= 0.16) -> 16
+                proteinCalRatio >= 0.18 || (totalProtein >= 15.0 && proteinCalRatio >= 0.12) -> 12
+                totalProtein >= 8.0 || proteinCalRatio >= 0.12 -> 7
+                totalProtein >= 4.0 -> 3
+                else -> 0
+            }
+
+            score += when {
+                totalFiber >= 7.0 -> 10
+                totalFiber >= 4.0 -> 7
+                totalFiber >= 2.0 -> 4
+                else -> 0
+            }
+
+            score += (microCount * 2).coerceAtMost(6)
+            score += (positiveGroupHits * 4).coerceAtMost(12)
+            score -= (processedGroupHits * 12).coerceAtMost(28)
+
+            val fatCalRatio = (totalFat * 9.0) / cals.toDouble()
+            if (fatCalRatio > 0.62 && cals > 450) {
+                score -= 6
+            }
+
+            score.coerceIn(25, 98)
+        }
+
+        val finalScore = if (explicitScore != null && explicitScore in 1..100) {
+            explicitScore
+        } else {
+            computedScore
+        }
+
+        val tier = when {
+            finalScore >= 80 -> MealHealthTier.EXCELLENT
+            finalScore >= 60 -> MealHealthTier.BALANCED
+            else -> MealHealthTier.FLEXIBLE
+        }
+
+        val badgeTitleTr = when (tier) {
+            MealHealthTier.EXCELLENT -> "Sağlıklı Öğün 🌟"
+            MealHealthTier.BALANCED -> "Dengeli Öğün 👍"
+            MealHealthTier.FLEXIBLE -> "Esnek Öğün 😋"
+        }
+        val badgeTitleEn = when (tier) {
+            MealHealthTier.EXCELLENT -> "Healthy Meal 🌟"
+            MealHealthTier.BALANCED -> "Balanced Meal 👍"
+            MealHealthTier.FLEXIBLE -> "Flexible Meal 😋"
+        }
+
+        val (defaultQuoteTr, defaultQuoteEn) = when {
+            finalScore >= 90 && totalProtein >= 20.0 ->
+                "Muhteşem bir seçim! Yüksek protein ve temiz içerikle vücudunu en iyi şekilde besledin." to
+                    "Outstanding choice! You fueled your body with clean nutrients and strong protein."
+            finalScore >= 90 ->
+                "Süper besin kalitesi! Bu öğün enerjini ve sağlığını zirveye taşıyor." to
+                    "Superb food quality! This meal fuels your energy and long-term vitality."
+            finalScore >= 80 && totalProtein >= 15.0 && totalFiber >= 4.0 ->
+                "Harika denge! Hem güçlü protein hem lif desteğiyle metabolizman sana teşekkür ediyor." to
+                    "Great balance! Both solid protein and fiber keep your metabolism thriving."
+            finalScore >= 80 && totalFiber >= 4.0 ->
+                "Lif ve mikro besin zengini harika bir tabak! Sindirimin ve tokluğun uzun süre korunacak." to
+                    "Fiber and micronutrient-rich plate! You'll stay full and energized for hours."
+            finalScore >= 80 ->
+                "Çok sağlıklı bir öğün! Hedeflerine bir adım daha yaklaştın, böyle devam et." to
+                    "Very healthy meal! One step closer to your goals — keep this momentum going."
+            finalScore >= 60 ->
+                "Güzel bir denge! Yanına biraz yeşillik veya ekstra protein eklersen puanı 80+ yapabilirsin." to
+                    "Nice balance! Adding some greens or extra protein can easily push this above 80."
+            else ->
+                "Afiyet olsun! Keyif öğünleri de yaşamın parçası — bir sonraki öğünde lif ve proteinle dengeleyebilirsin." to
+                    "Enjoy your meal! Treat meals are part of life — balance the next one with protein and fiber."
+        }
+
+        val cleanPraise = explicitPraise?.trim()?.takeIf { it.isNotBlank() }
+        val quoteTr = cleanPraise ?: defaultQuoteTr
+        val quoteEn = cleanPraise ?: defaultQuoteEn
+
+        val highlightsTr = mutableListOf<String>()
+        val highlightsEn = mutableListOf<String>()
+        if (totalProtein >= 18.0 || proteinCalRatio >= 0.22) {
+            highlightsTr.add("💪 Yüksek Protein")
+            highlightsEn.add("💪 High Protein")
+        }
+        if (totalFiber >= 4.0) {
+            highlightsTr.add("🌿 Lif Zengini")
+            highlightsEn.add("🌿 Fiber Rich")
+        }
+        if (microCount >= 2) {
+            highlightsTr.add("🧬 Mikro Besin Desteği")
+            highlightsEn.add("🧬 Micronutrient Boost")
+        }
+        if (positiveGroupHits >= 2 && processedGroupHits == 0) {
+            highlightsTr.add("✨ Temiz İçerik")
+            highlightsEn.add("✨ Clean Ingredients")
+        }
+        if (highlightsTr.isEmpty() && tier == MealHealthTier.EXCELLENT) {
+            highlightsTr.add("🥗 Dengeli Makro")
+            highlightsEn.add("🥗 Balanced Macros")
+        }
+
+        return MealHealthEvaluation(
+            score = finalScore,
+            tier = tier,
+            badgeTitleTr = badgeTitleTr,
+            badgeTitleEn = badgeTitleEn,
+            encouragingQuoteTr = quoteTr,
+            encouragingQuoteEn = quoteEn,
+            highlightTagsTr = highlightsTr.take(3),
+            highlightTagsEn = highlightsEn.take(3)
+        )
+    }
+}
 
 @Serializable
 data class Micronutrient(

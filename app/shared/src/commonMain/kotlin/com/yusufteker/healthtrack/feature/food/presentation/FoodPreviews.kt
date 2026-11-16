@@ -479,6 +479,44 @@ fun FoodAiReviewBottomSheetPreviewLight() {
 
 @Preview
 @Composable
+fun FoodAiReviewHealthyMealPreviewDark() {
+    HealthTrackTheme(darkTheme = true) {
+        FoodAiReviewBottomSheet(
+            aiResult = FoodAiResultDto(
+                summary = "Izgara tavuk göğsü, yulaf ve zeytinyağlı salata dengeli ve yüksek proteinli analiz edildi.",
+                totalCalories = 900,
+                items = sampleFoodItems,
+                healthScore = 92
+            ),
+            target = FoodScanTarget.DAILY_MEAL,
+            onDismiss = {},
+            onConfirm = {},
+            onSaveToInventory = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun FoodAiReviewHealthyMealPreviewLight() {
+    HealthTrackTheme(darkTheme = false) {
+        FoodAiReviewBottomSheet(
+            aiResult = FoodAiResultDto(
+                summary = "Izgara tavuk göğsü, yulaf ve zeytinyağlı salata dengeli ve yüksek proteinli analiz edildi.",
+                totalCalories = 900,
+                items = sampleFoodItems,
+                healthScore = 92
+            ),
+            target = FoodScanTarget.DAILY_MEAL,
+            onDismiss = {},
+            onConfirm = {},
+            onSaveToInventory = {}
+        )
+    }
+}
+
+@Preview
+@Composable
 fun DailyMealSuggestionBannerPreviewDark() {
     HealthTrackTheme(darkTheme = true) {
         Box(modifier = Modifier.padding(16.dp)) {

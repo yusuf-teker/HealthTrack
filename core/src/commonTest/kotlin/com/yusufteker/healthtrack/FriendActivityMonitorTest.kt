@@ -53,7 +53,7 @@ class FriendActivityMonitorTest {
     }
 
     @Test
-    fun detectFriendActivityChangesGeneratesWorkoutMealStreakAndXpEvents() {
+    fun detectFriendActivityChangesGeneratesOnlyWorkoutEvents() {
         val previous = listOf(
             FriendBaselineEntry(userId = 1, score = 100, caloriesBurned = 200, workoutMinutes = 20, healthyEatingScore = 60, streakDays = 2),
             FriendBaselineEntry(userId = 2, score = 80, caloriesBurned = 0, workoutMinutes = 0, healthyEatingScore = 50, streakDays = 1),
@@ -68,11 +68,11 @@ class FriendActivityMonitorTest {
             LeaderboardEntryDto(rank = 1, userId = 1, name = "Ayşe", username = "ayse", score = 140, caloriesBurned = 450, workoutMinutes = 45, healthyEatingScore = 60, streakDays = 2),
             // 2: Workout minutes increased -> WORKOUT
             LeaderboardEntryDto(rank = 2, userId = 2, name = "Mert", username = "mert", score = 90, caloriesBurned = 0, workoutMinutes = 30, healthyEatingScore = 50, streakDays = 1),
-            // 3: Healthy eating score increased -> MEAL
+            // 3: Healthy eating score increased -> ignored (meal notifications disabled)
             LeaderboardEntryDto(rank = 3, userId = 3, name = "Deniz", username = "deniz", score = 70, caloriesBurned = 0, workoutMinutes = 0, healthyEatingScore = 85, streakDays = 2),
-            // 4: Streak increased to >= 2 -> STREAK
+            // 4: Streak increased -> ignored
             LeaderboardEntryDto(rank = 4, userId = 4, name = "Zeynep", username = "zeynep", score = 135, caloriesBurned = 0, workoutMinutes = 0, healthyEatingScore = 40, streakDays = 2),
-            // 5: XP increased -> GENERAL
+            // 5: XP increased without workout -> ignored
             LeaderboardEntryDto(rank = 5, userId = 5, name = "Can", username = "can", score = 125, caloriesBurned = 150, workoutMinutes = 15, healthyEatingScore = 80, streakDays = 3),
             // 6: Unchanged -> ignored
             LeaderboardEntryDto(rank = 6, userId = 6, name = "Ege", username = "ege", score = 60, caloriesBurned = 100, workoutMinutes = 10, healthyEatingScore = 50, streakDays = 1)
@@ -85,22 +85,14 @@ class FriendActivityMonitorTest {
             nowMs = 5_000L
         )
 
-        assertEquals(5, events.size)
-        assertEquals(FriendActivityType.WORKOUT, events[0].type)
+        assertEquals(2, events.size)
+        assertTrue(events.all { it.type == FriendActivityType.WORKOUT })
+        assertEquals("Ayşe", events[0].actorName)
         assertTrue(events[0].messageTr.contains("+250 kcal"))
         assertTrue(events[0].messageTr.contains("25 dk"))
 
-        assertEquals(FriendActivityType.WORKOUT, events[1].type)
+        assertEquals("Mert", events[1].actorName)
         assertTrue(events[1].messageTr.contains("+30 dk"))
-
-        assertEquals(FriendActivityType.MEAL, events[2].type)
-        assertEquals("Deniz", events[2].actorName)
-
-        assertEquals(FriendActivityType.STREAK, events[3].type)
-        assertTrue(events[3].messageTr.contains("2 günlük"))
-
-        assertEquals(FriendActivityType.GENERAL, events[4].type)
-        assertTrue(events[4].messageTr.contains("+35 XP"))
     }
 
     @Test
@@ -137,17 +129,17 @@ class FriendActivityMonitorTest {
 
         val e1 = FriendNotificationEvent("id_1", 1, "A", type = FriendActivityType.WORKOUT, titleTr = "T1", titleEn = "T1", messageTr = "M1", messageEn = "M1")
         val e2 = FriendNotificationEvent("id_2", 2, "B", type = FriendActivityType.MEAL, titleTr = "T2", titleEn = "T2", messageTr = "M2", messageEn = "M2")
-        val e3 = FriendNotificationEvent("id_3", 3, "C", type = FriendActivityType.STREAK, titleTr = "T3", titleEn = "T3", messageTr = "M3", messageEn = "M3")
+        val e3 = FriendNotificationEvent("id_3", 3, "C", type = FriendActivityType.FOLLOW_REQUEST, titleTr = "T3", titleEn = "T3", messageTr = "M3", messageEn = "M3")
 
         assertNull(monitor.currentBanner.value)
         monitor.enqueueForImmediateDisplay(e1)
         monitor.enqueueForImmediateDisplay(e1) // duplicate ignored
-        monitor.enqueueForImmediateDisplay(e2)
+        monitor.enqueueForImmediateDisplay(e2) // MEAL ignored
         monitor.enqueueForImmediateDisplay(e3)
 
         assertEquals("id_1", monitor.currentBanner.value?.id)
         monitor.dismissCurrentBanner()
-        assertEquals("id_2", monitor.currentBanner.value?.id)
+        assertEquals("id_3", monitor.currentBanner.value?.id)
 
         monitor.clearAll()
         assertNull(monitor.currentBanner.value)

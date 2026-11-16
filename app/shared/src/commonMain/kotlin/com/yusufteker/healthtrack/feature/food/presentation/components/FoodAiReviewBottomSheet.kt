@@ -1,5 +1,16 @@
 package com.yusufteker.healthtrack.feature.food.presentation.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,17 +32,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FoodItem
+import com.yusufteker.healthtrack.core.model.MealHealthEvaluation
+import com.yusufteker.healthtrack.core.model.MealHealthTier
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
+import com.yusufteker.healthtrack.core.network.evaluateMealHealth
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScanTarget
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
+import com.yusufteker.healthtrack.theme.appLang
 import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.LocalSpotlightController
@@ -39,6 +58,7 @@ import com.yusufteker.healthtrack.ui.components.SpotlightInlineGuideBubble
 import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,6 +172,12 @@ fun FoodAiReviewBottomSheet(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+
+                // AI Meal Health Score & Encouraging Quote Banner
+                if (target == FoodScanTarget.DAILY_MEAL) {
+                    val healthEvaluation = remember(aiResult) { aiResult.evaluateMealHealth() }
+                    MealHealthScoreBanner(evaluation = healthEvaluation)
                 }
 
                 // AI Summary Banner
@@ -488,6 +514,201 @@ fun FoodAiReviewBottomSheet(
                                         Text(str("Envantere de Ekle", "Also Add to Inventory"), color = HealthColors.Primary, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MealHealthScoreBanner(
+    evaluation: MealHealthEvaluation,
+    modifier: Modifier = Modifier
+) {
+    val lang = appLang()
+    val isHealthy = evaluation.isHealthyCelebrationWorthy
+
+    val primaryAccent = when (evaluation.tier) {
+        MealHealthTier.EXCELLENT -> Color(0xFF10B981)
+        MealHealthTier.BALANCED -> Color(0xFFF59E0B)
+        MealHealthTier.FLEXIBLE -> Color(0xFFFB7185)
+    }
+    val secondaryAccent = when (evaluation.tier) {
+        MealHealthTier.EXCELLENT -> Color(0xFFFACC15)
+        MealHealthTier.BALANCED -> Color(0xFF38BDF8)
+        MealHealthTier.FLEXIBLE -> Color(0xFFF97316)
+    }
+
+    val scoreProgress = remember(evaluation.score) { Animatable(0f) }
+    val cardScale = remember(evaluation.score) { Animatable(if (isHealthy) 0.90f else 0.97f) }
+
+    LaunchedEffect(evaluation.score) {
+        scoreProgress.snapTo(0f)
+        scoreProgress.animateTo(
+            targetValue = (evaluation.score / 100f).coerceIn(0f, 1f),
+            animationSpec = tween(durationMillis = 850, easing = FastOutSlowInEasing)
+        )
+    }
+
+    LaunchedEffect(evaluation.score, isHealthy) {
+        if (isHealthy) {
+            cardScale.snapTo(0.90f)
+            cardScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+        } else {
+            cardScale.snapTo(1f)
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "meal_health_sparkle")
+    val sparkleScale by infiniteTransition.animateFloat(
+        initialValue = if (isHealthy) 0.95f else 1f,
+        targetValue = if (isHealthy) 1.12f else 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 950, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "sparkle_pulse"
+    )
+
+    val displayedScore = (scoreProgress.value * 100f).roundToInt().coerceIn(0, 100)
+    val highlights = evaluation.localizedHighlights(lang)
+
+    GlassCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = cardScale.value
+                scaleY = cardScale.value
+            },
+        shape = RoundedCornerShape(18.dp),
+        borderWidth = if (isHealthy) 1.5.dp else 1.dp,
+        borderGradient = listOf(
+            primaryAccent.copy(alpha = if (isHealthy) 0.72f else 0.42f),
+            secondaryAccent.copy(alpha = if (isHealthy) 0.48f else 0.25f)
+        ),
+        backgroundColor = primaryAccent.copy(alpha = if (isHealthy) 0.11f else 0.06f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Animated Score Ring
+            Box(
+                modifier = Modifier.size(66.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokeWidth = 6.dp.toPx()
+                    drawArc(
+                        color = primaryAccent.copy(alpha = 0.18f),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            listOf(primaryAccent, secondaryAccent, primaryAccent)
+                        ),
+                        startAngle = -90f,
+                        sweepAngle = 360f * scoreProgress.value,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "$displayedScore",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Black,
+                        color = primaryAccent,
+                        lineHeight = 20.sp
+                    )
+                    Text(
+                        text = "/100",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 11.sp
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = primaryAccent.copy(alpha = 0.18f),
+                        border = BorderStroke(1.dp, primaryAccent.copy(alpha = 0.45f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = primaryAccent,
+                                modifier = Modifier
+                                    .size(13.dp)
+                                    .graphicsLayer {
+                                        scaleX = sparkleScale
+                                        scaleY = sparkleScale
+                                    }
+                            )
+                            Text(
+                                text = evaluation.localizedBadgeTitle(lang),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                color = primaryAccent
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = evaluation.localizedQuote(lang),
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                if (highlights.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        highlights.forEach { tag ->
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                                border = BorderStroke(0.8.dp, primaryAccent.copy(alpha = 0.25f))
+                            ) {
+                                Text(
+                                    text = tag,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
                             }
                         }
                     }

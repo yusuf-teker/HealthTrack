@@ -44,6 +44,36 @@ fun AuthScreen(
     onIntent: (AuthIntent) -> Unit
 ) {
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var identifierInput by remember { mutableStateOf(state.identifier) }
+    var passwordInput by remember { mutableStateOf(state.password) }
+    var registerNameInput by remember { mutableStateOf(state.registerName) }
+    var registerUsernameInput by remember { mutableStateOf(state.registerUsername) }
+    var registerEmailInput by remember { mutableStateOf(state.registerEmail) }
+    var registerPasswordInput by remember { mutableStateOf(state.registerPassword) }
+    var registerCodeInput by remember { mutableStateOf(state.registerCode) }
+
+    LaunchedEffect(state.identifier) {
+        if (identifierInput != state.identifier) identifierInput = state.identifier
+    }
+    LaunchedEffect(state.password) {
+        if (passwordInput != state.password) passwordInput = state.password
+    }
+    LaunchedEffect(state.registerName) {
+        if (registerNameInput != state.registerName) registerNameInput = state.registerName
+    }
+    LaunchedEffect(state.registerUsername) {
+        if (registerUsernameInput != state.registerUsername) registerUsernameInput = state.registerUsername
+    }
+    LaunchedEffect(state.registerEmail) {
+        if (registerEmailInput != state.registerEmail) registerEmailInput = state.registerEmail
+    }
+    LaunchedEffect(state.registerPassword) {
+        if (registerPasswordInput != state.registerPassword) registerPasswordInput = state.registerPassword
+    }
+    LaunchedEffect(state.registerCode) {
+        if (registerCodeInput != state.registerCode) registerCodeInput = state.registerCode
+    }
+
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
 
@@ -216,8 +246,11 @@ fun AuthScreen(
                     if (!state.isRegisterMode) {
                         // ── LOGIN FORM ──
                         OutlinedTextField(
-                            value = state.identifier,
-                            onValueChange = { onIntent(AuthIntent.OnIdentifierChanged(it)) },
+                            value = identifierInput,
+                            onValueChange = {
+                                identifierInput = it
+                                onIntent(AuthIntent.OnIdentifierChanged(it))
+                            },
                             label = { Text(str("Kullanıcı Adı veya E-posta", "Username or Email")) },
                             leadingIcon = {
                                 Icon(
@@ -238,8 +271,11 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         OutlinedTextField(
-                            value = state.password,
-                            onValueChange = { onIntent(AuthIntent.OnPasswordChanged(it)) },
+                            value = passwordInput,
+                            onValueChange = {
+                                passwordInput = it
+                                onIntent(AuthIntent.OnPasswordChanged(it))
+                            },
                             label = { Text(str("Şifre", "Password")) },
                             leadingIcon = {
                                 Icon(
@@ -271,7 +307,7 @@ fun AuthScreen(
 
                         Button(
                             onClick = { onIntent(AuthIntent.OnLoginClicked) },
-                            enabled = !state.isLoading && state.identifier.isNotBlank() && state.password.isNotBlank(),
+                            enabled = !state.isLoading && identifierInput.isNotBlank() && passwordInput.isNotBlank(),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -300,8 +336,11 @@ fun AuthScreen(
                     } else if (!state.isRegisterCodeSent) {
                         // ── REGISTER STEP 1: Account Info ──
                         OutlinedTextField(
-                            value = state.registerName,
-                            onValueChange = { onIntent(AuthIntent.OnRegisterNameChanged(it)) },
+                            value = registerNameInput,
+                            onValueChange = {
+                                registerNameInput = it
+                                onIntent(AuthIntent.OnRegisterNameChanged(it))
+                            },
                             label = { Text(str("Ad Soyad", "Full Name")) },
                             leadingIcon = {
                                 Icon(
@@ -319,8 +358,11 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedTextField(
-                            value = state.registerUsername,
-                            onValueChange = { onIntent(AuthIntent.OnRegisterUsernameChanged(it)) },
+                            value = registerUsernameInput,
+                            onValueChange = {
+                                registerUsernameInput = it
+                                onIntent(AuthIntent.OnRegisterUsernameChanged(it))
+                            },
                             label = { Text(str("Kullanıcı Adı", "Username")) },
                             leadingIcon = {
                                 Icon(
@@ -338,8 +380,11 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedTextField(
-                            value = state.registerEmail,
-                            onValueChange = { onIntent(AuthIntent.OnRegisterEmailChanged(it)) },
+                            value = registerEmailInput,
+                            onValueChange = {
+                                registerEmailInput = it
+                                onIntent(AuthIntent.OnRegisterEmailChanged(it))
+                            },
                             label = { Text(str("E-posta", "Email")) },
                             leadingIcon = {
                                 Icon(
@@ -360,8 +405,11 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedTextField(
-                            value = state.registerPassword,
-                            onValueChange = { onIntent(AuthIntent.OnRegisterPasswordChanged(it)) },
+                            value = registerPasswordInput,
+                            onValueChange = {
+                                registerPasswordInput = it
+                                onIntent(AuthIntent.OnRegisterPasswordChanged(it))
+                            },
                             label = { Text(str("Şifre (en az 6 karakter)", "Password (min 6 chars)")) },
                             leadingIcon = {
                                 Icon(
@@ -394,10 +442,10 @@ fun AuthScreen(
                         Button(
                             onClick = { onIntent(AuthIntent.OnSendRegisterCodeClicked) },
                             enabled = !state.isLoading &&
-                                state.registerName.isNotBlank() &&
-                                state.registerUsername.isNotBlank() &&
-                                state.registerEmail.isNotBlank() &&
-                                state.registerPassword.isNotBlank(),
+                                registerNameInput.isNotBlank() &&
+                                registerUsernameInput.isNotBlank() &&
+                                registerEmailInput.isNotBlank() &&
+                                registerPasswordInput.isNotBlank(),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -426,8 +474,12 @@ fun AuthScreen(
                     } else {
                         // ── REGISTER STEP 2: OTP Verification Code ──
                         OutlinedTextField(
-                            value = state.registerCode,
-                            onValueChange = { onIntent(AuthIntent.OnRegisterCodeChanged(it)) },
+                            value = registerCodeInput,
+                            onValueChange = {
+                                val sanitized = it.filter { ch -> ch.isDigit() }.take(6)
+                                registerCodeInput = sanitized
+                                onIntent(AuthIntent.OnRegisterCodeChanged(sanitized))
+                            },
                             label = { Text(str("6 Haneli Doğrulama Kodu", "6-Digit Verification Code")) },
                             leadingIcon = {
                                 Icon(
@@ -449,7 +501,7 @@ fun AuthScreen(
 
                         Button(
                             onClick = { onIntent(AuthIntent.OnRegisterClicked) },
-                            enabled = !state.isLoading && state.registerCode.length == 6,
+                            enabled = !state.isLoading && registerCodeInput.length == 6,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)

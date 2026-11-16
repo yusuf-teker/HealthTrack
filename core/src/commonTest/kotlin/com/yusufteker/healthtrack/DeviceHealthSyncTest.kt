@@ -6,6 +6,7 @@ import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
+import com.yusufteker.healthtrack.core.sync.GamificationEngine
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -305,6 +306,68 @@ class DeviceHealthSyncTest {
         assertEquals(290, updatedSteps.caloriesBurned)
         assertEquals(84, updatedSteps.durationMinutes)
         assertTrue(updatedSteps.aiAnalysis!!.contains("8400"))
+    }
+
+    @Test
+    fun `smartwatch workouts across categories and generic custom titles unlock corresponding sport badges`() = runTest {
+        val (database, _, manager) = createTestFixture()
+        val baseTime = 1_700_000_000_000L
+
+        val categoriesToBadges = listOf(
+            DeviceExerciseCategory.VOLLEYBALL to BadgeId.SPORT_VOLLEYBALL,
+            DeviceExerciseCategory.CALISTHENICS to BadgeId.SPORT_CALISTHENICS,
+            DeviceExerciseCategory.DANCE to BadgeId.SPORT_DANCE,
+            DeviceExerciseCategory.TENNIS to BadgeId.SPORT_TENNIS,
+            DeviceExerciseCategory.BASKETBALL to BadgeId.SPORT_BASKETBALL,
+            DeviceExerciseCategory.FOOTBALL to BadgeId.SPORT_FOOTBALL,
+            DeviceExerciseCategory.MARTIAL_ARTS to BadgeId.SPORT_BOXING,
+            DeviceExerciseCategory.HIIT to BadgeId.SPORT_HIIT,
+            DeviceExerciseCategory.CYCLING to BadgeId.SPORT_CYCLING,
+            DeviceExerciseCategory.SWIMMING to BadgeId.SPORT_SWIMMING,
+            DeviceExerciseCategory.WALKING to BadgeId.SPORT_WALKING,
+            DeviceExerciseCategory.YOGA to BadgeId.SPORT_YOGA_PILATES,
+            DeviceExerciseCategory.ROWING to BadgeId.SPORT_ROWING,
+            DeviceExerciseCategory.STRENGTH to BadgeId.SPORT_FITNESS,
+            DeviceExerciseCategory.RUNNING to BadgeId.SPORT_RUNNING
+        )
+
+        val watchWorkouts = categoriesToBadges.mapIndexed { idx, (category, _) ->
+            DeviceWorkoutRecord(
+                externalId = "watch_cat_$idx",
+                date = "2026-11-16",
+                category = category,
+                // Even if watch app assigns a generic custom title, category suffix preserves sport detection
+                customTitle = if (category == DeviceExerciseCategory.VOLLEYBALL) "Sabah Seansı" else null,
+                durationMinutes = 40,
+                caloriesBurned = 300,
+                startTimeMillis = baseTime + idx * 3_600_000L,
+                endTimeMillis = baseTime + idx * 3_600_000L + 40 * 60_000L,
+                sourceName = "Huawei Health"
+            )
+        }
+
+        val syncSummary = manager.mergeSnapshot(
+            DeviceHealthSnapshot(workouts = watchWorkouts, platformName = "Health Connect"),
+            syncToCloud = false
+        )
+        assertEquals(15, syncSummary.importedWorkouts)
+
+        val savedWorkouts = database.getAllWorkoutsForSync(1).filter { !it.isDeleted }
+        val gamification = GamificationEngine.evaluate(
+            foods = emptyList(),
+            workouts = savedWorkouts,
+            weights = emptyList(),
+            waters = emptyList(),
+            nutritionGoal = NutritionGoal(id = "g1", userId = 1),
+            todayIso = "2026-11-16",
+            hasConnectedDevice = true
+        )
+
+        categoriesToBadges.forEach { (category, expectedBadge) ->
+            val ach = gamification.achievements.first { it.badgeId == expectedBadge }
+            assertTrue(ach.isUnlocked, "Expected $category from watch to unlock $expectedBadge")
+            assertEquals(1, ach.currentLevel)
+        }
     }
 }
 

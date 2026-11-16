@@ -41,7 +41,7 @@ fun EditTargetWeightDialog(
     onDismiss: () -> Unit,
     onSaveTargetWeight: (Double) -> Unit
 ) {
-    var targetText by remember(currentTargetWeight) {
+    var targetText by remember {
         mutableStateOf(if (currentTargetWeight > 0) currentTargetWeight.toString() else "70.0")
     }
     var localError by remember { mutableStateOf<String?>(null) }

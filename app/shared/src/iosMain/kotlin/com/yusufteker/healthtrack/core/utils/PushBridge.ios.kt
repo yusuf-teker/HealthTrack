@@ -34,6 +34,7 @@ object IosPushSwiftBridge {
         body: String?,
         isForeground: Boolean
     ) {
+        if (typeRaw != null && typeRaw.equals("MEAL", ignoreCase = true)) return
         val event = FriendNotificationBus.emitFromPushPayload(
             id = id,
             actorName = actorName,

@@ -24,7 +24,7 @@ import org.koin.dsl.module
 
 val featureModule = module {
     viewModel { AuthViewModel(get(), get(), get(), get(), get<Settings>()) }
-    viewModel { FoodViewModel(get(), get(), get(), get(), get()) }
+    viewModel { FoodViewModel(get(), get(), get(), get(), get(), get<GamificationManager>()) }
     viewModel { WorkoutViewModel(get(), get(), get(), get(), get()) }
     viewModel { WeightViewModel(get(), get(), get(), get()) }
     viewModel { AnalyticsViewModel(get(), get(), get<HealthReportAiGenerator>()) }

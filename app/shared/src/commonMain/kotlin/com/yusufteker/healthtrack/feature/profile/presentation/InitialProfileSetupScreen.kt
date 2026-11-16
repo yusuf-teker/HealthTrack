@@ -34,6 +34,7 @@ import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import kotlinx.coroutines.Dispatchers
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -43,7 +44,7 @@ fun InitialProfileSetupScreenRoot(
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel()
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val dailyReminderNotifier = rememberDailyReminderNotifier()
     val deviceHealthBridge = rememberDeviceHealthBridge()
     var hasNotifPermission by remember { mutableStateOf(dailyReminderNotifier.hasPermission) }
@@ -93,17 +94,26 @@ fun InitialProfileSetupScreen(
     modifier: Modifier = Modifier
 ) {
     val lang = appLang()
-    var weightText by remember(state.weightKg) {
+    var weightText by remember {
         mutableStateOf(if (state.weightKg > 0.0) state.weightKg.toString() else "72.0")
     }
-    var targetWeightText by remember(state.targetWeightKg) {
+    var targetWeightText by remember {
         mutableStateOf(if (state.targetWeightKg > 0.0) state.targetWeightKg.toString() else "70.0")
     }
-    var heightText by remember(state.heightCm) {
+    var heightText by remember {
         mutableStateOf(if (state.heightCm > 0.0) state.heightCm.toInt().toString() else "175")
     }
-    var ageText by remember(state.age) {
+    var ageText by remember {
         mutableStateOf(if (state.age > 0) state.age.toString() else "26")
+    }
+
+    LaunchedEffect(state.hasConnectedDevice, state.isDeviceSyncing) {
+        if (!state.isDeviceSyncing && state.hasConnectedDevice && state.weightKg > 0.0) {
+            val currentParsed = weightText.replace(',', '.').toDoubleOrNull()
+            if (currentParsed != state.weightKg) {
+                weightText = state.weightKg.toString()
+            }
+        }
     }
 
     Scaffold(

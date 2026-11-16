@@ -129,6 +129,10 @@ fun FoodScreen(
     var showGeneralMicrosSheet by remember { mutableStateOf(false) }
     var showInventoryStudio by remember { mutableStateOf(false) }
     var initialStudioItem by remember { mutableStateOf<CustomFoodItem?>(null) }
+    var rawTextInput by remember { mutableStateOf(state.rawText) }
+    LaunchedEffect(state.rawText) {
+        if (rawTextInput != state.rawText) rawTextInput = state.rawText
+    }
 
     val pendingDeepLink by WidgetDeepLinkBus.pendingTarget.collectAsState()
     LaunchedEffect(pendingDeepLink) {
@@ -304,8 +308,11 @@ fun FoodScreen(
 
                     // Compact Expandable Text Input Well
                     OutlinedTextField(
-                        value = state.rawText,
-                        onValueChange = { onIntent(FoodIntent.OnRawTextChanged(it)) },
+                        value = rawTextInput,
+                        onValueChange = {
+                            rawTextInput = it
+                            onIntent(FoodIntent.OnRawTextChanged(it))
+                        },
                         placeholder = {
                             Text(
                                 str("Ne yediniz? Örn: 2 yumurta, 100ml süt...", "What did you eat? e.g., 2 eggs, 100ml milk..."),
@@ -319,9 +326,12 @@ fun FoodScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier.padding(end = 6.dp)
                             ) {
-                                if (state.rawText.isNotBlank()) {
+                                if (rawTextInput.isNotBlank()) {
                                     IconButton(
-                                        onClick = { onIntent(FoodIntent.OnRawTextChanged("")) },
+                                        onClick = {
+                                            rawTextInput = ""
+                                            onIntent(FoodIntent.OnRawTextChanged(""))
+                                        },
                                         modifier = Modifier.size(28.dp).bounceClick()
                                     ) {
                                         Icon(
@@ -339,9 +349,10 @@ fun FoodScreen(
                                     IconButton(
                                         onClick = {
                                             speechLauncher.launch(voicePrompt) { spokenText ->
-                                                val current = state.rawText.trim()
+                                                val current = rawTextInput.trim()
                                                 val updated =
                                                     if (current.isBlank()) spokenText else "$current, $spokenText"
+                                                rawTextInput = updated
                                                 onIntent(FoodIntent.OnRawTextChanged(updated))
                                             }
                                         },
@@ -405,7 +416,8 @@ fun FoodScreen(
                     ) {
                         combinedQuickChips.forEach { (label, promptText) ->
                             QuickChip(label = label) {
-                                val current = if (state.rawText.isNotBlank()) "${state.rawText}, $promptText" else promptText
+                                val current = if (rawTextInput.isNotBlank()) "$rawTextInput, $promptText" else promptText
+                                rawTextInput = current
                                 onIntent(FoodIntent.OnRawTextChanged(current))
                             }
                         }
@@ -421,7 +433,7 @@ fun FoodScreen(
                         badgeText = foodQuotaBadge,
                         isBadgeAlert = isFoodQuotaExhausted,
                         isLoading = state.isCalculatingAi,
-                        enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
+                        enabled = !state.isCalculatingAi && rawTextInput.isNotBlank(),
                         onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
                         modifier = Modifier
                             .fillMaxWidth()

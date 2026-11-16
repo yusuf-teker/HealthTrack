@@ -34,6 +34,7 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
         val title = data["title"] ?: message.notification?.title
         val body = data["body"] ?: message.notification?.body
         val typeRaw = data["activityType"] ?: data["type"]
+        if (typeRaw != null && typeRaw.equals("MEAL", ignoreCase = true)) return
         val actorName = data["actorName"] ?: title
         val actorUsername = data["actorUsername"]
         val actorUserId = data["actorUserId"]?.toIntOrNull() ?: 0

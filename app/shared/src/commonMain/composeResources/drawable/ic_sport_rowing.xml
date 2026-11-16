@@ -1,0 +1,48 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Flywheel (Ergometer Drum) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:pathData="M5.6,11.6 C7.31,11.6 8.7,12.99 8.7,14.7 C8.7,16.41 7.31,17.8 5.6,17.8 C3.89,17.8 2.5,16.41 2.5,14.7 C2.5,12.99 3.89,11.6 5.6,11.6 Z" />
+    <!-- Console Arm & Monitor -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M6.8,11.8 L9.0,6.6 L11.2,6.2" />
+    <!-- Monorail & Feet -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8.4,16.0 L21.0,16.0 M4.4,17.7 L3.6,19.2 M20.2,16.0 L21.0,19.2" />
+    <!-- Sliding Seat -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M13.6,13.6 L17.0,13.6" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M15.3,13.6 L15.3,16.0" />
+    <!-- Pull Chain & Handle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M8.2,12.8 L12.8,10.5 M12.8,9.0 L12.8,11.9" />
+</vector>

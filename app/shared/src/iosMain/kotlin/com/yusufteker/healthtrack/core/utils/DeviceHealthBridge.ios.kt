@@ -655,6 +655,8 @@ private fun mapHealthKitWorkoutType(type: HKWorkoutActivityType): DeviceExercise
         HKWorkoutActivityTypeFunctionalStrengthTraining,
         HKWorkoutActivityTypeCoreTraining -> DeviceExerciseCategory.STRENGTH
 
+        HKWorkoutActivityTypeGymnastics -> DeviceExerciseCategory.CALISTHENICS
+
         HKWorkoutActivityTypeHighIntensityIntervalTraining,
         HKWorkoutActivityTypeCrossTraining,
         HKWorkoutActivityTypeMixedCardio,
@@ -682,8 +684,9 @@ private fun mapHealthKitWorkoutType(type: HKWorkoutActivityType): DeviceExercise
         HKWorkoutActivityTypeClimbing -> DeviceExerciseCategory.HIKING
 
         HKWorkoutActivityTypeBasketball,
-        HKWorkoutActivityTypeVolleyball,
         HKWorkoutActivityTypeHandball -> DeviceExerciseCategory.BASKETBALL
+
+        HKWorkoutActivityTypeVolleyball -> DeviceExerciseCategory.VOLLEYBALL
 
         HKWorkoutActivityTypeSoccer,
         HKWorkoutActivityTypeAmericanFootball,
@@ -696,6 +699,9 @@ private fun mapHealthKitWorkoutType(type: HKWorkoutActivityType): DeviceExercise
         HKWorkoutActivityTypeRacquetball,
         HKWorkoutActivityTypeSquash,
         HKWorkoutActivityTypePickleball -> DeviceExerciseCategory.TENNIS
+
+        HKWorkoutActivityTypeCardioDance,
+        HKWorkoutActivityTypeSocialDance -> DeviceExerciseCategory.DANCE
 
         HKWorkoutActivityTypeBoxing,
         HKWorkoutActivityTypeMartialArts,

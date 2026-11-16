@@ -13,6 +13,7 @@ import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.theme.AppThemeColor
+import kotlinx.coroutines.Dispatchers
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -28,7 +29,7 @@ fun ProfileScreenRoot(
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel()
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val dailyReminderNotifier = rememberDailyReminderNotifier()
     val deviceHealthBridge = rememberDeviceHealthBridge()
     var hasNotifPermission by remember { mutableStateOf(dailyReminderNotifier.hasPermission) }

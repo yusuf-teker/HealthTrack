@@ -286,6 +286,18 @@ private fun AddWeightDialog(
     onDismiss: () -> Unit
 ) {
     var showExtraFields by remember { mutableStateOf(false) }
+    var weightInput by remember { mutableStateOf(state.inputWeight) }
+    var dateInput by remember { mutableStateOf(state.inputDate) }
+    var noteInput by remember { mutableStateOf(state.inputNote) }
+    LaunchedEffect(state.inputWeight) {
+        if (weightInput != state.inputWeight) weightInput = state.inputWeight
+    }
+    LaunchedEffect(state.inputDate) {
+        if (dateInput != state.inputDate) dateInput = state.inputDate
+    }
+    LaunchedEffect(state.inputNote) {
+        if (noteInput != state.inputNote) noteInput = state.inputNote
+    }
     val isDark = LocalIsDarkTheme.current
     val scrollState = rememberScrollState()
 
@@ -367,8 +379,11 @@ private fun AddWeightDialog(
 
                 // Input Field
                 OutlinedTextField(
-                    value = state.inputWeight,
-                    onValueChange = { onIntent(WeightIntent.OnInputWeightChanged(it)) },
+                    value = weightInput,
+                    onValueChange = {
+                        weightInput = it
+                        onIntent(WeightIntent.OnInputWeightChanged(it))
+                    },
                     label = { Text(str("Kilo (kg)", "Weight (kg)")) },
                     placeholder = { Text(str("Örn: 74.5", "e.g. 74.5")) },
                     isError = state.errorMessage != null,
@@ -379,8 +394,8 @@ private fun AddWeightDialog(
                     singleLine = true
                 )
 
-                val parsedInputWeight = remember(state.inputWeight) {
-                    state.inputWeight.toLocaleDoubleOrNull()
+                val parsedInputWeight = remember(weightInput) {
+                    weightInput.toLocaleDoubleOrNull()
                 }
                 val decimalTypoFix = remember(parsedInputWeight) {
                     parsedInputWeight?.takeIf { it in 250.0..1500.0 }?.let { raw ->
@@ -416,6 +431,7 @@ private fun AddWeightDialog(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
+                                    weightInput = suggestedText
                                     onIntent(WeightIntent.OnInputWeightChanged(suggestedText))
                                 }
                         ) {
@@ -473,7 +489,7 @@ private fun AddWeightDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = str("📅 Tarih: ${state.inputDate}", "📅 Date: ${state.inputDate}"),
+                            text = str("📅 Tarih: $dateInput", "📅 Date: $dateInput"),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -488,16 +504,22 @@ private fun AddWeightDialog(
                 AnimatedVisibility(visible = showExtraFields) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
-                            value = state.inputDate,
-                            onValueChange = { onIntent(WeightIntent.OnInputDateChanged(it)) },
+                            value = dateInput,
+                            onValueChange = {
+                                dateInput = it
+                                onIntent(WeightIntent.OnInputDateChanged(it))
+                            },
                             label = { Text(str("Tarih (GG.AA.YYYY)", "Date (DD.MM.YYYY)")) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
                         )
                         OutlinedTextField(
-                            value = state.inputNote,
-                            onValueChange = { onIntent(WeightIntent.OnInputNoteChanged(it)) },
+                            value = noteInput,
+                            onValueChange = {
+                                noteInput = it
+                                onIntent(WeightIntent.OnInputNoteChanged(it))
+                            },
                             label = { Text(str("Not (Opsiyonel)", "Note (Optional)")) },
                             placeholder = { Text(str("Aç karna, antrenman sonrası...", "Fasted morning, post-workout...")) },
                             modifier = Modifier.fillMaxWidth(),

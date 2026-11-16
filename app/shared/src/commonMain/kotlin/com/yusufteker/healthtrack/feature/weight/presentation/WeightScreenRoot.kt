@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
+import kotlinx.coroutines.Dispatchers
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -15,7 +16,7 @@ fun WeightScreenRoot(
     viewModel: WeightViewModel = koinViewModel(),
     modifier: Modifier = Modifier
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val dailyReminderNotifier = rememberDailyReminderNotifier()
 
     LaunchedEffect(state.reminderFrequency) {

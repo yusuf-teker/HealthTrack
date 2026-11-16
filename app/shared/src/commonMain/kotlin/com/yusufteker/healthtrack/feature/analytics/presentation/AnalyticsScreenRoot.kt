@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
+import kotlinx.coroutines.Dispatchers
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -14,7 +15,7 @@ fun AnalyticsScreenRoot(
     onShowToast: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val appLauncher = rememberExternalAppLauncher()
 
     LaunchedEffect(viewModel) {

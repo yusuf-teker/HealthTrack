@@ -38,6 +38,7 @@ class FriendActivityMonitor(
      */
     suspend fun observeLivePushBus() {
         FriendNotificationBus.liveEvents.collect { event ->
+            if (!isSupportedNotification(event)) return@collect
             if (tokenStorage.isLoggedIn()) {
                 enqueueForImmediateDisplay(event)
             } else {
@@ -54,7 +55,9 @@ class FriendActivityMonitor(
         val storedPushes = tokenStorage.getPendingFriendNotifications()
         if (storedPushes.isNotEmpty()) {
             tokenStorage.clearPendingFriendNotifications()
-            storedPushes.forEach { enqueueForImmediateDisplay(it) }
+            storedPushes
+                .filter(::isSupportedNotification)
+                .forEach { enqueueForImmediateDisplay(it) }
         }
     }
 
@@ -127,6 +130,7 @@ class FriendActivityMonitor(
     }
 
     fun enqueueForImmediateDisplay(event: FriendNotificationEvent) {
+        if (!isSupportedNotification(event)) return
         val current = _currentBanner.value
         val existingQueue = _queue.value
         if (current?.id == event.id || existingQueue.any { it.id == event.id }) return
@@ -154,6 +158,10 @@ class FriendActivityMonitor(
     }
 
     companion object {
+        fun isSupportedNotification(event: FriendNotificationEvent): Boolean {
+            return event.type == FriendActivityType.WORKOUT || event.type == FriendActivityType.FOLLOW_REQUEST
+        }
+
         fun buildFollowRequestNotification(
             req: FollowRequestItemDto,
             nowMs: Long = currentTimeMillis()
@@ -175,7 +183,7 @@ class FriendActivityMonitor(
 
         /**
          * Pure diff engine comparing a friend's previous daily metrics to their latest metrics.
-         * Produces localized activity notifications whenever a friend logs a workout, meal, streak, or XP gain.
+         * Produces localized activity notifications whenever a friend logs a workout.
          */
         fun detectFriendActivityChanges(
             previous: List<FriendBaselineEntry>,
@@ -225,58 +233,6 @@ class FriendActivityMonitor(
                                 titleEn = "$actor logged a workout",
                                 messageTr = "+$deltaMin dk aktif egzersiz kaydetti 🏃",
                                 messageEn = "Logged +$deltaMin min of active exercise 🏃",
-                                createdAtMs = nowMs
-                            )
-                        )
-                    }
-
-                    entry.healthyEatingScore > prev.healthyEatingScore -> {
-                        results.add(
-                            FriendNotificationEvent(
-                                id = "act_${entry.userId}_${dateIso}_meal_${entry.healthyEatingScore}",
-                                actorUserId = entry.userId,
-                                actorName = actor,
-                                actorUsername = entry.username,
-                                type = FriendActivityType.MEAL,
-                                titleTr = "$actor beslenme kaydı girdi",
-                                titleEn = "$actor logged a meal",
-                                messageTr = "Günlük beslenme hedefinde ilerledi 🥗",
-                                messageEn = "Made progress on daily nutrition goals 🥗",
-                                createdAtMs = nowMs
-                            )
-                        )
-                    }
-
-                    entry.streakDays > prev.streakDays && entry.streakDays >= 2 -> {
-                        results.add(
-                            FriendNotificationEvent(
-                                id = "act_${entry.userId}_${dateIso}_streak_${entry.streakDays}",
-                                actorUserId = entry.userId,
-                                actorName = actor,
-                                actorUsername = entry.username,
-                                type = FriendActivityType.STREAK,
-                                titleTr = "$actor serisini uzattı!",
-                                titleEn = "$actor extended their streak!",
-                                messageTr = "${entry.streakDays} günlük aktif seri 🔥",
-                                messageEn = "${entry.streakDays}-day active streak 🔥",
-                                createdAtMs = nowMs
-                            )
-                        )
-                    }
-
-                    entry.score > prev.score -> {
-                        val deltaXp = entry.score - prev.score
-                        results.add(
-                            FriendNotificationEvent(
-                                id = "act_${entry.userId}_${dateIso}_xp_${entry.score}",
-                                actorUserId = entry.userId,
-                                actorName = actor,
-                                actorUsername = entry.username,
-                                type = FriendActivityType.GENERAL,
-                                titleTr = "$actor yeni aktivite ekledi",
-                                titleEn = "$actor logged a new update",
-                                messageTr = "+$deltaXp XP kazandı (Toplam ${entry.score} XP) ⚡",
-                                messageEn = "Earned +$deltaXp XP (Total ${entry.score} XP) ⚡",
                                 createdAtMs = nowMs
                             )
                         )

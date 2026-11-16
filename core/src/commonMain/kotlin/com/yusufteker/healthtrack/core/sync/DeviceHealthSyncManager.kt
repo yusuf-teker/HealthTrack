@@ -42,9 +42,7 @@ class DeviceHealthSyncManager(
     suspend fun mergeSnapshot(
         snapshot: DeviceHealthSnapshot,
         syncToCloud: Boolean = true
-    ): DeviceSyncSummary =
-        gamificationManager?.runQuietly { performMergeSnapshot(snapshot, syncToCloud) }
-            ?: performMergeSnapshot(snapshot, syncToCloud)
+    ): DeviceSyncSummary = performMergeSnapshot(snapshot, syncToCloud)
 
     private suspend fun performMergeSnapshot(
         snapshot: DeviceHealthSnapshot,
@@ -61,6 +59,10 @@ class DeviceHealthSyncManager(
         var updatedWorkouts = 0
         var skippedWorkouts = 0
 
+        var latestWeightEntry: WeightEntry? = null
+        val touchedWorkoutDates = mutableSetOf<String>()
+
+        val applyDeviceData: suspend () -> Unit = {
         // ─────────────────────────────────────────────────────────────
         // 1. MERGE SMART SCALE WEIGHTS & BODY FAT
         // ─────────────────────────────────────────────────────────────
@@ -154,13 +156,14 @@ class DeviceHealthSyncManager(
 
         // Update current user weight & dynamic protein goal if weights changed
         val activeWeightsAfterMerge = database.getWeights(userId).sortedBy { it.date }
-        val latestWeightEntry = activeWeightsAfterMerge.lastOrNull()
-        if (latestWeightEntry != null && (importedWeights > 0 || updatedWeights > 0)) {
-            tokenStorage.setUserWeight(latestWeightEntry.weightKg)
+        val resolvedLatestWeight = activeWeightsAfterMerge.lastOrNull()
+        latestWeightEntry = resolvedLatestWeight
+        if (resolvedLatestWeight != null && (importedWeights > 0 || updatedWeights > 0)) {
+            tokenStorage.setUserWeight(resolvedLatestWeight.weightKg)
             val currentGoal = database.observeNutritionGoal(userId).firstOrNull()
             if (currentGoal != null) {
                 val fitnessGoal = tokenStorage.getUserFitnessGoal()
-                val newProtein = calculateProteinTarget(latestWeightEntry.weightKg, fitnessGoal)
+                val newProtein = calculateProteinTarget(resolvedLatestWeight.weightKg, fitnessGoal)
                 if (abs(currentGoal.proteinG - newProtein) >= 0.5) {
                     database.upsertNutritionGoal(
                         currentGoal.copy(
@@ -173,7 +176,7 @@ class DeviceHealthSyncManager(
             }
         }
 
-        val effectiveUserWeightKg = latestWeightEntry?.weightKg
+        val effectiveUserWeightKg = resolvedLatestWeight?.weightKg
             ?: tokenStorage.getUserWeight().takeIf { it > 0.0 }
             ?: 75.0
 
@@ -216,8 +219,6 @@ class DeviceHealthSyncManager(
                         .thenBy { it.durationMinutes }
                 ) ?: candidates.first()
             }
-
-        val touchedWorkoutDates = mutableSetOf<String>()
 
         for (deviceWorkout in deduplicatedDeviceWorkouts) {
             val deterministicId = buildDeterministicWorkoutId(userId, deviceWorkout)
@@ -313,6 +314,14 @@ class DeviceHealthSyncManager(
             activeWorkoutsByDate.getOrPut(deviceWorkout.date) { mutableListOf() }.add(newWorkout)
             touchedWorkoutDates.add(deviceWorkout.date)
             importedWorkouts++
+        }
+        } // end applyDeviceData
+
+        if (snapshot.weights.isNotEmpty() || snapshot.workouts.isNotEmpty()) {
+            gamificationManager?.runQuietly { applyDeviceData() } ?: applyDeviceData()
+        } else {
+            val activeWeightsAfterMerge = database.getWeights(userId).sortedBy { it.date }
+            latestWeightEntry = activeWeightsAfterMerge.lastOrNull()
         }
 
         val sortedTouchedDates = touchedWorkoutDates.sorted()
@@ -413,10 +422,17 @@ class DeviceHealthSyncManager(
                 language
             )
         }
-        val baseTitle = record.customTitle
+        val rawCustomTitle = record.customTitle
             ?.trim()
             ?.takeIf { it.isNotBlank() && !it.equals("Workout", ignoreCase = true) && !it.equals("Exercise", ignoreCase = true) }
-            ?: record.category.localizedTitle(language)
+        val baseTitle = when {
+            rawCustomTitle == null -> record.category.localizedTitle(language)
+            record.category != DeviceExerciseCategory.OTHER &&
+                record.category != DeviceExerciseCategory.DAILY_STEPS &&
+                SportType.detectAll(rawCustomTitle).isEmpty() ->
+                "$rawCustomTitle (${record.category.localizedTitle(language)})"
+            else -> rawCustomTitle
+        }
         return if (baseTitle.contains("dk", ignoreCase = true) || baseTitle.contains("min", ignoreCase = true)) {
             baseTitle
         } else {

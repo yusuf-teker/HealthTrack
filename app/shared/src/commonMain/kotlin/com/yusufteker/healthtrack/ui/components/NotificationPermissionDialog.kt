@@ -114,8 +114,8 @@ fun NotificationPermissionDialog(
                     tint = Color(0xFF38BDF8),
                     title = str("Anlık Arkadaş Bildirimleri", "Instant Friend Activity"),
                     subtitle = str(
-                        "Arkadaşların antrenman veya öğün eklediğinde anında haberin olur.",
-                        "Get instant alerts when friends log workouts or meals."
+                        "Arkadaşların antrenman eklediğinde anında haberin olur.",
+                        "Get instant alerts when friends log workouts."
                     )
                 )
             }

@@ -57,11 +57,29 @@ enum class BadgeRank(
     SILVER(0xFFCBD5E1, "Gümüş", "Silver"),
     GOLD(0xFFF59E0B, "Altın", "Gold"),
     PLATINUM(0xFF38BDF8, "Platin", "Platinum"),
-    DIAMOND(0xFFEC4899, "Elmas", "Diamond");
+    EMERALD(0xFF10B981, "Zümrüt", "Emerald"),
+    SAPPHIRE(0xFF3B82F6, "Safir", "Sapphire"),
+    RUBY(0xFFEF4444, "Yakut", "Ruby"),
+    DIAMOND(0xFFEC4899, "Elmas", "Diamond"),
+    MASTER(0xFFA855F7, "Usta", "Master"),
+    LEGEND(0xFFFACC15, "Efsane", "Legend");
 
     fun localizedLabel(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(labelTr, labelEn, language)
 }
+
+private val sportBadgeStages: List<BadgeStage> = listOf(
+    BadgeStage(level = 1, targetCount = 1, xpReward = 75),
+    BadgeStage(level = 2, targetCount = 4, xpReward = 150),
+    BadgeStage(level = 3, targetCount = 9, xpReward = 300),
+    BadgeStage(level = 4, targetCount = 19, xpReward = 600),
+    BadgeStage(level = 5, targetCount = 34, xpReward = 1000),
+    BadgeStage(level = 6, targetCount = 59, xpReward = 1500),
+    BadgeStage(level = 7, targetCount = 99, xpReward = 2200),
+    BadgeStage(level = 8, targetCount = 159, xpReward = 3200),
+    BadgeStage(level = 9, targetCount = 249, xpReward = 4500),
+    BadgeStage(level = 10, targetCount = 399, xpReward = 6500)
+)
 
 @Serializable
 enum class BadgeId(
@@ -278,6 +296,171 @@ enum class BadgeId(
         stages = listOf(
             BadgeStage(level = 1, targetCount = 1, xpReward = 150)
         )
+    ),
+    SPORT_TENNIS(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Kortun Efendisi",
+        titleEn = "Tennis Ace",
+        descriptionTr = "Kortta yaptığın tenis antrenmanlarıyla branş madalyanı yükselt.",
+        descriptionEn = "Level up your tennis medal with every session on court.",
+        unitTr = "tenis",
+        unitEn = "tennis",
+        accentColorHex = 0xFF10B981,
+        stages = sportBadgeStages
+    ),
+    SPORT_FITNESS(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Demir Bilek",
+        titleEn = "Iron Titan",
+        descriptionTr = "Ağırlık ve fitness antrenmanlarıyla güç madalyanı parlat.",
+        descriptionEn = "Polish your strength medal through fitness and weight sessions.",
+        unitTr = "fitness",
+        unitEn = "fitness",
+        accentColorHex = 0xFFF59E0B,
+        stages = sportBadgeStages
+    ),
+    SPORT_RUNNING(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Koşu Fırtınası",
+        titleEn = "Running Storm",
+        descriptionTr = "Koşu ve koşu bandı seanslarını artırarak madalyanı yükselt.",
+        descriptionEn = "Upgrade your medal by stacking running and treadmill sessions.",
+        unitTr = "koşu",
+        unitEn = "runs",
+        accentColorHex = 0xFFFB7185,
+        stages = sportBadgeStages
+    ),
+    SPORT_ROWING(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Dalga Kıran",
+        titleEn = "Rowing Master",
+        descriptionTr = "Kürek antrenmanlarıyla üst düzey dayanıklılık madalyası kazan.",
+        descriptionEn = "Earn endurance medals from every rowing workout.",
+        unitTr = "kürek",
+        unitEn = "rows",
+        accentColorHex = 0xFF38BDF8,
+        stages = sportBadgeStages
+    ),
+    SPORT_BASKETBALL(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Potanın Kralı",
+        titleEn = "Hoops King",
+        descriptionTr = "Basketbol antrenmanları ve maçlarıyla pota madalyanı zirveye taşı.",
+        descriptionEn = "Unlock your hoops medal with basketball training and games.",
+        unitTr = "basketbol",
+        unitEn = "basketball",
+        accentColorHex = 0xFFF97316,
+        stages = sportBadgeStages
+    ),
+    SPORT_FOOTBALL(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Gol Kralı",
+        titleEn = "Pitch Striker",
+        descriptionTr = "Futbol ve halı saha maçlarıyla yeşil sahalardaki madalyanı geliştir.",
+        descriptionEn = "Level up your striker medal with football and pitch matches.",
+        unitTr = "futbol",
+        unitEn = "football",
+        accentColorHex = 0xFF22C55E,
+        stages = sportBadgeStages
+    ),
+    SPORT_CYCLING(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Pedal Ustası",
+        titleEn = "Pedal Master",
+        descriptionTr = "Bisiklet, spinning ve eliptik sürüşleriyle yolların tozunu attır.",
+        descriptionEn = "Conquer the road with cycling, spinning, and elliptical rides.",
+        unitTr = "sürüş",
+        unitEn = "rides",
+        accentColorHex = 0xFF06D6A0,
+        stages = sportBadgeStages
+    ),
+    SPORT_SWIMMING(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Kulaç Ustası",
+        titleEn = "Aqua Master",
+        descriptionTr = "Havuz ve açık su yüzme antrenmanlarıyla su madalyanı yükselt.",
+        descriptionEn = "Level up your aqua medal with pool and open-water swim sessions.",
+        unitTr = "yüzme",
+        unitEn = "swims",
+        accentColorHex = 0xFF0EA5E9,
+        stages = sportBadgeStages
+    ),
+    SPORT_WALKING(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Yolların Fatihi",
+        titleEn = "Trail Blazer",
+        descriptionTr = "Tempolu yürüyüş ve doğa yürüyüşleriyle aktif adımlarını taçlandır.",
+        descriptionEn = "Crown your active steps with brisk walks, trekking, and hikes.",
+        unitTr = "yürüyüş",
+        unitEn = "walks",
+        accentColorHex = 0xFF34D399,
+        stages = sportBadgeStages
+    ),
+    SPORT_YOGA_PILATES(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Zen & Denge",
+        titleEn = "Zen Master",
+        descriptionTr = "Yoga, pilates ve esneme seanslarıyla esneklik ve denge ustası ol.",
+        descriptionEn = "Master flexibility, core control, and balance with yoga and pilates.",
+        unitTr = "seans",
+        unitEn = "sessions",
+        accentColorHex = 0xFFA855F7,
+        stages = sportBadgeStages
+    ),
+    SPORT_VOLLEYBALL(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Filenin Sultanı",
+        titleEn = "Net Monarch",
+        descriptionTr = "Voleybol maçları ve antrenmanlarıyla file üstü hakimiyetini kanıtla.",
+        descriptionEn = "Rule the net with volleyball matches, blocks, and spikes.",
+        unitTr = "voleybol",
+        unitEn = "volleyball",
+        accentColorHex = 0xFFEC4899,
+        stages = sportBadgeStages
+    ),
+    SPORT_BOXING(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Ringlerin Hakimi",
+        titleEn = "Ring Champion",
+        descriptionTr = "Boks, kickboks ve dövüş antrenmanlarıyla yıkılmaz kondisyon inşa et.",
+        descriptionEn = "Build unstoppable conditioning with boxing, kickboxing, and combat sessions.",
+        unitTr = "raunt",
+        unitEn = "sessions",
+        accentColorHex = 0xFFEF4444,
+        stages = sportBadgeStages
+    ),
+    SPORT_HIIT(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Nabız Avcısı",
+        titleEn = "HIIT Dynamo",
+        descriptionTr = "HIIT, CrossFit ve yüksek tempolu kardiyo ile sınırlarını zorla.",
+        descriptionEn = "Push your limits with explosive HIIT, CrossFit, and circuit training.",
+        unitTr = "kardiyo",
+        unitEn = "HIIT",
+        accentColorHex = 0xFFFACC15,
+        stages = sportBadgeStages
+    ),
+    SPORT_CALISTHENICS(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Barların Efendisi",
+        titleEn = "Calisthenics Pro",
+        descriptionTr = "Barfiks, şınav, dips ve kalistenik egzersizlerle kendi ağırlığına hükmet.",
+        descriptionEn = "Master your own bodyweight with pull-ups, push-ups, dips, and calisthenics.",
+        unitTr = "kalistenik",
+        unitEn = "calisthenics",
+        accentColorHex = 0xFF6366F1,
+        stages = sportBadgeStages
+    ),
+    SPORT_DANCE(
+        category = BadgeCategory.WORKOUT,
+        titleTr = "Ritim Ustası",
+        titleEn = "Rhythm Master",
+        descriptionTr = "Dans, zumba ve aerobik seanslarıyla ritmi yüksek kalori yakımına dönüştür.",
+        descriptionEn = "Turn rhythm into high-energy burn with dance, Zumba, and aerobics.",
+        unitTr = "dans",
+        unitEn = "dance",
+        accentColorHex = 0xFFF43F5E,
+        stages = sportBadgeStages
     );
 
     val maxLevel: Int get() = stages.size
@@ -289,12 +472,40 @@ enum class BadgeId(
     fun rankForLevel(currentLevel: Int): BadgeRank = when {
         currentLevel <= 0 -> BadgeRank.LOCKED
         maxLevel == 1 -> BadgeRank.GOLD
-        currentLevel >= maxLevel -> BadgeRank.DIAMOND
+        maxLevel <= 5 && currentLevel >= maxLevel -> BadgeRank.DIAMOND
+        currentLevel >= 10 -> BadgeRank.LEGEND
         currentLevel == 1 -> BadgeRank.BRONZE
         currentLevel == 2 -> BadgeRank.SILVER
         currentLevel == 3 -> BadgeRank.GOLD
-        else -> BadgeRank.PLATINUM
+        currentLevel == 4 -> BadgeRank.PLATINUM
+        currentLevel == 5 -> BadgeRank.EMERALD
+        currentLevel == 6 -> BadgeRank.SAPPHIRE
+        currentLevel == 7 -> BadgeRank.RUBY
+        currentLevel == 8 -> BadgeRank.DIAMOND
+        currentLevel == 9 -> BadgeRank.MASTER
+        else -> BadgeRank.LEGEND
     }
+
+    fun toSportTypeOrNull(): SportType? = when (this) {
+        SPORT_TENNIS -> SportType.TENNIS
+        SPORT_FITNESS -> SportType.FITNESS
+        SPORT_RUNNING -> SportType.RUNNING
+        SPORT_ROWING -> SportType.ROWING
+        SPORT_BASKETBALL -> SportType.BASKETBALL
+        SPORT_FOOTBALL -> SportType.FOOTBALL
+        SPORT_CYCLING -> SportType.CYCLING
+        SPORT_SWIMMING -> SportType.SWIMMING
+        SPORT_WALKING -> SportType.WALKING
+        SPORT_YOGA_PILATES -> SportType.YOGA_PILATES
+        SPORT_VOLLEYBALL -> SportType.VOLLEYBALL
+        SPORT_BOXING -> SportType.BOXING
+        SPORT_HIIT -> SportType.HIIT
+        SPORT_CALISTHENICS -> SportType.CALISTHENICS
+        SPORT_DANCE -> SportType.DANCE
+        else -> null
+    }
+
+    val isSportBadge: Boolean get() = toSportTypeOrNull() != null
 
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(titleTr, titleEn, language)
@@ -304,6 +515,27 @@ enum class BadgeId(
 
     fun localizedUnit(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(unitTr, unitEn, language)
+
+    companion object {
+        fun fromSportType(sportType: SportType): BadgeId? = when (sportType) {
+            SportType.TENNIS -> SPORT_TENNIS
+            SportType.FITNESS -> SPORT_FITNESS
+            SportType.RUNNING -> SPORT_RUNNING
+            SportType.ROWING -> SPORT_ROWING
+            SportType.BASKETBALL -> SPORT_BASKETBALL
+            SportType.FOOTBALL -> SPORT_FOOTBALL
+            SportType.CYCLING -> SPORT_CYCLING
+            SportType.SWIMMING -> SPORT_SWIMMING
+            SportType.WALKING -> SPORT_WALKING
+            SportType.YOGA_PILATES -> SPORT_YOGA_PILATES
+            SportType.VOLLEYBALL -> SPORT_VOLLEYBALL
+            SportType.BOXING -> SPORT_BOXING
+            SportType.HIIT -> SPORT_HIIT
+            SportType.CALISTHENICS -> SPORT_CALISTHENICS
+            SportType.DANCE -> SPORT_DANCE
+            else -> null
+        }
+    }
 }
 
 @Serializable
@@ -327,6 +559,31 @@ data class GamificationAchievement(
             progressTarget > 0 -> (progressCurrent.toFloat() / progressTarget.toFloat()).coerceIn(0f, 1f)
             isUnlocked -> 1f
             else -> 0f
+        }
+
+    val previousStageTarget: Int
+        get() = if (currentLevel <= 0) 0 else badgeId.stageForLevel(currentLevel)?.targetCount ?: 0
+
+    val stageStepTarget: Int
+        get() = if (isMaxed) {
+            val prev = badgeId.stageForLevel(maxLevel - 1)?.targetCount ?: 0
+            (progressTarget - prev).coerceAtLeast(1)
+        } else {
+            (progressTarget - previousStageTarget).coerceAtLeast(1)
+        }
+
+    val stageStepCurrent: Int
+        get() = if (isMaxed) {
+            stageStepTarget
+        } else {
+            (rawProgress - previousStageTarget).coerceIn(0, stageStepTarget)
+        }
+
+    val stageProgressFraction: Float
+        get() = if (isMaxed) {
+            1f
+        } else {
+            (stageStepCurrent.toFloat() / stageStepTarget.toFloat()).coerceIn(0f, 1f)
         }
 }
 
@@ -382,11 +639,13 @@ data class GamificationSummary(
 @Serializable
 enum class CelebrationType {
     BADGE_UNLOCKED,
+    SPORT_PROGRESS,
     LEVEL_UP,
     STREAK_MILESTONE,
     DAILY_GOAL_COMPLETED,
     WORKOUT_GOAL_REACHED,
-    WATER_GOAL_REACHED
+    WATER_GOAL_REACHED,
+    HEALTHY_MEAL_LOGGED
 }
 
 @Serializable
@@ -419,7 +678,15 @@ data class CelebrationEvent(
     val badgeId: BadgeId? = null,
     val badgeStageLevel: Int? = null,
     val streakDays: Int? = null,
-    val newLevel: Int? = null
+    val newLevel: Int? = null,
+    val progressCurrent: Int? = null,
+    val progressTarget: Int? = null,
+    val previousProgressFraction: Float? = null,
+    val targetProgressFraction: Float? = null,
+    val nextStageLevel: Int? = null,
+    val showConfetti: Boolean = true,
+    val autoDismissMs: Long? = null,
+    val healthScore: Int? = null
 ) {
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(titleTr, titleEn, language)

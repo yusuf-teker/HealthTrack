@@ -50,6 +50,10 @@ fun GroceryListBottomSheet(
     val clipboardManager = LocalClipboardManager.current
     var customItemInput by remember { mutableStateOf("") }
     var copiedFeedback by remember { mutableStateOf(false) }
+    var titleInput by remember { mutableStateOf(title) }
+    LaunchedEffect(title) {
+        if (titleInput != title) titleInput = title
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -101,7 +105,7 @@ fun GroceryListBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = title.ifBlank { str("Market Alışveriş Listesi", "Grocery Shopping List") },
+                            text = titleInput.ifBlank { str("Market Alışveriş Listesi", "Grocery Shopping List") },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -122,8 +126,11 @@ fun GroceryListBottomSheet(
 
             // Editable Task Title
             OutlinedTextField(
-                value = title,
-                onValueChange = onTitleChange,
+                value = titleInput,
+                onValueChange = {
+                    titleInput = it
+                    onTitleChange(it)
+                },
                 label = { Text(str("Görev Başlığı", "Task Title")) },
                 placeholder = { Text(str("Market Alışveriş Listesi", "Grocery Shopping List")) },
                 singleLine = true,

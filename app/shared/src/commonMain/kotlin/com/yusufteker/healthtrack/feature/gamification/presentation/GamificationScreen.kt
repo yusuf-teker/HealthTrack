@@ -78,6 +78,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +107,7 @@ import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
+import com.yusufteker.healthtrack.ui.components.SportIcons
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
@@ -722,6 +724,21 @@ private fun badgeIconFor(badgeId: BadgeId): ImageVector = when (badgeId) {
     BadgeId.WORKOUT_DISCIPLINE -> Icons.AutoMirrored.Rounded.DirectionsRun
     BadgeId.CALORIE_ENGINE -> Icons.Rounded.LocalFireDepartment
     BadgeId.ENDURANCE_MINUTES -> Icons.Rounded.Timer
+    BadgeId.SPORT_TENNIS -> SportIcons.TennisIcon
+    BadgeId.SPORT_FITNESS -> SportIcons.FitnessDumbbellIcon
+    BadgeId.SPORT_RUNNING -> SportIcons.RunningAthleteIcon
+    BadgeId.SPORT_ROWING -> SportIcons.RowingMachineIcon
+    BadgeId.SPORT_BASKETBALL -> SportIcons.BasketballHoopIcon
+    BadgeId.SPORT_FOOTBALL -> SportIcons.FootballGoalIcon
+    BadgeId.SPORT_CYCLING -> SportIcons.CyclingBikeIcon
+    BadgeId.SPORT_SWIMMING -> SportIcons.SwimmingWaveIcon
+    BadgeId.SPORT_WALKING -> SportIcons.WalkingIcon
+    BadgeId.SPORT_YOGA_PILATES -> SportIcons.YogaLotusIcon
+    BadgeId.SPORT_VOLLEYBALL -> SportIcons.VolleyballIcon
+    BadgeId.SPORT_BOXING -> SportIcons.BoxingGloveIcon
+    BadgeId.SPORT_HIIT -> SportIcons.HiitLightningIcon
+    BadgeId.SPORT_CALISTHENICS -> SportIcons.CalisthenicsBarIcon
+    BadgeId.SPORT_DANCE -> SportIcons.DanceSparkIcon
     BadgeId.SCALE_TRACKER -> Icons.Rounded.MonitorWeight
     BadgeId.DEVICE_BRIDGE -> Icons.Rounded.Watch
 }
@@ -850,28 +867,18 @@ private fun BadgeGridCard(
                 maxLines = 3
             )
 
-            // Mini stage pips for tiered badges
-            if (achievement.maxLevel > 1) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    for (lvl in 1..achievement.maxLevel) {
-                        val filled = lvl <= achievement.currentLevel
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(
-                                    if (filled) rankColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                                )
-                        )
-                    }
-                }
+            // Progress bar to next stage (or maxed XP summary)
+            val displayedProgressText = when {
+                isMaxed -> str("Tamamlandı • +${achievement.earnedXp} XP", "Maxed • +${achievement.earnedXp} XP")
+                badge.isSportBadge -> "${achievement.stageStepCurrent}/${achievement.stageStepTarget} ${badge.localizedUnit(lang)}"
+                else -> "${achievement.progressCurrent}/${achievement.progressTarget} ${badge.localizedUnit(lang)}"
+            }
+            val displayedProgressFraction = if (badge.isSportBadge) {
+                achievement.stageProgressFraction
+            } else {
+                achievement.progressFraction
             }
 
-            // Progress bar to next stage (or maxed XP summary)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -879,11 +886,7 @@ private fun BadgeGridCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isMaxed) {
-                            str("Tamamlandı • +${achievement.earnedXp} XP", "Maxed • +${achievement.earnedXp} XP")
-                        } else {
-                            "${achievement.progressCurrent}/${achievement.progressTarget} ${badge.localizedUnit(lang)}"
-                        },
+                        text = displayedProgressText,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
                         color = if (isMaxed) rankColor else if (unlocked) accent else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -907,7 +910,7 @@ private fun BadgeGridCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(achievement.progressFraction.coerceIn(0f, 1f))
+                            .fillMaxWidth(displayedProgressFraction.coerceIn(0f, 1f))
                             .height(5.dp)
                             .clip(RoundedCornerShape(999.dp))
                             .background(if (isMaxed) rankColor else if (unlocked) accent else accent.copy(alpha = 0.55f))
@@ -1062,7 +1065,7 @@ private fun BadgeStagesDetailSheet(
                                 Column {
                                     Text(
                                         text = if (badge.maxLevel > 1) {
-                                            str("Seviye ${stage.level}", "Level ${stage.level}")
+                                            "${str("Seviye ${stage.level}", "Level ${stage.level}")} • ${badge.rankForLevel(stage.level).localizedLabel(lang)}"
                                         } else {
                                             str("Başlangıç Rozeti", "Starter Badge")
                                         },
@@ -1749,6 +1752,10 @@ private fun FriendsManagementBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var searchQueryInput by remember { mutableStateOf(state.friendSearchQuery) }
+    LaunchedEffect(state.friendSearchQuery) {
+        if (searchQueryInput != state.friendSearchQuery) searchQueryInput = state.friendSearchQuery
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1791,13 +1798,19 @@ private fun FriendsManagementBottomSheet(
             }
 
             OutlinedTextField(
-                value = state.friendSearchQuery,
-                onValueChange = { onIntent(GamificationIntent.OnFriendSearchQueryChanged(it)) },
+                value = searchQueryInput,
+                onValueChange = {
+                    searchQueryInput = it
+                    onIntent(GamificationIntent.OnFriendSearchQueryChanged(it))
+                },
                 placeholder = { Text(str("Kullanıcı ara (en az 2 harf)...", "Search users (min 2 chars)...")) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (state.friendSearchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onIntent(GamificationIntent.OnFriendSearchQueryChanged("")) }) {
+                    if (searchQueryInput.isNotEmpty()) {
+                        IconButton(onClick = {
+                            searchQueryInput = ""
+                            onIntent(GamificationIntent.OnFriendSearchQueryChanged(""))
+                        }) {
                             Icon(Icons.Rounded.Close, contentDescription = null)
                         }
                     }

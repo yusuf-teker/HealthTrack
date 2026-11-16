@@ -1,0 +1,42 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Head -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:pathData="M15.6,3.4 C16.6,3.4 17.4,4.2 17.4,5.2 C17.4,6.2 16.6,7.0 15.6,7.0 C14.6,7.0 13.8,6.2 13.8,5.2 C13.8,4.2 14.6,3.4 15.6,3.4 Z" />
+    <!-- Torso & Legs -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M13.6,8.4 L11.4,13.6 L15.2,15.8 L14.0,20.4" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M11.4,13.6 L8.6,17.4 L5.4,18.2" />
+    <!-- Arms -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8.6,10.6 L11.4,8.6 L15.0,10.8 L17.8,9.4" />
+    <!-- Motion Lines -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M3.0,9.6 L6.0,9.6 M2.2,13.2 L5.8,13.2" />
+</vector>

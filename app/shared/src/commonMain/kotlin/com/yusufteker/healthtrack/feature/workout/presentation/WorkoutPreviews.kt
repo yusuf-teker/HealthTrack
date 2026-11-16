@@ -25,6 +25,24 @@ private val sampleWorkouts = listOf(
         caloriesBurned = 220,
         durationMinutes = 30,
         aiAnalysis = "Orta-yüksek yoğunluklu direnç antrenmanı. Kas glikojen depoları aktif kullanıldı."
+    ),
+    WorkoutLog(
+        id = "wk_3",
+        userId = 1,
+        date = "2026-11-06",
+        rawText = "45 dk Tenis maçı",
+        caloriesBurned = 320,
+        durationMinutes = 45,
+        aiAnalysis = "Kortta yüksek çeviklik ve interval efor."
+    ),
+    WorkoutLog(
+        id = "wk_4",
+        userId = 1,
+        date = "2026-11-06",
+        rawText = "25 dk Kürek Makinesi",
+        caloriesBurned = 240,
+        durationMinutes = 25,
+        aiAnalysis = "Tüm vücut aerobik ergometre çalışması."
     )
 )
 

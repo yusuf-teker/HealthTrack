@@ -36,6 +36,9 @@ enum class DeviceExerciseCategory(
     BASKETBALL("Basketbol", "Basketball", 7.5),
     FOOTBALL("Futbol", "Football / Soccer", 8.0),
     TENNIS("Tenis", "Tennis", 7.0),
+    VOLLEYBALL("Voleybol", "Volleyball", 6.5),
+    CALISTHENICS("Kalistenik & Cimnastik", "Calisthenics & Gymnastics", 5.5),
+    DANCE("Dans & Zumba", "Dance & Zumba", 6.0),
     MARTIAL_ARTS("Dövüş Sporları / Boks", "Martial Arts / Boxing", 7.8),
     DAILY_STEPS("Günlük Adım & Hareket", "Daily Steps & Activity", 3.5),
     OTHER("Serbest Antrenman", "Open Workout", 5.0);

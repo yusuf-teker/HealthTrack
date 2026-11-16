@@ -28,12 +28,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.Button
@@ -66,6 +68,7 @@ import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.theme.appLang
 import com.yusufteker.healthtrack.theme.str
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -176,6 +179,14 @@ fun ConfettiCelebrationOverlay(
                 )
             }
 
+            LaunchedEffect(event.id, event.autoDismissMs) {
+                val autoMs = event.autoDismissMs
+                if (autoMs != null && autoMs > 0L) {
+                    delay(autoMs)
+                    onDismiss()
+                }
+            }
+
             val infiniteTransition = rememberInfiniteTransition(label = "celebration_glow")
             val haloRotation by infiniteTransition.animateFloat(
                 initialValue = 0f,
@@ -202,16 +213,34 @@ fun ConfettiCelebrationOverlay(
                 event.type == CelebrationType.LEVEL_UP -> Color(0xFFA855F7)
                 event.type == CelebrationType.WORKOUT_GOAL_REACHED -> Color(0xFFF97316)
                 event.type == CelebrationType.WATER_GOAL_REACHED -> Color(0xFF0EA5E9)
+                event.type == CelebrationType.HEALTHY_MEAL_LOGGED -> Color(0xFF10B981)
                 else -> HealthColors.PrimaryGlow
             }
 
-            val iconVector = when (event.type) {
+            val sportType = event.badgeId?.sportTypeOrNull()
+            val iconVector = sportType?.iconVector() ?: when (event.type) {
                 CelebrationType.BADGE_UNLOCKED -> Icons.Rounded.WorkspacePremium
+                CelebrationType.SPORT_PROGRESS -> Icons.Rounded.WorkspacePremium
                 CelebrationType.LEVEL_UP -> Icons.Rounded.AutoAwesome
                 CelebrationType.STREAK_MILESTONE -> Icons.Rounded.LocalFireDepartment
                 CelebrationType.DAILY_GOAL_COMPLETED -> Icons.Rounded.EmojiEvents
                 CelebrationType.WORKOUT_GOAL_REACHED -> Icons.Rounded.LocalFireDepartment
                 CelebrationType.WATER_GOAL_REACHED -> Icons.Rounded.WaterDrop
+                CelebrationType.HEALTHY_MEAL_LOGGED -> Icons.Rounded.Restaurant
+            }
+
+            val targetFraction = event.targetProgressFraction
+            val initialFraction = (event.previousProgressFraction ?: 0f).coerceIn(0f, 1f)
+            val barProgress = remember(event.id) { Animatable(initialFraction) }
+            LaunchedEffect(event.id, targetFraction) {
+                if (targetFraction != null) {
+                    barProgress.snapTo(initialFraction)
+                    delay(220L)
+                    barProgress.animateTo(
+                        targetValue = targetFraction.coerceIn(0f, 1f),
+                        animationSpec = tween(durationMillis = 950, easing = FastOutSlowInEasing)
+                    )
+                }
             }
 
             Box(
@@ -225,53 +254,55 @@ fun ConfettiCelebrationOverlay(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                // Confetti Canvas behind & around card
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val tSeconds = particleProgress.value * 2.8f
-                    val fadeOutAlpha = if (particleProgress.value > 0.72f) {
-                        ((1f - particleProgress.value) / 0.28f).coerceIn(0f, 1f)
-                    } else {
-                        1f
-                    }
-                    if (fadeOutAlpha > 0.01f) {
-                        for (p in particles) {
-                            val px = size.width * p.originXFraction +
-                                p.vx * tSeconds +
-                                sin(tSeconds * p.flutterFreq + p.phaseOffset) * p.flutterAmp.dp.toPx()
-                            val py = size.height * p.originYFraction +
-                                p.vy * tSeconds +
-                                0.5f * p.gravity * tSeconds * tSeconds
+                // Confetti Canvas behind & around card (only when showConfetti is true)
+                if (event.showConfetti) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val tSeconds = particleProgress.value * 2.8f
+                        val fadeOutAlpha = if (particleProgress.value > 0.72f) {
+                            ((1f - particleProgress.value) / 0.28f).coerceIn(0f, 1f)
+                        } else {
+                            1f
+                        }
+                        if (fadeOutAlpha > 0.01f) {
+                            for (p in particles) {
+                                val px = size.width * p.originXFraction +
+                                    p.vx * tSeconds +
+                                    sin(tSeconds * p.flutterFreq + p.phaseOffset) * p.flutterAmp.dp.toPx()
+                                val py = size.height * p.originYFraction +
+                                    p.vy * tSeconds +
+                                    0.5f * p.gravity * tSeconds * tSeconds
 
-                            if (py > size.height + 40f) continue
+                                if (py > size.height + 40f) continue
 
-                            val s = p.sizeDp.dp.toPx()
-                            val flipFactor = cos(tSeconds * p.flutterFreq + p.phaseOffset)
-                                .let { kotlin.math.abs(it).coerceAtLeast(0.22f) }
-                            val c = p.color.copy(alpha = fadeOutAlpha)
-                            val rot = p.spinSpeed * tSeconds
+                                val s = p.sizeDp.dp.toPx()
+                                val flipFactor = cos(tSeconds * p.flutterFreq + p.phaseOffset)
+                                    .let { kotlin.math.abs(it).coerceAtLeast(0.22f) }
+                                val c = p.color.copy(alpha = fadeOutAlpha)
+                                val rot = p.spinSpeed * tSeconds
 
-                            rotate(degrees = rot, pivot = Offset(px, py)) {
-                                when (p.shape) {
-                                    ConfettiShape.RECT -> {
-                                        drawRect(
-                                            color = c,
-                                            topLeft = Offset(px - (s * flipFactor) / 2f, py - s * 0.35f),
-                                            size = Size(s * flipFactor, s * 0.7f)
-                                        )
-                                    }
-                                    ConfettiShape.CIRCLE -> {
-                                        drawCircle(
-                                            color = c,
-                                            radius = s * 0.38f,
-                                            center = Offset(px, py)
-                                        )
-                                    }
-                                    ConfettiShape.DIAMOND -> {
-                                        drawRect(
-                                            color = c,
-                                            topLeft = Offset(px - s * 0.35f, py - s * 0.35f),
-                                            size = Size(s * 0.7f, s * 0.7f)
-                                        )
+                                rotate(degrees = rot, pivot = Offset(px, py)) {
+                                    when (p.shape) {
+                                        ConfettiShape.RECT -> {
+                                            drawRect(
+                                                color = c,
+                                                topLeft = Offset(px - (s * flipFactor) / 2f, py - s * 0.35f),
+                                                size = Size(s * flipFactor, s * 0.7f)
+                                            )
+                                        }
+                                        ConfettiShape.CIRCLE -> {
+                                            drawCircle(
+                                                color = c,
+                                                radius = s * 0.38f,
+                                                center = Offset(px, py)
+                                            )
+                                        }
+                                        ConfettiShape.DIAMOND -> {
+                                            drawRect(
+                                                color = c,
+                                                topLeft = Offset(px - s * 0.35f, py - s * 0.35f),
+                                                size = Size(s * 0.7f, s * 0.7f)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -280,6 +311,7 @@ fun ConfettiCelebrationOverlay(
                 }
 
                 // Celebration Modal Card
+                val cardBg = if (isDark) Color(0xFF101727).copy(alpha = 0.94f) else Color.White.copy(alpha = 0.97f)
                 GlassCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -296,7 +328,7 @@ fun ConfettiCelebrationOverlay(
                     shape = RoundedCornerShape(28.dp),
                     borderWidth = 1.5.dp,
                     borderGradient = listOf(accentColor.copy(alpha = 0.65f), HealthColors.PrimaryGlow.copy(alpha = 0.35f)),
-                    backgroundColor = if (isDark) Color(0xFF101727).copy(alpha = 0.94f) else Color.White.copy(alpha = 0.97f)
+                    backgroundColor = cardBg
                 ) {
                     Column(
                         modifier = Modifier
@@ -348,14 +380,69 @@ fun ConfettiCelebrationOverlay(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        // Medal Rank Pill when a Badge/Sport Medal is attached
+                        val activeBadge = event.badgeId
+                        if (activeBadge != null && (event.badgeStageLevel != null || event.nextStageLevel != null)) {
+                            val badgeLevel = event.badgeStageLevel ?: 1
+                            val rank = activeBadge.rankForLevel(badgeLevel)
+                            val rankColor = Color(rank.accentHex)
+                            val medalLabel = if (event.type == CelebrationType.SPORT_PROGRESS && event.nextStageLevel != null) {
+                                "${rank.localizedLabel(lang)} • ${str("Sv.", "Lv.")} $badgeLevel → ${event.nextStageLevel}"
+                            } else {
+                                "${rank.localizedLabel(lang)} ${str("Madalya", "Medal")} • ${str("Sv.", "Lv.")} $badgeLevel"
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = rankColor.copy(alpha = 0.18f),
+                                border = BorderStroke(1.dp, rankColor.copy(alpha = 0.55f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.WorkspacePremium,
+                                        contentDescription = null,
+                                        tint = rankColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = medalLabel,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                        color = rankColor
+                                    )
+                                }
+                            }
+                        }
+
+                        // Health Score Pill when a healthy meal score is attached
+                        val mealHealthScore = event.healthScore
+                        if (mealHealthScore != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = accentColor.copy(alpha = 0.18f),
+                                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.55f))
+                            ) {
+                                Text(
+                                    text = "🌟 ${str("Sağlık Puanı", "Health Score")}: $mealHealthScore / 100",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = accentColor,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         GradientText(
                             text = event.localizedTitle(lang),
                             colors = listOf(accentColor, HealthColors.PrimaryGlow),
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight.Black,
-                                fontSize = 22.sp
+                                fontSize = 21.sp
                             ),
                             textAlign = TextAlign.Center
                         )
@@ -368,6 +455,89 @@ fun ConfettiCelebrationOverlay(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+
+                        // Animated Stage Progress Bar (e.g. 1/3 filling smoothly for Level 2)
+                        if (targetFraction != null) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            val stageLabelLevel = event.nextStageLevel ?: event.badgeStageLevel ?: 1
+                            val pctNow = (barProgress.value * 100f).toInt().coerceIn(0, 100)
+                            val stepTotal = event.progressTarget
+                            val stepCurrent = event.progressCurrent
+
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = accentColor.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.25f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = str(
+                                                "Seviye $stageLabelLevel İlerlemesi",
+                                                "Level $stageLabelLevel Progress"
+                                            ),
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = if (stepCurrent != null && stepTotal != null) {
+                                                "$stepCurrent / $stepTotal (%$pctNow)"
+                                            } else {
+                                                "%$pctNow"
+                                            },
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                            color = accentColor
+                                        )
+                                    }
+
+                                    // Segmented / Smoothly Filling Bar
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(12.dp)
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(accentColor.copy(alpha = 0.16f))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(barProgress.value.coerceIn(0f, 1f))
+                                                .height(12.dp)
+                                                .clip(RoundedCornerShape(999.dp))
+                                                .background(
+                                                    Brush.horizontalGradient(
+                                                        listOf(accentColor, HealthColors.PrimaryGlow)
+                                                    )
+                                                )
+                                        )
+                                        if (stepTotal != null && stepTotal in 2..10) {
+                                            Row(modifier = Modifier.fillMaxSize()) {
+                                                for (idx in 0 until stepTotal) {
+                                                    Box(modifier = Modifier.weight(1f).height(12.dp))
+                                                    if (idx < stepTotal - 1) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .width(2.dp)
+                                                                .height(12.dp)
+                                                                .background(cardBg.copy(alpha = 0.92f))
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         if (event.xpBonus > 0) {
                             Spacer(modifier = Modifier.height(14.dp))
@@ -398,7 +568,7 @@ fun ConfettiCelebrationOverlay(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(22.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         Button(
                             onClick = onDismiss,
@@ -413,10 +583,23 @@ fun ConfettiCelebrationOverlay(
                                 .bounceClick()
                         ) {
                             Text(
-                                text = str("Harika!", "Awesome!"),
+                                text = when {
+                                    event.type == CelebrationType.SPORT_PROGRESS -> str("Devam Et!", "Keep Going!")
+                                    event.autoDismissMs != null -> str("Harika! ✨", "Awesome! ✨")
+                                    else -> str("Harika!", "Awesome!")
+                                },
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.ExtraBold
                                 )
+                            )
+                        }
+                        if (event.autoDismissMs != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = str("Birazdan otomatik kapanacak", "Closing automatically"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                                textAlign = TextAlign.Center
                             )
                         }
                     }

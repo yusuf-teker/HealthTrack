@@ -6,6 +6,7 @@ import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
+import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.model.WorkoutTelemetryHelper
@@ -325,12 +326,7 @@ class WorkoutViewModel(
             return
         }
 
-        val cal = parsedCal ?: 0
-        val dur = parsedDur ?: 0
-        val date = _state.value.selectedDate
-        val userId = tokenStorage.getUserId()
-
-        if (rawText.isBlank() && cal == 0 && dur == 0) {
+        if (rawText.isBlank() && (parsedCal ?: 0) == 0 && (parsedDur ?: 0) == 0) {
             _state.update {
                 it.copy(
                     errorMessage = trEn(
@@ -341,6 +337,28 @@ class WorkoutViewModel(
             }
             return
         }
+
+        val parsedDurationFromText = Regex("""(\d+)\s*(?:dk|dakika|min)\b""", RegexOption.IGNORE_CASE)
+            .find(rawText)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+            ?.takeIf { it in 1..600 }
+        val detectedSport = SportType.fromRawText(rawText)
+        val dur = parsedDur ?: if (rawText.isNotBlank()) {
+            parsedDurationFromText ?: detectedSport.defaultDurationMinutes
+        } else {
+            0
+        }
+        val weightScale = (_state.value.userWeightKg / 75.0).coerceIn(0.6, 1.8)
+        val cal = parsedCal ?: if (rawText.isNotBlank()) {
+            val baseDur = detectedSport.defaultDurationMinutes.coerceAtLeast(1).toDouble()
+            (detectedSport.defaultCalories * (dur / baseDur) * weightScale).roundToInt().coerceAtLeast(30)
+        } else {
+            0
+        }
+        val date = _state.value.selectedDate
+        val userId = tokenStorage.getUserId()
 
         viewModelScope.launch {
             val now = currentTime()

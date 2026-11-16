@@ -119,7 +119,14 @@ object GamificationEngine {
         val totalLogsCount = activeFoods.size + nonStepWorkouts.size + activeWeights.size
         val bestStreak = longestStreak.coerceAtLeast(currentStreak)
 
-        // Tiered Achievements (12 badge families x 1..5 stages)
+        val sportCounts = mutableMapOf<SportType, Int>()
+        nonStepWorkouts.forEach { workout ->
+            SportType.detectAll(workout.rawText).forEach { sport ->
+                sportCounts[sport] = (sportCounts[sport] ?: 0) + 1
+            }
+        }
+
+        // Tiered Achievements (badge families x 1..5 stages)
         val achievements = listOf(
             achievement(BadgeId.FIRST_LOG, totalLogsCount),
             achievement(BadgeId.STREAK_MASTER, bestStreak),
@@ -132,6 +139,21 @@ object GamificationEngine {
             achievement(BadgeId.WORKOUT_DISCIPLINE, totalWorkoutSessions),
             achievement(BadgeId.CALORIE_ENGINE, totalCaloriesBurned),
             achievement(BadgeId.ENDURANCE_MINUTES, totalWorkoutMinutes),
+            achievement(BadgeId.SPORT_TENNIS, sportCounts[SportType.TENNIS] ?: 0),
+            achievement(BadgeId.SPORT_FITNESS, sportCounts[SportType.FITNESS] ?: 0),
+            achievement(BadgeId.SPORT_RUNNING, sportCounts[SportType.RUNNING] ?: 0),
+            achievement(BadgeId.SPORT_ROWING, sportCounts[SportType.ROWING] ?: 0),
+            achievement(BadgeId.SPORT_BASKETBALL, sportCounts[SportType.BASKETBALL] ?: 0),
+            achievement(BadgeId.SPORT_FOOTBALL, sportCounts[SportType.FOOTBALL] ?: 0),
+            achievement(BadgeId.SPORT_CYCLING, sportCounts[SportType.CYCLING] ?: 0),
+            achievement(BadgeId.SPORT_SWIMMING, sportCounts[SportType.SWIMMING] ?: 0),
+            achievement(BadgeId.SPORT_WALKING, sportCounts[SportType.WALKING] ?: 0),
+            achievement(BadgeId.SPORT_YOGA_PILATES, sportCounts[SportType.YOGA_PILATES] ?: 0),
+            achievement(BadgeId.SPORT_VOLLEYBALL, sportCounts[SportType.VOLLEYBALL] ?: 0),
+            achievement(BadgeId.SPORT_BOXING, sportCounts[SportType.BOXING] ?: 0),
+            achievement(BadgeId.SPORT_HIIT, sportCounts[SportType.HIIT] ?: 0),
+            achievement(BadgeId.SPORT_CALISTHENICS, sportCounts[SportType.CALISTHENICS] ?: 0),
+            achievement(BadgeId.SPORT_DANCE, sportCounts[SportType.DANCE] ?: 0),
             achievement(BadgeId.SCALE_TRACKER, activeWeights.size),
             achievement(BadgeId.DEVICE_BRIDGE, if (hasConnectedDevice) 1 else 0)
         )

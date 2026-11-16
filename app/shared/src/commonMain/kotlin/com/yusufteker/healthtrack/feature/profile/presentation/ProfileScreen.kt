@@ -1758,10 +1758,10 @@ private fun EditBodyProfileDialog(
     onIntent: (ProfileIntent) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var targetWeightInput by remember(state.targetWeightKg) { mutableStateOf(state.targetWeightKg.toString()) }
-    var heightInput by remember(state.heightCm) { mutableStateOf(state.heightCm.toInt().toString()) }
-    var ageInput by remember(state.age) { mutableStateOf(state.age.toString()) }
-    var selectedGender by remember(state.gender) { mutableStateOf(state.gender) }
+    var targetWeightInput by remember { mutableStateOf(state.targetWeightKg.toString()) }
+    var heightInput by remember { mutableStateOf(state.heightCm.toInt().toString()) }
+    var ageInput by remember { mutableStateOf(state.age.toString()) }
+    var selectedGender by remember { mutableStateOf(state.gender) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

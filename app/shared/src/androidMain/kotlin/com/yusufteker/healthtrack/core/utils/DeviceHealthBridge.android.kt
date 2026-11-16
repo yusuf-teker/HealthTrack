@@ -565,8 +565,10 @@ private fun mapHealthConnectExerciseType(type: Int): DeviceExerciseCategory {
         ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL -> DeviceExerciseCategory.SWIMMING
 
         ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING,
-        ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
-        ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS -> DeviceExerciseCategory.STRENGTH
+        ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> DeviceExerciseCategory.STRENGTH
+
+        ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS,
+        ExerciseSessionRecord.EXERCISE_TYPE_GYMNASTICS -> DeviceExerciseCategory.CALISTHENICS
 
         ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING,
         ExerciseSessionRecord.EXERCISE_TYPE_BOOT_CAMP -> DeviceExerciseCategory.HIIT
@@ -585,12 +587,16 @@ private fun mapHealthConnectExerciseType(type: Int): DeviceExerciseCategory {
 
         ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL -> DeviceExerciseCategory.BASKETBALL
 
+        ExerciseSessionRecord.EXERCISE_TYPE_VOLLEYBALL -> DeviceExerciseCategory.VOLLEYBALL
+
         ExerciseSessionRecord.EXERCISE_TYPE_SOCCER,
         ExerciseSessionRecord.EXERCISE_TYPE_FOOTBALL_AMERICAN -> DeviceExerciseCategory.FOOTBALL
 
         ExerciseSessionRecord.EXERCISE_TYPE_TENNIS,
         ExerciseSessionRecord.EXERCISE_TYPE_BADMINTON,
         ExerciseSessionRecord.EXERCISE_TYPE_TABLE_TENNIS -> DeviceExerciseCategory.TENNIS
+
+        ExerciseSessionRecord.EXERCISE_TYPE_DANCING -> DeviceExerciseCategory.DANCE
 
         ExerciseSessionRecord.EXERCISE_TYPE_BOXING,
         ExerciseSessionRecord.EXERCISE_TYPE_MARTIAL_ARTS -> DeviceExerciseCategory.MARTIAL_ARTS
