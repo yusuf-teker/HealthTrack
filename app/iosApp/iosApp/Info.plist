@@ -4,8 +4,6 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -21,17 +19,5 @@
 		<string>whatsapp</string>
 		<string>x-apple-health</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>Yemek ve besin etiketi fotoğraflarını çekip analiz etmek için kameranıza erişim gereklidir.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Besin tablosu ve yemek fotoğraflarını seçip analiz etmek için galerinize erişim gereklidir.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Sesli olarak yemek veya ürün kaydetmek için mikrofonunuza erişim gereklidir.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Söylediklerinizi metne dönüştürerek hızlı yemek kaydı yapmak için konuşma tanıma gereklidir.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Akıllı saat ve tartınızdan gelen günlük adım, mesafe, aktif kalori, nabız, antrenman (tenis, yoga, koşu vb.), kilo ve vücut yağ oranı verilerinizi analiz edip HealthTrack profilinizle senkronize etmek için Apple Sağlık (HealthKit) okuma izni gereklidir.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Kilo, beslenme ve egzersiz kayıtlarınızı Apple Health ile senkronize etmek ve verilerinizi güncel tutmak için Apple Health güncelleme izni gereklidir.</string>
 </dict>
 </plist>

@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -118,6 +119,14 @@ fun ConfettiCelebrationOverlay(
 ) {
     val lang = appLang()
     val isDark = LocalIsDarkTheme.current
+
+    val latestOnDismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(event?.id, event?.autoDismissMs) {
+        event?.autoDismissMs?.let { duration ->
+            delay(duration.coerceAtLeast(0L))
+            latestOnDismiss()
+        }
+    }
 
     AnimatedVisibility(
         visible = event != null,
@@ -216,6 +225,7 @@ fun ConfettiCelebrationOverlay(
                 CelebrationType.DAILY_GOAL_COMPLETED -> Icons.Rounded.EmojiEvents
                 CelebrationType.WORKOUT_GOAL_REACHED -> Icons.Rounded.LocalFireDepartment
                 CelebrationType.WATER_GOAL_REACHED -> Icons.Rounded.WaterDrop
+                CelebrationType.HEALTHY_MEAL_LOGGED -> Icons.Rounded.EmojiEvents
             }
 
             val targetFraction = event.targetProgressFraction

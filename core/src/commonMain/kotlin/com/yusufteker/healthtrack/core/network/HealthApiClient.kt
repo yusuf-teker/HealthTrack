@@ -41,7 +41,15 @@ data class FoodAiResultDto(
     val disclaimer: String = trEn(
         "Besin değerleri tahmini yaklaşık değerlerdir.",
         "Nutritional values are estimated approximations."
-    )
+    ),
+    val healthScore: Int? = null
+)
+
+fun FoodAiResultDto.evaluateMealHealth(): MealHealthEvaluation = MealHealthEvaluator.evaluate(
+    items = items,
+    totalCalories = totalCalories,
+    summary = summary,
+    explicitScore = healthScore
 )
 
 @Serializable

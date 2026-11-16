@@ -273,6 +273,24 @@ class GamificationManager(
         _currentMotivationalToast.value = null
     }
 
+    fun triggerHealthyMealCelebration(evaluation: MealHealthEvaluation) {
+        if (isQuietWindowActive || !evaluation.isHealthyCelebrationWorthy) return
+        _currentMotivationalToast.value = null
+        enqueueCelebration(
+            CelebrationEvent(
+                id = "healthy_meal_${kotlin.random.Random.nextLong()}",
+                type = CelebrationType.HEALTHY_MEAL_LOGGED,
+                titleTr = evaluation.badgeTitleTr,
+                titleEn = evaluation.badgeTitleEn,
+                subtitleTr = evaluation.encouragingQuoteTr,
+                subtitleEn = evaluation.encouragingQuoteEn,
+                autoDismissMs = 2000L,
+                healthScore = evaluation.score
+            ),
+            prioritizeFront = true
+        )
+    }
+
     private fun enqueueCelebration(event: CelebrationEvent, prioritizeFront: Boolean = false) {
         val current = _celebrationQueue.value
         if (current.any { it.id == event.id }) return
@@ -681,7 +699,9 @@ class GamificationManager(
 
         // 4. Check Food action
         val foodAdded = todaySnapshot.foodsCount > prev.foodsCount || todaySnapshot.calories > prev.calories
-        if (foodAdded && !triggeredGoalConfettiThisCycle && !workoutAdded) {
+        if (foodAdded && !triggeredGoalConfettiThisCycle && !workoutAdded &&
+            _celebrationQueue.value.none { it.type == CelebrationType.HEALTHY_MEAL_LOGGED }
+        ) {
             val ratio = (todaySnapshot.calories.toFloat() / calTarget).coerceIn(0f, 1f)
             showMotivationalToast(
                 MotivationalToastEvent(
