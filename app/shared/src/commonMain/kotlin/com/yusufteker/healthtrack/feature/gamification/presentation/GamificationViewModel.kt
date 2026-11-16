@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.LeaderboardCategory
+import com.yusufteker.healthtrack.core.model.LeaderboardEntryDto
 import com.yusufteker.healthtrack.core.model.LeaderboardPeriod
+import com.yusufteker.healthtrack.core.model.LeaderboardResponseDto
 import com.yusufteker.healthtrack.core.model.LeaderboardScope
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
@@ -12,6 +14,8 @@ import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -116,16 +120,39 @@ class GamificationViewModel(
         leaderboardJob?.cancel()
         leaderboardJob = viewModelScope.launch {
             _state.update { it.copy(isLoadingLeaderboard = true, leaderboardError = null) }
-            val result = apiClient.getLeaderboard(
-                period = period,
-                scope = scope,
-                category = category,
-                dateIso = getTodayIso()
-            )
+            val todayIso = getTodayIso()
+            val (result, friendsResult) = coroutineScope {
+                val primaryDeferred = async {
+                    apiClient.getLeaderboard(
+                        period = period,
+                        scope = scope,
+                        category = category,
+                        dateIso = todayIso
+                    )
+                }
+                val friendsDeferred = if (scope == LeaderboardScope.GLOBAL) {
+                    async {
+                        apiClient.getLeaderboard(
+                            period = period,
+                            scope = LeaderboardScope.FRIENDS,
+                            category = category,
+                            dateIso = todayIso
+                        )
+                    }
+                } else {
+                    null
+                }
+                primaryDeferred.await() to friendsDeferred?.await()
+            }
             result.onSuccess { dto ->
+                val effectiveDto = if (scope == LeaderboardScope.GLOBAL) {
+                    mergeGlobalWithFriends(dto, friendsResult?.getOrNull())
+                } else {
+                    dto
+                }
                 _state.update {
                     it.copy(
-                        leaderboard = dto,
+                        leaderboard = effectiveDto,
                         isLoadingLeaderboard = false,
                         leaderboardError = null
                     )
@@ -140,6 +167,41 @@ class GamificationViewModel(
                 }
             }
         }
+    }
+
+    private fun mergeGlobalWithFriends(
+        global: LeaderboardResponseDto,
+        friends: LeaderboardResponseDto?
+    ): LeaderboardResponseDto {
+        if (friends == null) return global
+        val existingIds = global.entries.mapTo(mutableSetOf()) { it.userId }
+        val missingFriends = friends.entries.filter { it.userId !in existingIds }
+        val effectiveFriendsCount = maxOf(global.friendsCount, friends.friendsCount)
+        if (missingFriends.isEmpty()) {
+            return if (effectiveFriendsCount == global.friendsCount) {
+                global
+            } else {
+                global.copy(friendsCount = effectiveFriendsCount)
+            }
+        }
+        val combined = (global.entries + missingFriends)
+            .sortedWith(
+                compareByDescending<LeaderboardEntryDto> { it.score }
+                    .thenByDescending { it.streakDays }
+                    .thenByDescending { it.activeDays }
+                    .thenByDescending { it.isCurrentUser }
+                    .thenBy { it.name.lowercase() }
+            )
+            .mapIndexed { index, entry -> entry.copy(rank = index + 1) }
+
+        val updatedMyEntry = combined.firstOrNull { it.isCurrentUser } ?: global.myEntry
+        val updatedTotal = maxOf(global.totalParticipants + missingFriends.size, combined.size)
+        return global.copy(
+            totalParticipants = updatedTotal,
+            friendsCount = effectiveFriendsCount,
+            entries = combined,
+            myEntry = updatedMyEntry
+        )
     }
 
     private fun loadFollowRequests() {

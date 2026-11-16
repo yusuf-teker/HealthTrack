@@ -1,5 +1,9 @@
 package com.yusufteker.healthtrack.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +15,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -21,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.utils.WeekDayItem
+import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.core.utils.formatMonthYearHeader
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.getWeekDaysForDate
@@ -80,23 +86,30 @@ fun DaysStripSelector(
                 )
 
                 // Today Pill Indicator / Quick Return Button
+                val pillBgColor = if (isSelectedToday) {
+                    HealthColors.Primary.copy(alpha = 0.15f)
+                } else {
+                    MaterialTheme.colorScheme.tertiary.copy(alpha = if (isDark) 0.22f else 0.15f)
+                }
+                val pillTextColor = if (isSelectedToday) {
+                    HealthColors.Primary
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(
-                            if (isSelectedToday) HealthColors.Primary.copy(alpha = 0.15f)
-                            else if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight
-                        )
+                        .background(pillBgColor)
                         .clickable(enabled = !isSelectedToday) {
                             onDateSelected(todayIso)
                         }
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = if (isSelectedToday) str("BUGÜN", "TODAY") else str("Bugüne Git", "Go to Today"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelectedToday) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = pillTextColor
                     )
                 }
             }
@@ -197,6 +210,50 @@ fun DaysStripSelector(
                                 .background(if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.tertiary)
                         )
                     }
+                }
+            }
+        }
+
+        // Non-today date awareness banner (prevents accidentally logging to the wrong day)
+        AnimatedVisibility(
+            visible = !isSelectedToday,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            val formattedDate = remember(selectedDate, lang) { formatDisplayDateTr(selectedDate, lang) }
+            val accentColor = MaterialTheme.colorScheme.tertiary
+            Surface(
+                color = accentColor.copy(alpha = if (isDark) 0.14f else 0.10f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.38f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onDateSelected(todayIso) }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = str(
+                            "📅 $formattedDate seçili",
+                            "📅 $formattedDate selected"
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accentColor,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = str("Bugüne Dön →", "Back to Today →"),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = HealthColors.Primary
+                    )
                 }
             }
         }

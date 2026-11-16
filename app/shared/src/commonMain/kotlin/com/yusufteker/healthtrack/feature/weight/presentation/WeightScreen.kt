@@ -40,6 +40,9 @@ import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
+import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import com.yusufteker.healthtrack.feature.weight.presentation.components.EditTargetWeightDialog
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
 import com.yusufteker.healthtrack.theme.HealthColors
@@ -66,6 +69,7 @@ fun WeightScreen(
 ) {
     val deviceHealthBridge = rememberDeviceHealthBridge()
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
+    var entryPendingDelete by remember { mutableStateOf<WeightEntry?>(null) }
 
     // Auto-sync smart scale & weight silently on screen entry if permissions are already authorized
     LaunchedEffect(Unit) {
@@ -115,6 +119,46 @@ fun WeightScreen(
             currentFrequency = state.reminderFrequency,
             onDismiss = { onIntent(WeightIntent.OnSetReminderDialogOpen(false)) },
             onSave = { onIntent(WeightIntent.OnReminderFrequencyChanged(it)) }
+        )
+    }
+
+    entryPendingDelete?.let { entry ->
+        val formattedDate = formatDisplayDateTr(entry.date, appLang())
+        AlertDialog(
+            onDismissRequest = { entryPendingDelete = null },
+            title = {
+                Text(
+                    text = str("Kilo Kaydını Sil?", "Delete Weight Entry?"),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = str(
+                        "$formattedDate tarihli ${entry.weightKg} kg kaydını silmek istediğinize emin misiniz?",
+                        "Are you sure you want to delete the ${entry.weightKg} kg entry from $formattedDate?"
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onIntent(WeightIntent.OnDeleteWeight(entry.id))
+                        entryPendingDelete = null
+                    }
+                ) {
+                    Text(
+                        str("Sil", "Delete"),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { entryPendingDelete = null }) {
+                    Text(str("İptal", "Cancel"))
+                }
+            }
         )
     }
 
@@ -212,7 +256,7 @@ fun WeightScreen(
                     state.entries.reversed().forEach { item ->
                         LuxuryWeightHistoryItem(
                             entry = item,
-                            onDelete = { onIntent(WeightIntent.OnDeleteWeight(item.id)) }
+                            onDelete = { entryPendingDelete = item }
                         )
                     }
                 }
@@ -334,6 +378,87 @@ private fun AddWeightDialog(
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
+
+                val parsedInputWeight = remember(state.inputWeight) {
+                    state.inputWeight.toLocaleDoubleOrNull()
+                }
+                val decimalTypoFix = remember(parsedInputWeight) {
+                    parsedInputWeight?.takeIf { it in 250.0..1500.0 }?.let { raw ->
+                        val tenths = raw.roundToInt()
+                        val corrected = tenths / 10.0
+                        if (corrected in 25.0..150.0) {
+                            "${tenths / 10}.${tenths % 10}"
+                        } else {
+                            null
+                        }
+                    }
+                }
+                val jumpDeltaTenths = remember(parsedInputWeight, state.currentWeightKg) {
+                    val current = state.currentWeightKg
+                    if (parsedInputWeight != null && current != null && parsedInputWeight in 25.0..250.0) {
+                        val delta = abs(parsedInputWeight - current)
+                        if (delta >= 15.0) (delta * 10.0).roundToInt() else null
+                    } else {
+                        null
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = decimalTypoFix != null,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    decimalTypoFix?.let { suggestedText ->
+                        Surface(
+                            color = HealthColors.Primary.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.4f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    onIntent(WeightIntent.OnInputWeightChanged(suggestedText))
+                                }
+                        ) {
+                            Text(
+                                text = str(
+                                    "💡 $suggestedText kg mı demek istediniz? Düzeltmek için dokunun",
+                                    "💡 Did you mean $suggestedText kg? Tap to fix"
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = HealthColors.Primary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = decimalTypoFix == null && jumpDeltaTenths != null,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    jumpDeltaTenths?.let { deltaTenths ->
+                        val formattedDelta = "${deltaTenths / 10}.${deltaTenths % 10}"
+                        val warningColor = MaterialTheme.colorScheme.tertiary
+                        Surface(
+                            color = warningColor.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, warningColor.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = str(
+                                    "⚠️ Son ölçümünüzden $formattedDelta kg farklı görünüyor, doğru mu?",
+                                    "⚠️ Differs by $formattedDelta kg from your last entry — is this correct?"
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = warningColor,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
 
                 // Optional Date and Note toggle
                 Surface(

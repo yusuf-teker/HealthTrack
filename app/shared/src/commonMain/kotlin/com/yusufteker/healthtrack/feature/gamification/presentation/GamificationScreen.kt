@@ -1362,13 +1362,10 @@ private fun LeaderboardSection(
                     val topThree = data.entries.take(3)
                     LeaderboardPodium(entries = topThree, isDark = isDark)
 
-                    // Ranks #4+
-                    val remaining = data.entries.drop(3)
-                    if (remaining.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            remaining.forEach { entry ->
-                                LeaderboardRowCard(entry = entry)
-                            }
+                    // All Ranked Rows (#1+)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        data.entries.forEach { entry ->
+                            LeaderboardRowCard(entry = entry)
                         }
                     }
                 }

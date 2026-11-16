@@ -171,12 +171,12 @@ class WeightViewModel(
         val userId = tokenStorage.getUserId()
 
         val lang = LocalizationManager.currentLanguage
-        if (weight == null || weight <= 20.0 || weight > 350.0) {
+        if (weight == null || weight < 25.0 || weight > 250.0) {
             _state.update {
                 it.copy(
                     errorMessage = trEn(
-                        "Lütfen geçerli bir kilo değeri giriniz (Örn: 74.5).",
-                        "Please enter a valid weight value (e.g. 74.5).",
+                        "Lütfen 25 ile 250 kg arasında geçerli bir kilo giriniz (Örn: 74.5).",
+                        "Please enter a valid weight between 25 and 250 kg (e.g. 74.5).",
                         lang
                     )
                 )

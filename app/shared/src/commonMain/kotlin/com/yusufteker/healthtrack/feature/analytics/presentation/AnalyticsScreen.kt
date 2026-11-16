@@ -230,11 +230,52 @@ fun AnalyticsScreen(
             )
 
             // ── 7. Kayıtlı AI Rapor Geçmişi (Hem Günlük Hem Haftalık) ──
+            var reportPendingDelete by remember { mutableStateOf<HealthAiReport?>(null) }
+
+            reportPendingDelete?.let { report ->
+                AlertDialog(
+                    onDismissRequest = { reportPendingDelete = null },
+                    title = {
+                        Text(
+                            text = str("Raporu Sil?", "Delete Report?"),
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = str(
+                                "Bu ${if (report.periodType == AnalysisPeriodType.WEEKLY) "haftalık" else "günlük"} AI sağlık raporunu arşivden silmek istediğinize emin misiniz?",
+                                "Are you sure you want to delete this ${if (report.periodType == AnalysisPeriodType.WEEKLY) "weekly" else "daily"} AI health report?"
+                            )
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onIntent(AnalyticsIntent.OnDeleteReport(report.id))
+                                reportPendingDelete = null
+                            }
+                        ) {
+                            Text(
+                                str("Sil", "Delete"),
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { reportPendingDelete = null }) {
+                            Text(str("İptal", "Cancel"))
+                        }
+                    }
+                )
+            }
+
             if (state.recentReports.isNotEmpty()) {
                 Text(
                     text = str(
-                        "Kayıtlı AI Rapor Arşivi (${state.recentReports.size})",
-                        "Saved AI Report Archive (${state.recentReports.size})"
+                        "Kayıtlı Rapor Arşivi (${state.recentReports.size})",
+                        "Saved Report Archive (${state.recentReports.size})"
                     ),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
@@ -252,7 +293,7 @@ fun AnalyticsScreen(
                                 appLauncher.shareToWhatsApp(formatted, state.whatsAppPhone)
                                 onIntent(AnalyticsIntent.OnReportSentToWhatsApp(item.id))
                             },
-                            onDelete = { onIntent(AnalyticsIntent.OnDeleteReport(item.id)) }
+                            onDelete = { reportPendingDelete = item }
                         )
                     }
                 }
@@ -969,7 +1010,7 @@ private fun WhatsAppAutomationCard(
                     }
                     Column {
                         Text(
-                            text = str("Haftalık WhatsApp Otomasyonu", "Weekly WhatsApp Automation"),
+                            text = str("Haftalık WhatsApp Raporu", "Weekly WhatsApp Report"),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )

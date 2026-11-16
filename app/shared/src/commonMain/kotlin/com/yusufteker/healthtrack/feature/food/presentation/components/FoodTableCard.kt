@@ -44,6 +44,46 @@ fun FoodTableCard(
 ) {
     val isDark = LocalIsDarkTheme.current
     var showClearConfirmation by remember { mutableStateOf(false) }
+    var itemPendingDelete by remember { mutableStateOf<FoodItem?>(null) }
+
+    itemPendingDelete?.let { item ->
+        AlertDialog(
+            onDismissRequest = { itemPendingDelete = null },
+            title = {
+                Text(
+                    text = str("Öğünü Sil?", "Delete Item?"),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = str(
+                        "\"${item.name}\" (${item.calories} kcal) kaydını silmek istediğinize emin misiniz?",
+                        "Are you sure you want to delete \"${item.name}\" (${item.calories} kcal)?"
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRemoveItem(item.id.ifBlank { item.name })
+                        itemPendingDelete = null
+                    }
+                ) {
+                    Text(
+                        str("Sil", "Delete"),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemPendingDelete = null }) {
+                    Text(str("İptal", "Cancel"))
+                }
+            }
+        )
+    }
 
     if (showClearConfirmation && onClearAll != null) {
         AlertDialog(
@@ -210,7 +250,7 @@ fun FoodTableCard(
                     items.forEach { item ->
                         FoodTableRowItem(
                             item = item,
-                            onRemove = { onRemoveItem(item.id.ifBlank { item.name }) }
+                            onRemove = { itemPendingDelete = item }
                         )
                     }
 

@@ -198,32 +198,6 @@ fun FoodScreen(
                 modifier = Modifier.spotlightTarget(SpotlightTargetId.FOOD_CALORIE_GAUGE)
             )
 
-            // ── Bento Split Row: [ Micros (Top 3 Vital) ] + [ Weight Scale Sparkline ] ──
-            FoodBentoRow(
-                nutrientBars = state.nutrientBars,
-                latestWeightKg = state.selectedDateWeightKg ?: state.latestWeightKg,
-                weightDifferenceKg = state.weightDifferenceKg,
-                recentWeights = state.recentWeights,
-                selectedDate = state.selectedDate,
-                isWeightExactForDate = state.isWeightExactForDate,
-                weightRecordDate = state.weightRecordDate,
-                onMicrosClick = { showGeneralMicrosSheet = true },
-                onWeightClick = onNavigateToWeight
-            )
-
-            // ── Hidrasyon (2.A) & "Ne Yesem?" Akıllı Öğün (1) & Besin Sinerjisi (2.B) ──
-            FoodHydrationAndSmartMealRow(
-                waterEntry = state.waterEntry,
-                dynamicWaterTargetMl = state.dynamicWaterTargetMl,
-                nutrientBars = state.nutrientBars,
-                remainingCalories = (state.nutritionGoal.calories - state.totalCalories).coerceAtLeast(0),
-                onAddWater = { onIntent(FoodIntent.OnAddWater(it)) },
-                onResetWater = { onIntent(FoodIntent.OnResetWater) },
-                onOpenSmartMeal = { onIntent(FoodIntent.OnOpenSmartMealSheet) },
-                synergyTips = state.synergyTips,
-                onDismissSynergyTip = { onIntent(FoodIntent.OnDismissSynergyTip(it)) }
-            )
-
             // ── Unified AI & Quick Food Logger Card ──
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -441,47 +415,19 @@ fun FoodScreen(
                     val isFoodQuotaExhausted = foodAiQuota != null && foodAiQuota.dailyRemaining <= 0
                     val foodQuotaBadge = foodAiQuota?.let { "${it.dailyRemaining}/${it.dailyLimit}" }
 
-                    // Action Row: Calculate with AI + Optional Raw Save
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ShimmeringAiButton(
-                            text = str("AI ile Hesapla", "Calculate with AI"),
-                            badgeText = foodQuotaBadge,
-                            isBadgeAlert = isFoodQuotaExhausted,
-                            isLoading = state.isCalculatingAi,
-                            enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
-                            onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .spotlightTarget(SpotlightTargetId.FOOD_CALCULATE_BUTTON),
-                            height = 44.dp
-                        )
-
-                        if (state.rawText.isNotBlank()) {
-                            OutlinedButton(
-                                onClick = { onIntent(FoodIntent.OnSaveManualClicked) },
-                                modifier = Modifier.height(44.dp).bounceClick(),
-                                shape = RoundedCornerShape(999.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    str("Ham Kaydet", "Save Raw"),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
+                    // Full-width AI Calculate Action
+                    ShimmeringAiButton(
+                        text = str("AI ile Hesapla", "Calculate with AI"),
+                        badgeText = foodQuotaBadge,
+                        isBadgeAlert = isFoodQuotaExhausted,
+                        isLoading = state.isCalculatingAi,
+                        enabled = !state.isCalculatingAi && state.rawText.isNotBlank(),
+                        onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .spotlightTarget(SpotlightTargetId.FOOD_CALCULATE_BUTTON),
+                        height = 44.dp
+                    )
 
                     if (isFoodQuotaExhausted) {
                         Text(
@@ -492,6 +438,32 @@ fun FoodScreen(
                     }
                 }
             }
+
+            // ── Bento Split Row: [ Micros (Top 3 Vital) ] + [ Weight Scale Sparkline ] ──
+            FoodBentoRow(
+                nutrientBars = state.nutrientBars,
+                latestWeightKg = state.selectedDateWeightKg ?: state.latestWeightKg,
+                weightDifferenceKg = state.weightDifferenceKg,
+                recentWeights = state.recentWeights,
+                selectedDate = state.selectedDate,
+                isWeightExactForDate = state.isWeightExactForDate,
+                weightRecordDate = state.weightRecordDate,
+                onMicrosClick = { showGeneralMicrosSheet = true },
+                onWeightClick = onNavigateToWeight
+            )
+
+            // ── Hidrasyon (2.A) & "Ne Yesem?" Akıllı Öğün (1) & Besin Sinerjisi (2.B) ──
+            FoodHydrationAndSmartMealRow(
+                waterEntry = state.waterEntry,
+                dynamicWaterTargetMl = state.dynamicWaterTargetMl,
+                nutrientBars = state.nutrientBars,
+                remainingCalories = (state.nutritionGoal.calories - state.totalCalories).coerceAtLeast(0),
+                onAddWater = { onIntent(FoodIntent.OnAddWater(it)) },
+                onResetWater = { onIntent(FoodIntent.OnResetWater) },
+                onOpenSmartMeal = { onIntent(FoodIntent.OnOpenSmartMealSheet) },
+                synergyTips = state.synergyTips,
+                onDismissSynergyTip = { onIntent(FoodIntent.OnDismissSynergyTip(it)) }
+            )
 
             // ── Daily Fuel Manifest Table ──
             FoodTableCard(

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalLayoutApi::class)
+
 package com.yusufteker.healthtrack.feature.workout.presentation
 
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -78,6 +80,7 @@ fun WorkoutScreen(
     val coroutineScope = rememberCoroutineScope()
     var showManualFields by remember { mutableStateOf(false) }
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
+    var workoutPendingDelete by remember { mutableStateOf<WorkoutLog?>(null) }
 
     val todayIso = remember { getTodayIso() }
     val isSelectedToday = state.selectedDate == todayIso
@@ -112,6 +115,45 @@ fun WorkoutScreen(
             currentFrequency = state.reminderFrequency,
             onDismiss = { onIntent(WorkoutIntent.OnSetReminderDialogOpen(false)) },
             onSave = { onIntent(WorkoutIntent.OnReminderFrequencyChanged(it)) }
+        )
+    }
+
+    workoutPendingDelete?.let { workout ->
+        AlertDialog(
+            onDismissRequest = { workoutPendingDelete = null },
+            title = {
+                Text(
+                    text = str("Antrenmanı Sil?", "Delete Workout?"),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = str(
+                        "\"${workout.rawText}\" (${workout.caloriesBurned} kcal) kaydını silmek istediğinize emin misiniz?",
+                        "Are you sure you want to delete \"${workout.rawText}\" (${workout.caloriesBurned} kcal)?"
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onIntent(WorkoutIntent.OnDeleteWorkout(workout.id))
+                        workoutPendingDelete = null
+                    }
+                ) {
+                    Text(
+                        str("Sil", "Delete"),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { workoutPendingDelete = null }) {
+                    Text(str("İptal", "Cancel"))
+                }
+            }
         )
     }
 
@@ -505,7 +547,7 @@ fun WorkoutScreen(
                 state.workouts.forEach { w ->
                     LuxuryWorkoutItem(
                         workout = w,
-                        onDelete = { onIntent(WorkoutIntent.OnDeleteWorkout(w.id)) }
+                        onDelete = { workoutPendingDelete = w }
                     )
                 }
             }
@@ -1052,34 +1094,10 @@ private fun LuxuryWorkoutItem(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    val analysis = workout.aiAnalysis
-                    if (!analysis.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = analysis,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (workout.durationMinutes > 0) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = null,
-                                tint = HealthColors.Primary,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = str("${workout.durationMinutes} dakika", "${workout.durationMinutes} min"),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = HealthColors.Primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                    WorkoutTelemetrySection(
+                        analysis = workout.aiAnalysis,
+                        durationMinutes = workout.durationMinutes
+                    )
                 }
             }
 
@@ -1304,5 +1322,93 @@ private fun DailyStepsTelemetryCard(dailySteps: DailyStepTelemetry) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun WorkoutTelemetrySection(
+    analysis: String?,
+    durationMinutes: Int
+) {
+    val trimmedAnalysis = analysis?.trim().orEmpty()
+    val isStructuredTelemetry = trimmedAnalysis.isNotEmpty() && (
+        trimmedAnalysis.contains("•") || trimmedAnalysis.startsWith("⌚")
+    )
+    val telemetryTokens = if (isStructuredTelemetry) {
+        trimmedAnalysis.split("•").map { it.trim() }.filter { it.isNotEmpty() }
+    } else {
+        emptyList()
+    }
+
+    if (trimmedAnalysis.isNotEmpty() && !isStructuredTelemetry) {
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = trimmedAnalysis,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    if (telemetryTokens.isNotEmpty() || durationMinutes > 0) {
+        Spacer(modifier = Modifier.height(6.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (durationMinutes > 0) {
+                WorkoutTelemetryBadge(
+                    text = str("⏱️ $durationMinutes dk", "⏱️ $durationMinutes min"),
+                    tint = Color(0xFFF59E0B)
+                )
+            }
+            val fallbackTint = MaterialTheme.colorScheme.onSurfaceVariant
+            telemetryTokens.forEach { token ->
+                val (badgeText, badgeTint) = classifyTelemetryBadge(token, fallbackTint)
+                WorkoutTelemetryBadge(text = badgeText, tint = badgeTint)
+            }
+        }
+    }
+}
+
+private fun classifyTelemetryBadge(token: String, defaultColor: Color): Pair<String, Color> {
+    val lower = token.lowercase()
+    return when {
+        lower.contains("bpm") || lower.contains("❤️") || lower.contains("ort.") || lower.contains("avg") || lower.contains("kalp") || lower.contains("heart") -> {
+            val label = if (token.startsWith("❤️")) token else "❤️ $token"
+            label to Color(0xFFEF4444)
+        }
+        lower.contains("km") || lower.endsWith(" m") || lower.contains("metre") || lower.contains("meter") || lower.contains("📍") -> {
+            val label = if (token.startsWith("📍")) token else "📍 $token"
+            label to Color(0xFF3B82F6)
+        }
+        lower.contains("adım") || lower.contains("adim") || lower.contains("step") || lower.contains("👟") -> {
+            val label = if (token.startsWith("👟")) token else "👟 $token"
+            label to HealthColors.Primary
+        }
+        token.startsWith("⌚") || lower.contains("watch") || lower.contains("health") || lower.contains("garmin") || lower.contains("huawei") || lower.contains("fitbit") || lower.contains("samsung") -> {
+            val label = if (token.startsWith("⌚")) token else "⌚ $token"
+            label to Color(0xFF8B5CF6)
+        }
+        else -> token to defaultColor
+    }
+}
+
+@Composable
+private fun WorkoutTelemetryBadge(
+    text: String,
+    tint: Color
+) {
+    Surface(
+        color = tint.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, tint.copy(alpha = 0.30f))
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            fontWeight = FontWeight.SemiBold,
+            color = tint,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
     }
 }

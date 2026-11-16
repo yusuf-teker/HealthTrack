@@ -296,17 +296,46 @@ class WorkoutViewModel(
 
     private fun saveManualWorkout() {
         val rawText = _state.value.rawText.trim()
-        val cal = _state.value.manualCalories.toIntOrNull() ?: 0
-        val dur = _state.value.manualDuration.toIntOrNull() ?: 0
-        val date = _state.value.selectedDate
-        val userId = tokenStorage.getUserId()
+        val rawCalText = _state.value.manualCalories.trim()
+        val rawDurText = _state.value.manualDuration.trim()
+        val parsedCal = rawCalText.toIntOrNull()
+        val parsedDur = rawDurText.toIntOrNull()
 
-        if (rawText.isBlank() && cal == 0) {
+        if ((rawCalText.isNotEmpty() && parsedCal == null) || (parsedCal != null && parsedCal !in 0..5000)) {
             _state.update {
                 it.copy(
                     errorMessage = trEn(
-                        "Lütfen aktivite adı veya yakılan kaloriyi giriniz.",
-                        "Please enter an activity name or calories burned."
+                        "Yakılan kalori 0 ile 5.000 kcal arasında olmalıdır.",
+                        "Calories burned must be between 0 and 5,000 kcal."
+                    )
+                )
+            }
+            return
+        }
+
+        if ((rawDurText.isNotEmpty() && parsedDur == null) || (parsedDur != null && parsedDur !in 0..600)) {
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Antrenman süresi 0 ile 600 dakika arasında olmalıdır.",
+                        "Workout duration must be between 0 and 600 minutes."
+                    )
+                )
+            }
+            return
+        }
+
+        val cal = parsedCal ?: 0
+        val dur = parsedDur ?: 0
+        val date = _state.value.selectedDate
+        val userId = tokenStorage.getUserId()
+
+        if (rawText.isBlank() && cal == 0 && dur == 0) {
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Lütfen aktivite adı, kalori veya süre giriniz.",
+                        "Please enter an activity name, calories, or duration."
                     )
                 )
             }
