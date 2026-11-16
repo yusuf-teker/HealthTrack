@@ -35,7 +35,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.Button
@@ -179,14 +178,6 @@ fun ConfettiCelebrationOverlay(
                 )
             }
 
-            LaunchedEffect(event.id, event.autoDismissMs) {
-                val autoMs = event.autoDismissMs
-                if (autoMs != null && autoMs > 0L) {
-                    delay(autoMs)
-                    onDismiss()
-                }
-            }
-
             val infiniteTransition = rememberInfiniteTransition(label = "celebration_glow")
             val haloRotation by infiniteTransition.animateFloat(
                 initialValue = 0f,
@@ -213,7 +204,6 @@ fun ConfettiCelebrationOverlay(
                 event.type == CelebrationType.LEVEL_UP -> Color(0xFFA855F7)
                 event.type == CelebrationType.WORKOUT_GOAL_REACHED -> Color(0xFFF97316)
                 event.type == CelebrationType.WATER_GOAL_REACHED -> Color(0xFF0EA5E9)
-                event.type == CelebrationType.HEALTHY_MEAL_LOGGED -> Color(0xFF10B981)
                 else -> HealthColors.PrimaryGlow
             }
 
@@ -226,7 +216,6 @@ fun ConfettiCelebrationOverlay(
                 CelebrationType.DAILY_GOAL_COMPLETED -> Icons.Rounded.EmojiEvents
                 CelebrationType.WORKOUT_GOAL_REACHED -> Icons.Rounded.LocalFireDepartment
                 CelebrationType.WATER_GOAL_REACHED -> Icons.Rounded.WaterDrop
-                CelebrationType.HEALTHY_MEAL_LOGGED -> Icons.Rounded.Restaurant
             }
 
             val targetFraction = event.targetProgressFraction
@@ -417,24 +406,6 @@ fun ConfettiCelebrationOverlay(
                             }
                         }
 
-                        // Health Score Pill when a healthy meal score is attached
-                        val mealHealthScore = event.healthScore
-                        if (mealHealthScore != null) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Surface(
-                                shape = RoundedCornerShape(999.dp),
-                                color = accentColor.copy(alpha = 0.18f),
-                                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.55f))
-                            ) {
-                                Text(
-                                    text = "🌟 ${str("Sağlık Puanı", "Health Score")}: $mealHealthScore / 100",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                    color = accentColor,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
-                                )
-                            }
-                        }
-
                         Spacer(modifier = Modifier.height(14.dp))
 
                         GradientText(
@@ -583,23 +554,14 @@ fun ConfettiCelebrationOverlay(
                                 .bounceClick()
                         ) {
                             Text(
-                                text = when {
-                                    event.type == CelebrationType.SPORT_PROGRESS -> str("Devam Et!", "Keep Going!")
-                                    event.autoDismissMs != null -> str("Harika! ✨", "Awesome! ✨")
-                                    else -> str("Harika!", "Awesome!")
+                                text = if (event.type == CelebrationType.SPORT_PROGRESS) {
+                                    str("Devam Et!", "Keep Going!")
+                                } else {
+                                    str("Harika!", "Awesome!")
                                 },
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.ExtraBold
                                 )
-                            )
-                        }
-                        if (event.autoDismissMs != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = str("Birazdan otomatik kapanacak", "Closing automatically"),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                                textAlign = TextAlign.Center
                             )
                         }
                     }

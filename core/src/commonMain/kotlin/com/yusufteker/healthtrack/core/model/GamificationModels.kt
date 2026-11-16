@@ -644,8 +644,7 @@ enum class CelebrationType {
     STREAK_MILESTONE,
     DAILY_GOAL_COMPLETED,
     WORKOUT_GOAL_REACHED,
-    WATER_GOAL_REACHED,
-    HEALTHY_MEAL_LOGGED
+    WATER_GOAL_REACHED
 }
 
 @Serializable
@@ -684,9 +683,7 @@ data class CelebrationEvent(
     val previousProgressFraction: Float? = null,
     val targetProgressFraction: Float? = null,
     val nextStageLevel: Int? = null,
-    val showConfetti: Boolean = true,
-    val autoDismissMs: Long? = null,
-    val healthScore: Int? = null
+    val showConfetti: Boolean = true
 ) {
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(titleTr, titleEn, language)

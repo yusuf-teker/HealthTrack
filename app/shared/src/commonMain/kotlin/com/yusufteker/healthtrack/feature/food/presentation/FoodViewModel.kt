@@ -10,10 +10,8 @@ import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.AiQuotaExceededException
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
-import com.yusufteker.healthtrack.core.network.evaluateMealHealth
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.DailyMealPlanEngine
-import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.SmartMealEngine
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
@@ -32,8 +30,7 @@ class FoodViewModel(
     private val apiClient: HealthApiClient,
     private val tokenStorage: TokenStorage,
     private val syncEngine: SyncEngine,
-    private val dailyMealPlanEngine: DailyMealPlanEngine,
-    private val gamificationManager: GamificationManager? = null
+    private val dailyMealPlanEngine: DailyMealPlanEngine
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -858,11 +855,6 @@ class FoodViewModel(
                     syncStatus = SyncStatus.PENDING
                 )
 
-                val healthEval = aiResult.evaluateMealHealth()
-                if (healthEval.isHealthyCelebrationWorthy) {
-                    gamificationManager?.triggerHealthyMealCelebration(healthEval)
-                }
-
                 database.upsertFood(newLog)
 
                 val dayWeightInfo = resolveDayWeightAndProtein(date)
@@ -876,14 +868,10 @@ class FoodViewModel(
                         isAiReviewSheetOpen = false,
                         pendingAiResult = null,
                         rawText = "",
-                        infoMessage = if (gamificationManager != null && healthEval.isHealthyCelebrationWorthy) {
-                            null
-                        } else {
-                            trEn(
-                                "AI ile besin analizi onaylandı ve kaydedildi.",
-                                "AI nutrition analysis approved and saved."
-                            )
-                        }
+                        infoMessage = trEn(
+                            "AI ile besin analizi onaylandı ve kaydedildi.",
+                            "AI nutrition analysis approved and saved."
+                        )
                     )
                 }
                 updateSmartMealsAndSynergy()

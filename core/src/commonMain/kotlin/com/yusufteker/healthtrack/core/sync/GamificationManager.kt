@@ -33,7 +33,6 @@ class GamificationManager(
     private var hasSessionBaseline: Boolean = false
     private var lastTodaySnapshot: TodayActivitySnapshot = TodayActivitySnapshot()
     private var lastActiveWorkoutIds: Set<String> = emptySet()
-    private var skipNextFoodToast: Boolean = false
 
     private data class TodayActivitySnapshot(
         val foodsCount: Int = 0,
@@ -269,29 +268,9 @@ class GamificationManager(
     }
 
     fun clearAllCelebrations() {
-        skipNextFoodToast = false
         _celebrationQueue.value = emptyList()
         _currentCelebration.value = null
         _currentMotivationalToast.value = null
-    }
-
-    fun triggerHealthyMealCelebration(evaluation: MealHealthEvaluation) {
-        if (!evaluation.isHealthyCelebrationWorthy) return
-        skipNextFoodToast = true
-        _currentMotivationalToast.value = null
-        val event = CelebrationEvent(
-            id = "healthy_meal_${evaluation.score}_${_celebrationQueue.value.size}_${kotlin.random.Random.nextInt(100000)}",
-            type = CelebrationType.HEALTHY_MEAL_LOGGED,
-            titleTr = "Tebrikler! Sağlıklı Öğün 🥗",
-            titleEn = "Congrats! Healthy Meal 🥗",
-            subtitleTr = evaluation.encouragingQuoteTr,
-            subtitleEn = evaluation.encouragingQuoteEn,
-            xpBonus = 25,
-            showConfetti = true,
-            autoDismissMs = 2000L,
-            healthScore = evaluation.score
-        )
-        enqueueCelebration(event, prioritizeFront = true)
     }
 
     private fun enqueueCelebration(event: CelebrationEvent, prioritizeFront: Boolean = false) {
@@ -702,24 +681,20 @@ class GamificationManager(
 
         // 4. Check Food action
         val foodAdded = todaySnapshot.foodsCount > prev.foodsCount || todaySnapshot.calories > prev.calories
-        if (foodAdded) {
-            val shouldSkipToast = skipNextFoodToast
-            skipNextFoodToast = false
-            if (!shouldSkipToast && !triggeredGoalConfettiThisCycle && !workoutAdded) {
-                val ratio = (todaySnapshot.calories.toFloat() / calTarget).coerceIn(0f, 1f)
-                showMotivationalToast(
-                    MotivationalToastEvent(
-                        id = "toast_food_${todaySnapshot.foodsCount}_${todaySnapshot.calories}",
-                        xpEarned = 20,
-                        titleTr = "Öğün Kaydedildi!",
-                        titleEn = "Meal Logged!",
-                        subtitleTr = "Bugünkü Biyo-Skor: ${summary.todayScore}/100 • Harika takip!",
-                        subtitleEn = "Today's Bio-Score: ${summary.todayScore}/100 • Great tracking!",
-                        progressFraction = ratio,
-                        accentColorHex = 0xFF10B981
-                    )
+        if (foodAdded && !triggeredGoalConfettiThisCycle && !workoutAdded) {
+            val ratio = (todaySnapshot.calories.toFloat() / calTarget).coerceIn(0f, 1f)
+            showMotivationalToast(
+                MotivationalToastEvent(
+                    id = "toast_food_${todaySnapshot.foodsCount}_${todaySnapshot.calories}",
+                    xpEarned = 20,
+                    titleTr = "Öğün Kaydedildi!",
+                    titleEn = "Meal Logged!",
+                    subtitleTr = "Bugünkü Biyo-Skor: ${summary.todayScore}/100 • Harika takip!",
+                    subtitleEn = "Today's Bio-Score: ${summary.todayScore}/100 • Great tracking!",
+                    progressFraction = ratio,
+                    accentColorHex = 0xFF10B981
                 )
-            }
+            )
         }
 
         // 5. Check Weight action
