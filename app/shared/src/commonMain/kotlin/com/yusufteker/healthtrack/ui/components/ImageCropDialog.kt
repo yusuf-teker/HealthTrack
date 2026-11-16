@@ -82,17 +82,23 @@ fun ImageCropDialog(
     isProcessing: Boolean = false,
     onConfirmCrop: (cropRect: CropRect, rotationDegrees: Int) -> Unit,
     onScanFull: (rotationDegrees: Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    titleText: String? = null,
+    subtitleText: String? = null,
+    fullActionLabel: String? = null,
+    confirmActionLabel: String? = null,
+    initialRatioMode: CropRatioMode = CropRatioMode.FREE,
+    availableRatioModes: List<CropRatioMode> = CropRatioMode.entries
 ) {
     val isDark = LocalIsDarkTheme.current
     var rotationDegrees by remember { mutableStateOf(0) }
-    var selectedRatioMode by remember { mutableStateOf(CropRatioMode.FREE) }
+    var selectedRatioMode by remember { mutableStateOf(initialRatioMode) }
 
     // Normalized coordinates (0f .. 1f)
-    var cropLeft by remember { mutableStateOf(0.10f) }
-    var cropTop by remember { mutableStateOf(0.12f) }
-    var cropRight by remember { mutableStateOf(0.90f) }
-    var cropBottom by remember { mutableStateOf(0.88f) }
+    var cropLeft by remember { mutableStateOf(if (initialRatioMode == CropRatioMode.SQUARE) 0.15f else 0.10f) }
+    var cropTop by remember { mutableStateOf(if (initialRatioMode == CropRatioMode.SQUARE) 0.15f else 0.12f) }
+    var cropRight by remember { mutableStateOf(if (initialRatioMode == CropRatioMode.SQUARE) 0.85f else 0.90f) }
+    var cropBottom by remember { mutableStateOf(if (initialRatioMode == CropRatioMode.SQUARE) 0.85f else 0.88f) }
 
     var activeHandle by remember { mutableStateOf(DragHandle.NONE) }
 
@@ -179,7 +185,7 @@ fun ImageCropDialog(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = str("Alanı Kırpın & Tarayın ✂️", "Crop & Scan Area ✂️"),
+                                text = titleText ?: str("Alanı Kırpın & Tarayın ✂️", "Crop & Scan Area ✂️"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -187,7 +193,7 @@ fun ImageCropDialog(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = str("Köşelerden sürükleyerek boyutu ayarlayın", "Drag the corners to adjust the crop box"),
+                                text = subtitleText ?: str("Köşelerden sürükleyerek boyutu ayarlayın", "Drag the corners to adjust the crop box"),
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -518,7 +524,7 @@ fun ImageCropDialog(
                     }
 
                     val lang = appLang()
-                    CropRatioMode.entries.forEach { mode ->
+                    availableRatioModes.forEach { mode ->
                         val isSelected = selectedRatioMode == mode
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -567,7 +573,7 @@ fun ImageCropDialog(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = str("Tümünü Tara", "Scan Full"),
+                            text = fullActionLabel ?: str("Tümünü Tara", "Scan Full"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -601,7 +607,7 @@ fun ImageCropDialog(
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(str("Taranıyor...", "Scanning..."))
+                            Text(str("İşleniyor...", "Processing..."))
                         } else {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
@@ -611,7 +617,7 @@ fun ImageCropDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = str("Kırp ve Tara", "Crop & Scan"),
+                                text = confirmActionLabel ?: str("Kırp ve Tara", "Crop & Scan"),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

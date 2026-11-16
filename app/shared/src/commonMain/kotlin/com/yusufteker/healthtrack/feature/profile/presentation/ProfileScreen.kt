@@ -48,6 +48,11 @@ import com.yusufteker.healthtrack.ui.components.DeviceConnectionGuideDialog
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.LanguageSelectorPill
+import com.yusufteker.healthtrack.ui.components.PlanoraFindFriendsButton
+import com.yusufteker.healthtrack.ui.components.PlanoraFollowListSheet
+import com.yusufteker.healthtrack.ui.components.PlanoraIncomingRequestsCard
+import com.yusufteker.healthtrack.ui.components.PlanoraProfileHeroCard
+import com.yusufteker.healthtrack.ui.components.PlanoraSearchUsersSheet
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 
@@ -86,7 +91,41 @@ fun ProfileScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showCustomApiKeyDialog by remember { mutableStateOf(false) }
+    var followListTabToOpen by remember { mutableStateOf<Int?>(null) }
+    var showSearchUsersSheet by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
+
+    if (followListTabToOpen != null) {
+        PlanoraFollowListSheet(
+            initialTab = followListTabToOpen ?: 0,
+            followers = state.followers,
+            following = state.following,
+            requests = state.followRequests,
+            isLoading = state.isLoadingSocial,
+            pendingActionUserIds = state.pendingActionUserIds,
+            onRemoveFollower = { userId -> onIntent(ProfileIntent.OnRemoveFollower(userId)) },
+            onUnfollow = { userId -> onIntent(ProfileIntent.OnToggleFollowUser(userId)) },
+            onAcceptRequest = { reqId -> onIntent(ProfileIntent.OnAcceptFollowRequest(reqId)) },
+            onRejectRequest = { reqId -> onIntent(ProfileIntent.OnRejectFollowRequest(reqId)) },
+            onOpenSearch = {
+                followListTabToOpen = null
+                showSearchUsersSheet = true
+            },
+            onDismiss = { followListTabToOpen = null }
+        )
+    }
+
+    if (showSearchUsersSheet) {
+        PlanoraSearchUsersSheet(
+            query = state.friendSearchQuery,
+            results = state.searchResults,
+            isLoading = state.isSearchingFriends,
+            pendingActionUserIds = state.pendingActionUserIds,
+            onQueryChanged = { query -> onIntent(ProfileIntent.OnFriendSearchQueryChanged(query)) },
+            onToggleFollow = { userId -> onIntent(ProfileIntent.OnToggleFollowUser(userId)) },
+            onDismiss = { showSearchUsersSheet = false }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -294,114 +333,134 @@ fun ProfileScreen(
             }
 
             if (selectedTab == ProfileTab.PROFILE_GOALS) {
-                // ── Section 1: Kimlik & Fiziksel Profil Özeti (Tek Kompakt Kart) ──
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                elevation = 4.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        com.yusufteker.healthtrack.ui.components.AvatarImage(
-                            profileImageUrl = state.profileImageUrl,
-                            fallbackInitial = state.name.firstOrNull()?.uppercase()
-                                ?: state.username.firstOrNull()?.uppercase() ?: "U",
-                            modifier = Modifier.size(50.dp),
-                            fallbackColor = MaterialTheme.colorScheme.primary,
-                            fallbackBackgroundBrush = Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.30f)
-                                )
-                            ),
-                            textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
-                        )
+                // ── Section 1: Planora 1:1 Sosyal Profil Kahraman Kartı (Fotoğraf + Seri / Takipçi / Takip Edilen) ──
+                PlanoraProfileHeroCard(
+                    name = state.name,
+                    username = state.username,
+                    profileImageUrl = state.profileImageUrl,
+                    streakDays = state.streakDays,
+                    followersCount = state.followersCount,
+                    followingCount = state.followingCount,
+                    isPremium = state.isPremium,
+                    isUploadingImage = state.isUploadingProfileImage,
+                    onUploadProfileImageBytes = { bytes ->
+                        onIntent(ProfileIntent.OnUploadProfileImage(bytes))
+                    },
+                    onFollowersClick = {
+                        onIntent(ProfileIntent.OnRefreshSocial)
+                        followListTabToOpen = 0
+                    },
+                    onFollowingClick = {
+                        onIntent(ProfileIntent.OnRefreshSocial)
+                        followListTabToOpen = 1
+                    },
+                    onStreakClick = null
+                )
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (state.name.isNotBlank()) state.name else str("Kullanıcı", "User"),
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "@${state.username}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Surface(
-                            onClick = { showEditBodyDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                            modifier = Modifier.bounceClick()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Edit,
-                                    contentDescription = str("Fiziksel Bilgileri Düzenle", "Edit Body Stats"),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = str("Düzenle", "Edit"),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
+                // ── Section 1b: Arkadaş Bul & Ekle Pill Butonu ──
+                PlanoraFindFriendsButton(
+                    onClick = {
+                        onIntent(ProfileIntent.OnRefreshSocial)
+                        showSearchUsersSheet = true
                     }
+                )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
+                // ── Section 1c: Gelen Arkadaşlık İstekleri Kartı ──
+                if (state.followRequests.isNotEmpty()) {
+                    PlanoraIncomingRequestsCard(
+                        requests = state.followRequests,
+                        onAccept = { requestId -> onIntent(ProfileIntent.OnAcceptFollowRequest(requestId)) },
+                        onReject = { requestId -> onIntent(ProfileIntent.OnRejectFollowRequest(requestId)) },
+                        onSeeAllClick = {
+                            onIntent(ProfileIntent.OnRefreshSocial)
+                            followListTabToOpen = 2
+                        }
+                    )
+                }
 
-                    // Salt-okunur (Read-Only) Kompakt Vücut Özeti Şeridi
-                    Row(
+                // ── Section 1d: Kompakt Fiziksel Bilgiler & BMI Şeridi ──
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    elevation = 4.dp
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .clickable { showEditBodyDialog = true }
-                            .padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        ProfileStatPill(
-                            label = str("Güncel / Hedef", "Current / Goal"),
-                            value = "${state.weightKg} / ${state.targetWeightKg} kg",
-                            modifier = Modifier.weight(1.25f)
-                        )
-                        ProfileStatPill(
-                            label = str("Boy & Yaş", "Height & Age"),
-                            value = "${state.heightCm.toInt()} cm • ${state.age}",
-                            modifier = Modifier.weight(1.1f)
-                        )
-                        ProfileStatPill(
-                            label = str("Cinsiyet", "Gender"),
-                            value = if (state.gender == "FEMALE") str("Kadın", "Female") else str("Erkek", "Male"),
-                            modifier = Modifier.weight(0.8f)
-                        )
-                        ProfileStatPill(
-                            label = "BMI",
-                            value = "${state.bmi}",
-                            subLabel = state.localizedBmiCategory(lang),
-                            highlight = true,
-                            modifier = Modifier.weight(0.95f)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = str("Fiziksel Bilgiler & BMI", "Body Stats & BMI"),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Surface(
+                                onClick = { showEditBodyDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                modifier = Modifier.bounceClick()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Edit,
+                                        contentDescription = str("Fiziksel Bilgileri Düzenle", "Edit Body Stats"),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = str("Düzenle", "Edit"),
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Salt-okunur (Read-Only) Kompakt Vücut Özeti Şeridi
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { showEditBodyDialog = true }
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ProfileStatPill(
+                                label = str("Güncel / Hedef", "Current / Goal"),
+                                value = "${state.weightKg} / ${state.targetWeightKg} kg",
+                                modifier = Modifier.weight(1.25f)
+                            )
+                            ProfileStatPill(
+                                label = str("Boy & Yaş", "Height & Age"),
+                                value = "${state.heightCm.toInt()} cm • ${state.age}",
+                                modifier = Modifier.weight(1.1f)
+                            )
+                            ProfileStatPill(
+                                label = str("Cinsiyet", "Gender"),
+                                value = if (state.gender == "FEMALE") str("Kadın", "Female") else str("Erkek", "Male"),
+                                modifier = Modifier.weight(0.8f)
+                            )
+                            ProfileStatPill(
+                                label = "BMI",
+                                value = "${state.bmi}",
+                                subLabel = state.localizedBmiCategory(lang),
+                                highlight = true,
+                                modifier = Modifier.weight(0.95f)
+                            )
+                        }
                     }
                 }
-            }
 
             // ── Section 2: Fitness & Besin Hedefleri ──
             GlassCard(

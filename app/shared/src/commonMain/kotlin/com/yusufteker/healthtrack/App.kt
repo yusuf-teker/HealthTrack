@@ -269,7 +269,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 if (session.isLoggedIn && session.userId > 0) {
                     val pushToken = observedPushToken ?: tokenStorage.getFcmToken()
                     if (!pushToken.isNullOrBlank()) {
-                        val platformLabel = if (isIosPlatform) "IOS" else "ANDROID"
+                        val platformLabel = if (isIosPlatform) "HEALTHTRACK_IOS" else "HEALTHTRACK_ANDROID"
                         apiClient.registerFcmToken(pushToken, platformLabel)
                     }
                 }

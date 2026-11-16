@@ -15,6 +15,7 @@ import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
+import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.sync.SyncState
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
@@ -22,7 +23,9 @@ import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -36,7 +39,8 @@ class ProfileViewModel(
     private val syncEngine: SyncEngine,
     private val settings: Settings,
     private val deviceHealthSyncManager: DeviceHealthSyncManager,
-    private val apiClient: HealthApiClient
+    private val apiClient: HealthApiClient,
+    private val gamificationManager: GamificationManager? = null
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(createInitialState())
@@ -48,6 +52,8 @@ class ProfileViewModel(
     private var hasUserModifiedWeight = false
     private var weightObservationJob: Job? = null
     private var goalObservationJob: Job? = null
+    private var streakObservationJob: Job? = null
+    private var socialSearchJob: Job? = null
 
     init {
         observeSession()
@@ -70,10 +76,13 @@ class ProfileViewModel(
                         _state.value = createInitialState()
                         observeLatestWeight(session.userId)
                         observeNutritionGoal(session.userId)
+                        observeStreak(session.userId)
                         refreshAiQuota()
+                        refreshSocialData()
                     } else {
                         weightObservationJob?.cancel()
                         goalObservationJob?.cancel()
+                        streakObservationJob?.cancel()
                         hasUserModifiedWeight = false
                         _state.value = createInitialState()
                     }
@@ -433,11 +442,244 @@ class ProfileViewModel(
             ProfileIntent.OnScreenAppeared -> {
                 val currentFitnessGoal = tokenStorage.getUserFitnessGoal()
                 _state.update { current ->
-                    current.copy(fitnessGoal = currentFitnessGoal)
+                    current.copy(
+                        fitnessGoal = currentFitnessGoal,
+                        profileImageUrl = tokenStorage.getProfileImageUrl()
+                    )
                 }
+                refreshSocialData()
             }
+            is ProfileIntent.OnUploadProfileImage -> uploadProfileImage(intent.imageBytes)
+            ProfileIntent.OnRefreshSocial -> refreshSocialData()
+            is ProfileIntent.OnFriendSearchQueryChanged -> {
+                _state.update { it.copy(friendSearchQuery = intent.query) }
+                searchUsersDebounced(intent.query)
+            }
+            is ProfileIntent.OnToggleFollowUser -> toggleFollowUser(intent.userId)
+            is ProfileIntent.OnRemoveFollower -> removeFollower(intent.userId)
+            is ProfileIntent.OnAcceptFollowRequest -> acceptFollowRequest(intent.requestId)
+            is ProfileIntent.OnRejectFollowRequest -> rejectFollowRequest(intent.requestId)
             ProfileIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
             ProfileIntent.OnDismissErrorMessage -> _state.update { it.copy(errorMessage = null) }
+        }
+    }
+
+    private fun observeStreak(userId: Int) {
+        val manager = gamificationManager ?: return
+        streakObservationJob?.cancel()
+        streakObservationJob = viewModelScope.launch {
+            manager.observeSummary(userId).collect { summary ->
+                _state.update { it.copy(streakDays = summary.currentStreakDays) }
+            }
+        }
+    }
+
+    private fun refreshSocialData() {
+        if (!tokenStorage.isLoggedIn()) return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoadingSocial = true) }
+            try {
+                coroutineScope {
+                    val profileDeferred = async { apiClient.getMyProfile() }
+                    val followersDeferred = async { apiClient.getFollowers() }
+                    val followingDeferred = async { apiClient.getFollowing() }
+                    val requestsDeferred = async { apiClient.getFollowRequests() }
+
+                    val profileRes = profileDeferred.await()
+                    val followersRes = followersDeferred.await()
+                    val followingRes = followingDeferred.await()
+                    val requestsRes = requestsDeferred.await()
+
+                    profileRes.onSuccess { p ->
+                        if (p.profileImageUrl != tokenStorage.getProfileImageUrl()) {
+                            tokenStorage.setProfileImageUrl(p.profileImageUrl)
+                        }
+                        _state.update {
+                            it.copy(
+                                name = p.name.ifBlank { it.name },
+                                username = p.username.ifBlank { it.username },
+                                profileImageUrl = p.profileImageUrl ?: it.profileImageUrl,
+                                followersCount = p.followersCount,
+                                followingCount = p.followingCount
+                            )
+                        }
+                    }
+                    followersRes.onSuccess { list ->
+                        _state.update {
+                            it.copy(
+                                followers = list,
+                                followersCount = maxOf(it.followersCount, list.size)
+                            )
+                        }
+                    }
+                    followingRes.onSuccess { list ->
+                        _state.update {
+                            it.copy(
+                                following = list,
+                                followingCount = maxOf(it.followingCount, list.size)
+                            )
+                        }
+                    }
+                    requestsRes.onSuccess { list ->
+                        _state.update { it.copy(followRequests = list) }
+                    }
+                }
+            } finally {
+                _state.update { it.copy(isLoadingSocial = false) }
+            }
+        }
+    }
+
+    private fun uploadProfileImage(imageBytes: ByteArray) {
+        if (imageBytes.isEmpty()) return
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            _state.update { it.copy(isUploadingProfileImage = true, errorMessage = null) }
+            apiClient.uploadProfileImage(imageBytes)
+                .onSuccess { imageUrl ->
+                    tokenStorage.setProfileImageUrl(imageUrl)
+                    _state.update {
+                        it.copy(
+                            isUploadingProfileImage = false,
+                            profileImageUrl = imageUrl,
+                            infoMessage = trEn("Profil fotoğrafı güncellendi.", "Profile photo updated.", lang)
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            isUploadingProfileImage = false,
+                            errorMessage = formatActionableApiError(
+                                error = err,
+                                operationTr = "Fotoğraf yükleme",
+                                operationEn = "Photo upload",
+                                language = lang
+                            )
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun searchUsersDebounced(query: String) {
+        socialSearchJob?.cancel()
+        val trimmed = query.trim()
+        if (trimmed.length < 2) {
+            _state.update { it.copy(searchResults = emptyList(), isSearchingFriends = false) }
+            return
+        }
+        socialSearchJob = viewModelScope.launch {
+            delay(320)
+            _state.update { it.copy(isSearchingFriends = true) }
+            apiClient.searchUsers(trimmed)
+                .onSuccess { users ->
+                    _state.update { it.copy(searchResults = users, isSearchingFriends = false) }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            isSearchingFriends = false,
+                            errorMessage = formatActionableApiError(err, "Kullanıcı arama", "User search")
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun toggleFollowUser(targetUserId: Int) {
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            _state.update { it.copy(pendingActionUserIds = it.pendingActionUserIds + targetUserId) }
+            apiClient.toggleFollowUser(targetUserId)
+                .onSuccess {
+                    val currentQuery = _state.value.friendSearchQuery.trim()
+                    if (currentQuery.length >= 2) {
+                        apiClient.searchUsers(currentQuery).onSuccess { users ->
+                            _state.update { it.copy(searchResults = users) }
+                        }
+                    }
+                    refreshSocialData()
+                    _state.update {
+                        it.copy(
+                            pendingActionUserIds = it.pendingActionUserIds - targetUserId,
+                            infoMessage = trEn("Arkadaşlık durumu güncellendi.", "Friend status updated.", lang)
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            pendingActionUserIds = it.pendingActionUserIds - targetUserId,
+                            errorMessage = formatActionableApiError(err, "Takip işlemi", "Follow action", language = lang)
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun removeFollower(followerUserId: Int) {
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            _state.update { it.copy(pendingActionUserIds = it.pendingActionUserIds + followerUserId) }
+            apiClient.removeFollower(followerUserId)
+                .onSuccess {
+                    _state.update { current ->
+                        val updatedFollowers = current.followers.filterNot { it.id == followerUserId }
+                        current.copy(
+                            followers = updatedFollowers,
+                            followersCount = updatedFollowers.size,
+                            pendingActionUserIds = current.pendingActionUserIds - followerUserId,
+                            infoMessage = trEn("Takipçi çıkarıldı.", "Follower removed.", lang)
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            pendingActionUserIds = it.pendingActionUserIds - followerUserId,
+                            errorMessage = formatActionableApiError(err, "Takipçi çıkarma", "Remove follower", language = lang)
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun acceptFollowRequest(requestId: Int) {
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            apiClient.acceptFollowRequest(requestId)
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            followRequests = it.followRequests.filterNot { r -> r.id == requestId },
+                            infoMessage = trEn("Arkadaşlık isteği kabul edildi.", "Friend request accepted.", lang)
+                        )
+                    }
+                    refreshSocialData()
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(errorMessage = formatActionableApiError(err, "İstek kabulü", "Accept request", language = lang))
+                    }
+                }
+        }
+    }
+
+    private fun rejectFollowRequest(requestId: Int) {
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            apiClient.rejectFollowRequest(requestId)
+                .onSuccess {
+                    _state.update {
+                        it.copy(followRequests = it.followRequests.filterNot { r -> r.id == requestId })
+                    }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(errorMessage = formatActionableApiError(err, "İstek reddi", "Reject request", language = lang))
+                    }
+                }
         }
     }
 

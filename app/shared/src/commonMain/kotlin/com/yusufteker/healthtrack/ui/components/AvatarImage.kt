@@ -19,10 +19,10 @@ import coil3.compose.AsyncImage
 /**
  * Optimizes Cloudinary avatar URLs for crisp circular thumbnail rendering.
  */
-fun getOptimizedCloudinaryUrl(url: String): String {
+fun getOptimizedCloudinaryUrl(url: String, sizePx: Int = 200): String {
     if (!url.contains("res.cloudinary.com") || !url.contains("/upload/")) return url
     if (url.contains("/upload/w_")) return url
-    return url.replaceFirst("/upload/", "/upload/w_200,h_200,c_fill,q_auto,f_auto/")
+    return url.replaceFirst("/upload/", "/upload/w_$sizePx,h_$sizePx,c_fill,q_auto,f_auto/")
 }
 
 /**
@@ -37,12 +37,13 @@ fun AvatarImage(
     fallbackColor: Color = MaterialTheme.colorScheme.primary,
     fallbackBackgroundBrush: Brush? = null,
     fallbackBackgroundColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-    textStyle: TextStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black)
+    textStyle: TextStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
+    imageSizePx: Int = 200
 ) {
     val cleanUrl = profileImageUrl?.trim()?.takeIf { it.isNotEmpty() }
     if (cleanUrl != null) {
         AsyncImage(
-            model = getOptimizedCloudinaryUrl(cleanUrl),
+            model = getOptimizedCloudinaryUrl(cleanUrl, sizePx = imageSizePx),
             contentDescription = "Profile Image",
             modifier = modifier.clip(CircleShape),
             contentScale = ContentScale.Crop

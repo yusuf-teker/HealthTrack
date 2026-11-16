@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.feature.workout.presentation
 
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
+import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.network.HealthAiQuotaDto
 import com.yusufteker.healthtrack.core.utils.getTodayIso
@@ -9,6 +10,7 @@ import com.yusufteker.healthtrack.core.utils.getTodayIso
 data class WorkoutState(
     val selectedDate: String = getTodayIso(),
     val rawText: String = "",
+    val selectedSport: SportType? = null,
     val manualCalories: String = "",
     val manualDuration: String = "",
     val workouts: List<WorkoutLog> = emptyList(),
@@ -40,6 +42,7 @@ data class WorkoutState(
 sealed interface WorkoutIntent {
     data class OnDateChanged(val newDate: String) : WorkoutIntent
     data class OnRawTextChanged(val text: String) : WorkoutIntent
+    data class OnSportSelected(val sport: SportType?) : WorkoutIntent
     data class OnManualCaloriesChanged(val value: String) : WorkoutIntent
     data class OnManualDurationChanged(val value: String) : WorkoutIntent
     data class OnTargetCaloriesChanged(val value: Int) : WorkoutIntent

@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.yusufteker.healthtrack.core.model.FriendActivityType
 import com.yusufteker.healthtrack.core.model.FriendNotificationEvent
+import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
 import com.yusufteker.healthtrack.theme.appLang
@@ -93,7 +94,7 @@ fun FriendActivityBannerHost(
             .zIndex(165f)
     ) {
         if (event != null) {
-            val (accent, badgeIcon) = activityVisuals(event.type)
+            val (accent, badgeIcon) = activityVisuals(event)
 
             GlassCard(
                 modifier = Modifier
@@ -217,8 +218,13 @@ fun FriendActivityBannerHost(
     }
 }
 
-private fun activityVisuals(type: FriendActivityType): Pair<Color, ImageVector> {
-    return when (type) {
+private fun activityVisuals(event: FriendNotificationEvent): Pair<Color, ImageVector> {
+    if (event.type == FriendActivityType.WORKOUT) {
+        val sport = SportType.fromWire(event.sportType)
+            ?: SportType.fromRawText("${event.titleTr} ${event.messageTr}")
+        return sport.accentColor() to sport.iconVector()
+    }
+    return when (event.type) {
         FriendActivityType.WORKOUT -> Color(0xFF10B981) to Icons.Rounded.DirectionsRun
         FriendActivityType.MEAL -> Color(0xFF38BDF8) to Icons.Rounded.Restaurant
         FriendActivityType.STREAK -> Color(0xFFF97316) to Icons.Rounded.LocalFireDepartment

@@ -37,6 +37,7 @@ data class FriendNotificationEvent(
     val actorName: String,
     val actorUsername: String = "",
     val type: FriendActivityType = FriendActivityType.GENERAL,
+    val sportType: String? = null,
     val titleTr: String,
     val titleEn: String,
     val messageTr: String,
@@ -79,10 +80,12 @@ object FriendNotificationBus {
         actorUsername: String? = null,
         actorUserId: Int = 0,
         typeRaw: String? = null,
+        sportType: String? = null,
         title: String? = null,
         body: String? = null
     ): FriendNotificationEvent {
-        val cleanName = actorName?.trim()?.takeIf { it.isNotBlank() } ?: "HealthTrack"
+        val rawName = actorName?.trim()?.takeIf { it.isNotBlank() } ?: "HealthTrack"
+        val cleanName = rawName.substringBefore(" ").ifBlank { rawName }
         val activityType = FriendActivityType.fromWire(typeRaw)
         val cleanTitle = title?.trim()?.takeIf { it.isNotBlank() }
         val cleanBody = body?.trim()?.takeIf { it.isNotBlank() }
@@ -94,6 +97,7 @@ object FriendNotificationBus {
             actorName = cleanName,
             actorUsername = actorUsername.orEmpty(),
             type = activityType,
+            sportType = sportType?.trim()?.takeIf { it.isNotBlank() },
             titleTr = cleanTitle ?: cleanName,
             titleEn = cleanTitle ?: cleanName,
             messageTr = cleanBody ?: trEn("Yeni bir aktivite paylaştı.", "Shared a new activity.", AppLanguage.TR),

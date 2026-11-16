@@ -390,16 +390,16 @@ private fun MacroItem(
             )
         }
 
-        // Hemen altında küçük yuvarlak (size 26.dp)
+        // Hemen altında yuvarlak makro göstergesi (yüzde metni rahat sığacak şekilde 38.dp)
         Box(
-            modifier = Modifier.size(26.dp),
+            modifier = Modifier.size(38.dp),
             contentAlignment = Alignment.Center
         ) {
             val trackColor = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.45f)
             else HealthColors.SurfaceVariantLight
 
-            Canvas(modifier = Modifier.fillMaxSize().padding(2.dp)) {
-                val strokeWidth = 2.8.dp.toPx()
+            Canvas(modifier = Modifier.fillMaxSize().padding(1.5.dp)) {
+                val strokeWidth = 3.dp.toPx()
                 val diameter = size.minDimension - strokeWidth
                 val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
                 val arcSize = Size(diameter, diameter)
@@ -432,9 +432,11 @@ private fun MacroItem(
             // Percentage readout inside circle
             Text(
                 text = "%${(progress * 100).toInt()}",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false
             )
         }
     }

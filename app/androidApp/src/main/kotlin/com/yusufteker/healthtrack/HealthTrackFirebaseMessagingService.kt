@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -38,6 +39,7 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
         val actorName = data["actorName"] ?: title
         val actorUsername = data["actorUsername"]
         val actorUserId = data["actorUserId"]?.toIntOrNull() ?: 0
+        val sportType = data["sportType"]
         val id = data["notificationId"] ?: message.messageId
 
         val event = FriendNotificationBus.emitFromPushPayload(
@@ -46,6 +48,7 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
             actorUsername = actorUsername,
             actorUserId = actorUserId,
             typeRaw = typeRaw,
+            sportType = sportType,
             title = title,
             body = body
         )
@@ -70,14 +73,7 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Friend Activity",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            manager.createNotificationChannel(channel)
-        }
+        ensurePushChannel(manager)
 
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -90,8 +86,14 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val largeIcon = runCatching {
+            BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+        }.getOrNull()
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(SharedR.drawable.ic_notification)
+            .apply { if (largeIcon != null) setLargeIcon(largeIcon) }
+            .setColor(0xFF10B981.toInt())
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
@@ -103,8 +105,19 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "ht_friend_activity_push"
+        const val CHANNEL_ID = "ht_friend_activity_push"
         const val EXTRA_PUSH_NOTIFICATION_ID = "ht_push_notification_id"
+
+        fun ensurePushChannel(manager: NotificationManager) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    "HealthTrack Friend Activity",
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+                manager.createNotificationChannel(channel)
+            }
+        }
 
         fun saveFcmToken(context: Context, token: String) {
             val cleaned = token.trim().takeIf { it.isNotBlank() } ?: return

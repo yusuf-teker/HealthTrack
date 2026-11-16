@@ -288,28 +288,50 @@ fun WorkoutScreen(
                 val detectedSports = remember(rawTextInput) {
                     if (rawTextInput.isBlank()) emptySet() else SportType.detectAll(rawTextInput)
                 }
+                val selectedSports = remember(detectedSports, state.selectedSport) {
+                    val selected = state.selectedSport
+                    if (selected != null && selected != SportType.OTHER) {
+                        detectedSports + selected
+                    } else {
+                        detectedSports
+                    }
+                }
+                val durationUnit = str("dk", "min")
                 SportCategorySelectorRow(
-                    selectedSports = detectedSports,
+                    selectedSports = selectedSports,
                     onSportClick = { sport ->
                         val template = sport.localizedTemplate(lang)
                         val trimmed = rawTextInput.trim()
-                        val isExact = trimmed.equals(template, ignoreCase = true)
-                        if (isExact) {
+                        val isExactTemplate = trimmed.equals(template, ignoreCase = true)
+                        if (sport == state.selectedSport && (trimmed.isEmpty() || isExactTemplate)) {
                             rawTextInput = ""
                             onIntent(WorkoutIntent.OnRawTextChanged(""))
+                            onIntent(WorkoutIntent.OnSportSelected(null))
                         } else {
                             val isAnyTemplate = SportIcons.SELECTABLE_SPORTS.any {
                                 trimmed.equals(it.localizedTemplate(lang), ignoreCase = true)
                             }
-                            val updated = if (trimmed.isEmpty() || isAnyTemplate) {
-                                template
-                            } else if (sport in detectedSports) {
-                                trimmed
-                            } else {
-                                "$trimmed, $template"
+                            val durationOnlyMatch = Regex("""^(\d+)\s*(?:dk|dakika|min|m)?$""", RegexOption.IGNORE_CASE)
+                                .matchEntire(trimmed)
+                            val durationPrefixMatch = Regex("""^(\d+)\s*(?:dk|dakika|min)\s+.+$""", RegexOption.IGNORE_CASE)
+                                .matchEntire(trimmed)
+
+                            val updated = when {
+                                durationOnlyMatch != null -> {
+                                    val dur = durationOnlyMatch.groupValues[1]
+                                    "$dur $durationUnit ${sport.localizedTitle(lang)}"
+                                }
+                                trimmed.isEmpty() || isAnyTemplate -> template
+                                sport in detectedSports -> trimmed
+                                durationPrefixMatch != null && detectedSports.size <= 1 -> {
+                                    val dur = durationPrefixMatch.groupValues[1]
+                                    "$dur $durationUnit ${sport.localizedTitle(lang)}"
+                                }
+                                else -> "$trimmed, $template"
                             }
                             rawTextInput = updated
                             onIntent(WorkoutIntent.OnRawTextChanged(updated))
+                            onIntent(WorkoutIntent.OnSportSelected(sport))
                         }
                     }
                 )
@@ -459,7 +481,10 @@ fun WorkoutScreen(
                     badgeText = workoutQuotaBadge,
                     isBadgeAlert = isWorkoutQuotaExhausted,
                     isLoading = state.isCalculatingAi,
-                    enabled = !state.isCalculatingAi && rawTextInput.isNotBlank(),
+                    enabled = !state.isCalculatingAi && (
+                        rawTextInput.isNotBlank() ||
+                            (state.selectedSport != null && state.selectedSport != SportType.OTHER)
+                        ),
                     onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1027,7 +1052,7 @@ private fun resolveWorkoutVisual(workout: WorkoutLog): WorkoutVisual {
         )
     }
 
-    val sport = SportType.fromRawText(workout.rawText)
+    val sport = SportType.fromWorkout(workout)
     return WorkoutVisual(
         icon = sport.iconVector(),
         color = sport.accentColor()

@@ -25,9 +25,9 @@ enum class LeaderboardScope(val id: String, val titleTr: String, val titleEn: St
 
 @Serializable
 enum class LeaderboardCategory(val id: String, val titleTr: String, val titleEn: String) {
-    DISCIPLINE_XP("DISCIPLINE_XP", "Genel Disiplin", "Discipline"),
-    CALORIES_BURNED("CALORIES_BURNED", "Kalori Yakan", "Calories Burned"),
-    HEALTHY_EATING("HEALTHY_EATING", "Sağlıklı Beslenen", "Healthy Eating"),
+    DISCIPLINE_XP("DISCIPLINE_XP", "Disiplin", "Discipline"),
+    CALORIES_BURNED("CALORIES_BURNED", "Kalori", "Calories"),
+    HEALTHY_EATING("HEALTHY_EATING", "Beslenme", "Nutrition"),
     WORKOUT_MINUTES("WORKOUT_MINUTES", "Spor Süresi", "Workout Time");
 
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
@@ -94,5 +94,25 @@ data class FollowRequestItemDto(
     val requesterAvatarId: String = "avatar_1",
     val status: String = "PENDING",
     val requesterProfileImageUrl: String? = null
+)
+
+@Serializable
+data class UserProfileDetailDto(
+    val id: Int,
+    val name: String,
+    val username: String = "",
+    val email: String = "",
+    val avatarId: String = "avatar_1",
+    val followersCount: Int = 0,
+    val followingCount: Int = 0,
+    val postsCount: Int = 0,
+    val profileImageUrl: String? = null,
+    val isPremium: Boolean = false,
+    val premiumUntil: String? = null
+)
+
+@Serializable
+data class ProfileImageUploadResponseDto(
+    val profileImageUrl: String = ""
 )
 

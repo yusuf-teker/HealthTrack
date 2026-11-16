@@ -38,7 +38,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DirectionsRun
@@ -53,24 +52,19 @@ import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restaurant
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -78,7 +72,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +99,8 @@ import com.yusufteker.healthtrack.theme.appLang
 import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
+import com.yusufteker.healthtrack.ui.components.PlanoraFollowListSheet
+import com.yusufteker.healthtrack.ui.components.PlanoraSearchUsersSheet
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
 import com.yusufteker.healthtrack.ui.components.SportIcons
 import com.yusufteker.healthtrack.ui.components.bounceClick
@@ -122,11 +117,35 @@ fun GamificationScreen(
     val lang = appLang()
     val isDark = LocalIsDarkTheme.current
 
-    if (state.isFriendsSheetOpen) {
-        FriendsManagementBottomSheet(
-            state = state,
-            onIntent = onIntent,
-            onDismiss = { onIntent(GamificationIntent.OnSetFriendsSheetOpen(false)) }
+    if (state.followListTabToOpen != null) {
+        PlanoraFollowListSheet(
+            initialTab = state.followListTabToOpen,
+            followers = state.followers,
+            following = state.following,
+            requests = state.followRequests,
+            isLoading = state.isLoadingSocialLists || state.isLoadingFollowRequests,
+            pendingActionUserIds = state.pendingActionUserIds,
+            onRemoveFollower = { userId -> onIntent(GamificationIntent.OnRemoveFollower(userId)) },
+            onUnfollow = { userId -> onIntent(GamificationIntent.OnToggleFollowUser(userId)) },
+            onAcceptRequest = { reqId -> onIntent(GamificationIntent.OnAcceptFollowRequest(reqId)) },
+            onRejectRequest = { reqId -> onIntent(GamificationIntent.OnRejectFollowRequest(reqId)) },
+            onOpenSearch = {
+                onIntent(GamificationIntent.OnSetFollowListTab(null))
+                onIntent(GamificationIntent.OnSetSearchSheetOpen(true))
+            },
+            onDismiss = { onIntent(GamificationIntent.OnSetFollowListTab(null)) }
+        )
+    }
+
+    if (state.isSearchSheetOpen) {
+        PlanoraSearchUsersSheet(
+            query = state.friendSearchQuery,
+            results = state.searchResults,
+            isLoading = state.isSearchingFriends,
+            pendingActionUserIds = state.pendingActionUserIds,
+            onQueryChanged = { query -> onIntent(GamificationIntent.OnFriendSearchQueryChanged(query)) },
+            onToggleFollow = { userId -> onIntent(GamificationIntent.OnToggleFollowUser(userId)) },
+            onDismiss = { onIntent(GamificationIntent.OnSetSearchSheetOpen(false)) }
         )
     }
 
@@ -161,7 +180,13 @@ fun GamificationScreen(
                     if (state.selectedSection == GamificationSection.LEADERBOARD) {
                         Box {
                             IconButton(
-                                onClick = { onIntent(GamificationIntent.OnSetFriendsSheetOpen(true)) },
+                                onClick = {
+                                    if (state.followRequests.isNotEmpty()) {
+                                        onIntent(GamificationIntent.OnSetFollowListTab(2))
+                                    } else {
+                                        onIntent(GamificationIntent.OnSetSearchSheetOpen(true))
+                                    }
+                                },
                                 modifier = Modifier.bounceClick()
                             ) {
                                 Icon(
@@ -1121,10 +1146,10 @@ private fun LeaderboardSection(
 ) {
     val lang = appLang()
 
-    // Unified Compact Filter Header (Scope + Period + Category)
+    // Clean Non-Wrapped Filter Header (Scope Segmented Bar + Period Toggle + Category Pills)
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = if (isDark) Color(0xFF101727) else Color(0xFFF3F6FA),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
     ) {
@@ -1134,53 +1159,66 @@ private fun LeaderboardSection(
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Scope & Period Row
-            Row(
+            // Row 1: Equal-Width Scope Segmented Bar (Genel | Arkadaşlar (N))
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                shape = RoundedCornerShape(13.dp),
+                color = if (isDark) Color(0xFF0A101D) else Color(0xFFE6ECF3)
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     LeaderboardScope.entries.forEach { scopeItem ->
                         val selected = state.scope == scopeItem
                         val icon = if (scopeItem == LeaderboardScope.GLOBAL) Icons.Rounded.Public else Icons.Rounded.Group
-                        FilterChipPill(
-                            label = if (scopeItem == LeaderboardScope.FRIENDS && state.leaderboard != null) {
-                                "${scopeItem.localizedTitle(lang)} (${state.leaderboard.friendsCount})"
-                            } else {
-                                scopeItem.localizedTitle(lang)
-                            },
-                            icon = icon,
-                            selected = selected,
-                            onClick = { onIntent(GamificationIntent.OnScopeSelected(scopeItem)) }
-                        )
-                    }
-                }
-
-                // Daily vs Weekly
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (isDark) Color(0xFF172138) else Color(0xFFE4EBF3)
-                ) {
-                    Row(modifier = Modifier.padding(2.dp)) {
-                        LeaderboardPeriod.entries.forEach { periodItem ->
-                            val selected = state.period == periodItem
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(
-                                        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
-                                    )
-                                    .clickable { onIntent(GamificationIntent.OnPeriodSelected(periodItem)) }
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                        val label = if (scopeItem == LeaderboardScope.FRIENDS && state.leaderboard != null) {
+                            "${scopeItem.localizedTitle(lang)} (${state.leaderboard.friendsCount})"
+                        } else {
+                            scopeItem.localizedTitle(lang)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (selected) HealthColors.PrimaryGlow.copy(alpha = if (isDark) 0.20f else 0.16f)
+                                    else Color.Transparent
+                                )
+                                .then(
+                                    if (selected) {
+                                        Modifier.border(
+                                            width = 1.dp,
+                                            color = HealthColors.PrimaryGlow.copy(alpha = 0.55f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                    } else Modifier
+                                )
+                                .clickable { onIntent(GamificationIntent.OnScopeSelected(scopeItem)) }
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = if (selected) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(15.dp)
+                                )
                                 Text(
-                                    text = periodItem.localizedTitle(lang),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
+                                    ),
+                                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -1188,7 +1226,47 @@ private fun LeaderboardSection(
                 }
             }
 
-            // Category Horizontal Chips
+            // Row 2: Equal-Width Period Segmented Bar (Bugün | Bu Hafta) — guaranteed single-line
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(999.dp),
+                color = if (isDark) Color(0xFF172138) else Color(0xFFE4EBF3)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    LeaderboardPeriod.entries.forEach { periodItem ->
+                        val selected = state.period == periodItem
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(
+                                    if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                )
+                                .clickable { onIntent(GamificationIntent.OnPeriodSelected(periodItem)) }
+                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = periodItem.localizedTitle(lang),
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
+                                ),
+                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Row 3: Category Horizontal Scrollable Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1218,7 +1296,7 @@ private fun LeaderboardSection(
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            onClick = { onIntent(GamificationIntent.OnSetFriendsSheetOpen(true)) }
+            onClick = { onIntent(GamificationIntent.OnSetFollowListTab(2)) }
         ) {
             Row(
                 modifier = Modifier
@@ -1343,7 +1421,7 @@ private fun LeaderboardSection(
                                 textAlign = TextAlign.Center
                             )
                             Button(
-                                onClick = { onIntent(GamificationIntent.OnSetFriendsSheetOpen(true)) },
+                                onClick = { onIntent(GamificationIntent.OnSetSearchSheetOpen(true)) },
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.bounceClick()
                             ) {
@@ -1740,218 +1818,6 @@ private fun LeaderboardRowCard(entry: LeaderboardEntryDto) {
     }
 }
 
-// ═════════════════════════════════════════════════════════════
-// FRIENDS SEARCH & FOLLOW REQUESTS BOTTOM SHEET
-// ═════════════════════════════════════════════════════════════
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FriendsManagementBottomSheet(
-    state: GamificationState,
-    onIntent: (GamificationIntent) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var searchQueryInput by remember { mutableStateOf(state.friendSearchQuery) }
-    LaunchedEffect(state.friendSearchQuery) {
-        if (searchQueryInput != state.friendSearchQuery) searchQueryInput = state.friendSearchQuery
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-                .clearFocusOnTap()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = str("Arkadaşlar & İstekler", "Friends & Requests"),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = str(
-                            "Kullanıcı adı veya isimle ara, arkadaş listene ekle",
-                            "Search by username or name to add friends"
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.Close, contentDescription = str("Kapat", "Close"))
-                }
-            }
-
-            OutlinedTextField(
-                value = searchQueryInput,
-                onValueChange = {
-                    searchQueryInput = it
-                    onIntent(GamificationIntent.OnFriendSearchQueryChanged(it))
-                },
-                placeholder = { Text(str("Kullanıcı ara (en az 2 harf)...", "Search users (min 2 chars)...")) },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (searchQueryInput.isNotEmpty()) {
-                        IconButton(onClick = {
-                            searchQueryInput = ""
-                            onIntent(GamificationIntent.OnFriendSearchQueryChanged(""))
-                        }) {
-                            Icon(Icons.Rounded.Close, contentDescription = null)
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = HealthColors.PrimaryGlow,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Incoming Follow Requests
-            if (state.followRequests.isNotEmpty()) {
-                Text(
-                    text = str("Gelen İstekler (${state.followRequests.size})", "Incoming Requests (${state.followRequests.size})"),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFFFB923C)
-                )
-                state.followRequests.forEach { req ->
-                    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = req.requesterName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Text(
-                                    text = "@${req.requesterUsername}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedButton(
-                                    onClick = { onIntent(GamificationIntent.OnRejectFollowRequest(req.id)) },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
-                                ) {
-                                    Text(str("Reddet", "Decline"), fontSize = 12.sp)
-                                }
-                                Button(
-                                    onClick = { onIntent(GamificationIntent.OnAcceptFollowRequest(req.id)) },
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
-                                ) {
-                                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(str("Kabul Et", "Accept"), fontSize = 12.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-            }
-
-            // Search Results
-            if (state.isSearchingFriends) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(26.dp), color = HealthColors.PrimaryGlow)
-                }
-            } else if (state.friendSearchQuery.trim().length >= 2 && state.searchResults.isEmpty()) {
-                Text(
-                    text = str("Eşleşen kullanıcı bulunamadı.", "No matching users found."),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            } else {
-                state.searchResults.forEach { user ->
-                    val isBusy = state.pendingActionUserIds.contains(user.id)
-                    val buttonLabel = when {
-                        user.isFollowedByMe -> str("Takip Ediliyor", "Following")
-                        user.followRequestStatus == "PENDING" -> str("İstek Gönderildi", "Requested")
-                        else -> str("Takip Et", "Follow")
-                    }
-                    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = user.name,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Text(
-                                    text = "@${user.username}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (user.isFollowedByMe || user.followRequestStatus == "PENDING") {
-                                OutlinedButton(
-                                    onClick = { if (!isBusy) onIntent(GamificationIntent.OnToggleFollowUser(user.id)) },
-                                    enabled = !isBusy,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
-                                ) {
-                                    Text(buttonLabel, fontSize = 12.sp)
-                                }
-                            } else {
-                                Button(
-                                    onClick = { if (!isBusy) onIntent(GamificationIntent.OnToggleFollowUser(user.id)) },
-                                    enabled = !isBusy,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = HealthColors.PrimaryGlow,
-                                        contentColor = Color(0xFF06121E)
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
-                                ) {
-                                    Text(buttonLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
 @Composable
 private fun FilterChipPill(
     label: String,
@@ -1995,7 +1861,9 @@ private fun FilterChipPill(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 ),
                 color = if (selected) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

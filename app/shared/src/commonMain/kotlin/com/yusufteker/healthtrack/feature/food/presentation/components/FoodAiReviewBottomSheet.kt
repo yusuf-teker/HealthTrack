@@ -44,9 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FoodItem
 import com.yusufteker.healthtrack.core.model.MealHealthEvaluation
+import com.yusufteker.healthtrack.core.model.MealHealthEvaluator
 import com.yusufteker.healthtrack.core.model.MealHealthTier
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
-import com.yusufteker.healthtrack.core.network.evaluateMealHealth
 import com.yusufteker.healthtrack.feature.food.presentation.FoodScanTarget
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
@@ -176,7 +176,13 @@ fun FoodAiReviewBottomSheet(
 
                 // AI Meal Health Score & Encouraging Quote Banner
                 if (target == FoodScanTarget.DAILY_MEAL) {
-                    val healthEvaluation = remember(aiResult) { aiResult.evaluateMealHealth() }
+                    val healthEvaluation = remember(aiResult) {
+                        MealHealthEvaluator.evaluate(
+                            items = aiResult.items,
+                            totalCalories = aiResult.totalCalories,
+                            summary = aiResult.summary
+                        )
+                    }
                     MealHealthScoreBanner(evaluation = healthEvaluation)
                 }
 

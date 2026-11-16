@@ -5,6 +5,8 @@ import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.FitnessGoal
+import com.yusufteker.healthtrack.core.model.FollowRequestItemDto
+import com.yusufteker.healthtrack.core.model.FriendUserDto
 import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
@@ -41,6 +43,18 @@ data class ProfileState(
     val isSyncing: Boolean = false,
     val isDeviceSyncing: Boolean = false,
     val isDeletingAccount: Boolean = false,
+    val streakDays: Int = 0,
+    val followersCount: Int = 0,
+    val followingCount: Int = 0,
+    val followers: List<FriendUserDto> = emptyList(),
+    val following: List<FriendUserDto> = emptyList(),
+    val followRequests: List<FollowRequestItemDto> = emptyList(),
+    val isLoadingSocial: Boolean = false,
+    val isUploadingProfileImage: Boolean = false,
+    val friendSearchQuery: String = "",
+    val searchResults: List<FriendUserDto> = emptyList(),
+    val isSearchingFriends: Boolean = false,
+    val pendingActionUserIds: Set<Int> = emptySet(),
     val lastDeviceSyncSummary: String? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null
@@ -92,6 +106,13 @@ sealed interface ProfileIntent {
     data object OnDeleteAccountConfirmed : ProfileIntent
     data object OnSaveProfileClicked : ProfileIntent
     data object OnScreenAppeared : ProfileIntent
+    data class OnUploadProfileImage(val imageBytes: ByteArray) : ProfileIntent
+    data object OnRefreshSocial : ProfileIntent
+    data class OnFriendSearchQueryChanged(val query: String) : ProfileIntent
+    data class OnToggleFollowUser(val userId: Int) : ProfileIntent
+    data class OnRemoveFollower(val userId: Int) : ProfileIntent
+    data class OnAcceptFollowRequest(val requestId: Int) : ProfileIntent
+    data class OnRejectFollowRequest(val requestId: Int) : ProfileIntent
     data object OnDismissInfoMessage : ProfileIntent
     data object OnDismissErrorMessage : ProfileIntent
 }

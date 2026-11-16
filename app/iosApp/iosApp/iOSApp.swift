@@ -80,6 +80,7 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         let title = (userInfo["title"] as? String) ?? (alert?["title"] as? String) ?? content?.title
         let body = (userInfo["body"] as? String) ?? (alert?["body"] as? String) ?? content?.body
         let typeRaw = (userInfo["activityType"] as? String) ?? (userInfo["type"] as? String)
+        let sportType = userInfo["sportType"] as? String
         let actorName = (userInfo["actorName"] as? String) ?? title
         let actorUsername = userInfo["actorUsername"] as? String
         let id = userInfo["notificationId"] as? String
@@ -97,6 +98,7 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
                 actorUsername: actorUsername,
                 actorUserId: actorUserId,
                 typeRaw: typeRaw,
+                sportType: sportType,
                 title: title,
                 body: body,
                 isForeground: isForeground

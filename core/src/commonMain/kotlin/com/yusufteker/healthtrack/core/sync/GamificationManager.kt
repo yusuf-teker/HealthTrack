@@ -529,7 +529,7 @@ class GamificationManager(
         var hasSportProgressPopup = false
         if (addedWorkouts.isNotEmpty()) {
             val matchedSports = addedWorkouts
-                .flatMap { SportType.detectAll(it.rawText) }
+                .flatMap { SportType.detectAllForWorkout(it) }
                 .distinct()
 
             for (sport in matchedSports) {

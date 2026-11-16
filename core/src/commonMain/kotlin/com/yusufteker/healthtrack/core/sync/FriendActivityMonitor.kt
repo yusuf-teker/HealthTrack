@@ -196,14 +196,15 @@ class FriendActivityMonitor(
 
             current.forEach { entry ->
                 val prev = prevById[entry.userId] ?: return@forEach
-                val actor = entry.name.ifBlank { "@${entry.username}" }
+                val actor = entry.name.trim().substringBefore(" ")
+                    .ifBlank { entry.username.ifBlank { "Arkadaşın" } }
 
                 when {
                     entry.caloriesBurned > prev.caloriesBurned -> {
                         val deltaBurn = entry.caloriesBurned - prev.caloriesBurned
                         val deltaMin = (entry.workoutMinutes - prev.workoutMinutes).coerceAtLeast(0)
-                        val minTextTr = if (deltaMin > 0) " ($deltaMin dk)" else ""
-                        val minTextEn = if (deltaMin > 0) " ($deltaMin min)" else ""
+                        val titleTr = if (deltaMin > 0) "💪 $actor $deltaMin dk antrenman yaptı" else "💪 $actor spor yaptı"
+                        val titleEn = if (deltaMin > 0) "💪 $actor worked out for $deltaMin min" else "💪 $actor completed a workout"
                         results.add(
                             FriendNotificationEvent(
                                 id = "act_${entry.userId}_${dateIso}_burn_${entry.caloriesBurned}",
@@ -211,10 +212,10 @@ class FriendActivityMonitor(
                                 actorName = actor,
                                 actorUsername = entry.username,
                                 type = FriendActivityType.WORKOUT,
-                                titleTr = "$actor spor yaptı",
-                                titleEn = "$actor completed a workout",
-                                messageTr = "+$deltaBurn kcal yaktı$minTextTr 💪",
-                                messageEn = "Burned +$deltaBurn kcal$minTextEn 💪",
+                                titleTr = titleTr,
+                                titleEn = titleEn,
+                                messageTr = "🔥 +$deltaBurn kcal yaktı • Sen de serini koru!",
+                                messageEn = "🔥 Burned +$deltaBurn kcal • Keep your streak alive!",
                                 createdAtMs = nowMs
                             )
                         )
@@ -229,10 +230,10 @@ class FriendActivityMonitor(
                                 actorName = actor,
                                 actorUsername = entry.username,
                                 type = FriendActivityType.WORKOUT,
-                                titleTr = "$actor antrenman ekledi",
-                                titleEn = "$actor logged a workout",
-                                messageTr = "+$deltaMin dk aktif egzersiz kaydetti 🏃",
-                                messageEn = "Logged +$deltaMin min of active exercise 🏃",
+                                titleTr = "🏃 $actor $deltaMin dk antrenman yaptı",
+                                titleEn = "🏃 $actor worked out for $deltaMin min",
+                                messageTr = "+$deltaMin dk aktif egzersiz kaydetti • Sen de serini koru!",
+                                messageEn = "Logged +$deltaMin min of active exercise • Keep your streak alive!",
                                 createdAtMs = nowMs
                             )
                         )

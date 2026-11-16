@@ -92,19 +92,42 @@ class GamificationViewModel(
             }
             GamificationIntent.OnRefreshLeaderboard -> {
                 loadLeaderboard()
-                loadFollowRequests()
+                loadSocialData()
             }
             is GamificationIntent.OnSetFriendsSheetOpen -> {
-                _state.update { it.copy(isFriendsSheetOpen = intent.open) }
-                if (intent.open) {
-                    loadFollowRequests()
+                val targetTab = if (intent.open) {
+                    if (_state.value.followRequests.isNotEmpty()) 2 else 0
+                } else null
+                _state.update {
+                    it.copy(
+                        isFriendsSheetOpen = intent.open,
+                        followListTabToOpen = targetTab
+                    )
                 }
+                if (intent.open) {
+                    loadSocialData()
+                }
+            }
+            is GamificationIntent.OnSetFollowListTab -> {
+                _state.update {
+                    it.copy(
+                        followListTabToOpen = intent.tab,
+                        isFriendsSheetOpen = intent.tab != null
+                    )
+                }
+                if (intent.tab != null) {
+                    loadSocialData()
+                }
+            }
+            is GamificationIntent.OnSetSearchSheetOpen -> {
+                _state.update { it.copy(isSearchSheetOpen = intent.open) }
             }
             is GamificationIntent.OnFriendSearchQueryChanged -> {
                 _state.update { it.copy(friendSearchQuery = intent.query) }
                 searchUsersDebounced(intent.query)
             }
             is GamificationIntent.OnToggleFollowUser -> toggleFollowUser(intent.userId)
+            is GamificationIntent.OnRemoveFollower -> removeFollower(intent.userId)
             is GamificationIntent.OnAcceptFollowRequest -> acceptFollowRequest(intent.requestId)
             is GamificationIntent.OnRejectFollowRequest -> rejectFollowRequest(intent.requestId)
             GamificationIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
@@ -205,15 +228,31 @@ class GamificationViewModel(
     }
 
     private fun loadFollowRequests() {
+        loadSocialData()
+    }
+
+    private fun loadSocialData() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoadingFollowRequests = true) }
-            apiClient.getFollowRequests()
-                .onSuccess { requests ->
-                    _state.update { it.copy(followRequests = requests, isLoadingFollowRequests = false) }
+            _state.update { it.copy(isLoadingFollowRequests = true, isLoadingSocialLists = true) }
+            coroutineScope {
+                val requestsDeferred = async { apiClient.getFollowRequests() }
+                val followersDeferred = async { apiClient.getFollowers() }
+                val followingDeferred = async { apiClient.getFollowing() }
+
+                val requests = requestsDeferred.await().getOrNull()
+                val followers = followersDeferred.await().getOrNull()
+                val following = followingDeferred.await().getOrNull()
+
+                _state.update { current ->
+                    current.copy(
+                        followRequests = requests ?: current.followRequests,
+                        followers = followers ?: current.followers,
+                        following = following ?: current.following,
+                        isLoadingFollowRequests = false,
+                        isLoadingSocialLists = false
+                    )
                 }
-                .onFailure {
-                    _state.update { it.copy(isLoadingFollowRequests = false) }
-                }
+            }
         }
     }
 
@@ -247,13 +286,14 @@ class GamificationViewModel(
             _state.update { it.copy(pendingActionUserIds = it.pendingActionUserIds + targetUserId) }
             apiClient.toggleFollowUser(targetUserId)
                 .onSuccess {
-                    // Refresh search results to show updated status & refresh friends leaderboard if active
+                    // Refresh search results, social lists & friends leaderboard
                     val currentQuery = _state.value.friendSearchQuery.trim()
                     if (currentQuery.length >= 2) {
                         apiClient.searchUsers(currentQuery).onSuccess { users ->
                             _state.update { it.copy(searchResults = users) }
                         }
                     }
+                    loadSocialData()
                     if (_state.value.scope == LeaderboardScope.FRIENDS) {
                         loadLeaderboard()
                     }
@@ -275,6 +315,34 @@ class GamificationViewModel(
         }
     }
 
+    private fun removeFollower(followerUserId: Int) {
+        viewModelScope.launch {
+            _state.update { it.copy(pendingActionUserIds = it.pendingActionUserIds + followerUserId) }
+            apiClient.removeFollower(followerUserId)
+                .onSuccess {
+                    _state.update { current ->
+                        current.copy(
+                            followers = current.followers.filterNot { it.id == followerUserId },
+                            pendingActionUserIds = current.pendingActionUserIds - followerUserId,
+                            infoMessage = trEn("Takipçi çıkarıldı.", "Follower removed.")
+                        )
+                    }
+                    loadSocialData()
+                    if (_state.value.scope == LeaderboardScope.FRIENDS) {
+                        loadLeaderboard()
+                    }
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            pendingActionUserIds = it.pendingActionUserIds - followerUserId,
+                            errorMessage = formatActionableApiError(err, "Takipçi çıkarma", "Remove follower")
+                        )
+                    }
+                }
+        }
+    }
+
     private fun acceptFollowRequest(requestId: Int) {
         viewModelScope.launch {
             apiClient.acceptFollowRequest(requestId)
@@ -285,6 +353,7 @@ class GamificationViewModel(
                             infoMessage = trEn("Arkadaşlık isteği kabul edildi.", "Friend request accepted.")
                         )
                     }
+                    loadSocialData()
                     if (_state.value.selectedSection == GamificationSection.LEADERBOARD) {
                         loadLeaderboard()
                     }

@@ -89,7 +89,7 @@ class FriendActivityMonitorTest {
         assertTrue(events.all { it.type == FriendActivityType.WORKOUT })
         assertEquals("Ayşe", events[0].actorName)
         assertTrue(events[0].messageTr.contains("+250 kcal"))
-        assertTrue(events[0].messageTr.contains("25 dk"))
+        assertTrue(events[0].titleTr.contains("25 dk") || events[0].messageTr.contains("25 dk"))
 
         assertEquals("Mert", events[1].actorName)
         assertTrue(events[1].messageTr.contains("+30 dk"))

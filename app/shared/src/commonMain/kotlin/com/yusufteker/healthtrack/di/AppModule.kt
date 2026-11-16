@@ -35,7 +35,8 @@ val featureModule = module {
             get<SyncEngine>(),
             get<Settings>(),
             get<DeviceHealthSyncManager>(),
-            get<HealthApiClient>()
+            get<HealthApiClient>(),
+            get<GamificationManager>()
         )
     }
     viewModel { PremiumViewModel(get(), get(), get()) }

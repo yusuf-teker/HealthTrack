@@ -1,6 +1,8 @@
 package com.yusufteker.healthtrack
 
 import android.app.AlertDialog
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -34,6 +36,9 @@ class MainActivity : ComponentActivity() {
 
         val initialTab = resolveTabFromIntent(intent)
         dispatchDeepLinkIfPresent(intent)
+        (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.let {
+            HealthTrackFirebaseMessagingService.ensurePushChannel(it)
+        }
         try {
             FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
                 if (!token.isNullOrBlank()) {

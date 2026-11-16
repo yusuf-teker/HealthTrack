@@ -14,7 +14,10 @@ enum class SportType(
     val templateTr: String,
     val templateEn: String,
     val defaultDurationMinutes: Int,
-    val defaultCalories: Int
+    val defaultCalories: Int,
+    val emoji: String = "💪",
+    val actionPhraseTr: String = "antrenman yaptı",
+    val actionPhraseEn: String = "completed a workout"
 ) {
     TENNIS(
         titleTr = "Tenis",
@@ -22,7 +25,10 @@ enum class SportType(
         templateTr = "45 dk Tenis",
         templateEn = "45 min Tennis",
         defaultDurationMinutes = 45,
-        defaultCalories = 320
+        defaultCalories = 320,
+        emoji = "🎾",
+        actionPhraseTr = "tenis oynadı",
+        actionPhraseEn = "played tennis"
     ),
     FITNESS(
         titleTr = "Fitness",
@@ -30,7 +36,10 @@ enum class SportType(
         templateTr = "45 dk Fitness & Ağırlık",
         templateEn = "45 min Fitness & Weights",
         defaultDurationMinutes = 45,
-        defaultCalories = 260
+        defaultCalories = 260,
+        emoji = "🏋️",
+        actionPhraseTr = "fitness yaptı",
+        actionPhraseEn = "did a fitness workout"
     ),
     RUNNING(
         titleTr = "Koşu",
@@ -38,7 +47,10 @@ enum class SportType(
         templateTr = "30 dk Koşu",
         templateEn = "30 min Run",
         defaultDurationMinutes = 30,
-        defaultCalories = 310
+        defaultCalories = 310,
+        emoji = "🏃",
+        actionPhraseTr = "koşu yaptı",
+        actionPhraseEn = "went for a run"
     ),
     ROWING(
         titleTr = "Kürek",
@@ -46,7 +58,10 @@ enum class SportType(
         templateTr = "25 dk Kürek Makinesi",
         templateEn = "25 min Rowing Machine",
         defaultDurationMinutes = 25,
-        defaultCalories = 240
+        defaultCalories = 240,
+        emoji = "🚣",
+        actionPhraseTr = "kürek çekti",
+        actionPhraseEn = "did a rowing session"
     ),
     BASKETBALL(
         titleTr = "Basketbol",
@@ -54,7 +69,10 @@ enum class SportType(
         templateTr = "45 dk Basketbol",
         templateEn = "45 min Basketball",
         defaultDurationMinutes = 45,
-        defaultCalories = 360
+        defaultCalories = 360,
+        emoji = "🏀",
+        actionPhraseTr = "basketbol oynadı",
+        actionPhraseEn = "played basketball"
     ),
     FOOTBALL(
         titleTr = "Futbol",
@@ -62,7 +80,10 @@ enum class SportType(
         templateTr = "60 dk Futbol",
         templateEn = "60 min Football",
         defaultDurationMinutes = 60,
-        defaultCalories = 450
+        defaultCalories = 450,
+        emoji = "⚽",
+        actionPhraseTr = "futbol oynadı",
+        actionPhraseEn = "played football"
     ),
     CYCLING(
         titleTr = "Bisiklet",
@@ -70,7 +91,10 @@ enum class SportType(
         templateTr = "30 dk Bisiklet",
         templateEn = "30 min Cycling",
         defaultDurationMinutes = 30,
-        defaultCalories = 250
+        defaultCalories = 250,
+        emoji = "🚴",
+        actionPhraseTr = "bisiklet sürdü",
+        actionPhraseEn = "went cycling"
     ),
     SWIMMING(
         titleTr = "Yüzme",
@@ -78,7 +102,10 @@ enum class SportType(
         templateTr = "30 dk Yüzme",
         templateEn = "30 min Swimming",
         defaultDurationMinutes = 30,
-        defaultCalories = 280
+        defaultCalories = 280,
+        emoji = "🏊",
+        actionPhraseTr = "yüzdü",
+        actionPhraseEn = "went swimming"
     ),
     WALKING(
         titleTr = "Yürüyüş",
@@ -86,7 +113,10 @@ enum class SportType(
         templateTr = "40 dk Tempolu Yürüyüş",
         templateEn = "40 min Brisk Walk",
         defaultDurationMinutes = 40,
-        defaultCalories = 180
+        defaultCalories = 180,
+        emoji = "🚶",
+        actionPhraseTr = "yürüyüş yaptı",
+        actionPhraseEn = "went for a walk"
     ),
     YOGA_PILATES(
         titleTr = "Yoga / Pilates",
@@ -94,7 +124,10 @@ enum class SportType(
         templateTr = "40 dk Yoga & Pilates",
         templateEn = "40 min Yoga & Pilates",
         defaultDurationMinutes = 40,
-        defaultCalories = 160
+        defaultCalories = 160,
+        emoji = "🧘",
+        actionPhraseTr = "yoga & pilates yaptı",
+        actionPhraseEn = "did yoga & pilates"
     ),
     VOLLEYBALL(
         titleTr = "Voleybol",
@@ -102,7 +135,10 @@ enum class SportType(
         templateTr = "45 dk Voleybol",
         templateEn = "45 min Volleyball",
         defaultDurationMinutes = 45,
-        defaultCalories = 300
+        defaultCalories = 300,
+        emoji = "🏐",
+        actionPhraseTr = "voleybol oynadı",
+        actionPhraseEn = "played volleyball"
     ),
     BOXING(
         titleTr = "Boks / Dövüş",
@@ -110,7 +146,10 @@ enum class SportType(
         templateTr = "45 dk Boks & Kickboks",
         templateEn = "45 min Boxing & Kickboxing",
         defaultDurationMinutes = 45,
-        defaultCalories = 420
+        defaultCalories = 420,
+        emoji = "🥊",
+        actionPhraseTr = "boks yaptı",
+        actionPhraseEn = "did a boxing session"
     ),
     HIIT(
         titleTr = "HIIT / Kardiyo",
@@ -118,7 +157,10 @@ enum class SportType(
         templateTr = "25 dk HIIT Kardiyo",
         templateEn = "25 min HIIT Cardio",
         defaultDurationMinutes = 25,
-        defaultCalories = 310
+        defaultCalories = 310,
+        emoji = "⚡",
+        actionPhraseTr = "HIIT antrenmanı yaptı",
+        actionPhraseEn = "did a HIIT workout"
     ),
     CALISTHENICS(
         titleTr = "Kalistenik",
@@ -126,7 +168,10 @@ enum class SportType(
         templateTr = "40 dk Kalistenik & Barfiks",
         templateEn = "40 min Calisthenics & Pull-ups",
         defaultDurationMinutes = 40,
-        defaultCalories = 270
+        defaultCalories = 270,
+        emoji = "🤸",
+        actionPhraseTr = "kalistenik yaptı",
+        actionPhraseEn = "did calisthenics"
     ),
     DANCE(
         titleTr = "Dans / Zumba",
@@ -134,7 +179,10 @@ enum class SportType(
         templateTr = "45 dk Dans & Zumba",
         templateEn = "45 min Dance & Zumba",
         defaultDurationMinutes = 45,
-        defaultCalories = 310
+        defaultCalories = 310,
+        emoji = "💃",
+        actionPhraseTr = "dans antrenmanı yaptı",
+        actionPhraseEn = "did a dance workout"
     ),
     OTHER(
         titleTr = "Antrenman",
@@ -142,7 +190,10 @@ enum class SportType(
         templateTr = "30 dk Antrenman",
         templateEn = "30 min Workout",
         defaultDurationMinutes = 30,
-        defaultCalories = 200
+        defaultCalories = 200,
+        emoji = "💪",
+        actionPhraseTr = "antrenman yaptı",
+        actionPhraseEn = "completed a workout"
     );
 
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
@@ -156,26 +207,47 @@ enum class SportType(
         private val potaRegex = Regex("""\bpota(ya|da)?\b""")
         private val kaleRegex = Regex("""\bkale(de|si|ye)?\b""")
         private val gymRegex = Regex("""\bgym\b""")
-        private val runWordRegex = Regex("""\b(run|runs|koşu|kosu|koşma|kosma)\b""")
+        private val runWordRegex = Regex("""\b(run|runs|kosu|kosma)\b""")
+        private val runningStemRegex = Regex("""\bkos""")
+
+        internal fun normalizeForSportMatch(rawText: String): String {
+            if (rawText.isEmpty()) return ""
+            val sb = StringBuilder(rawText.length)
+            for (ch in rawText) {
+                when (ch) {
+                    in '\u0300'..'\u036F' -> continue
+                    'İ', 'I', 'ı', 'i' -> sb.append('i')
+                    'Ğ', 'ğ' -> sb.append('g')
+                    'Ü', 'ü' -> sb.append('u')
+                    'Ş', 'ş' -> sb.append('s')
+                    'Ö', 'ö' -> sb.append('o')
+                    'Ç', 'ç' -> sb.append('c')
+                    else -> sb.append(ch.lowercaseChar())
+                }
+            }
+            return sb.toString()
+        }
 
         private fun matchesTennis(lower: String): Boolean =
-            lower.contains("tenis") || lower.contains("tennis") || kortRegex.containsMatchIn(lower)
+            lower.contains("tenis") || lower.contains("tennis") || lower.contains("raket") ||
+                lower.contains("padel") || lower.contains("squash") || lower.contains("badminton") ||
+                kortRegex.containsMatchIn(lower)
 
         private fun matchesFitness(lower: String): Boolean =
-            lower.contains("fitness") || lower.contains("ağırlık") || lower.contains("agirlik") ||
-                lower.contains("dambıl") || lower.contains("dambil") || lower.contains("dumbell") ||
+            lower.contains("fitness") || lower.contains("agirlik") ||
+                lower.contains("dambil") || lower.contains("dumbell") ||
                 lower.contains("dumbbell") || lower.contains("bodybuilding") || lower.contains("hipertrofi") ||
                 lower.contains("strength") || lower.contains("weight training") || lower.contains("weights") ||
                 gymRegex.containsMatchIn(lower) || lower.contains("bench") || lower.contains("squat") ||
                 lower.contains("deadlift")
 
         private fun matchesRunning(lower: String): Boolean =
-            lower.contains("koşu") || lower.contains("kosu") || lower.contains("koş") ||
-                lower.contains("running") || lower.contains("jogging") || lower.contains("treadmill") ||
-                lower.contains("koşu bandı") || lower.contains("kosu bandi") || runWordRegex.containsMatchIn(lower)
+            lower.contains("kosu") || lower.contains("running") || lower.contains("jogging") ||
+                lower.contains("treadmill") || lower.contains("kosu bandi") ||
+                runWordRegex.containsMatchIn(lower) || runningStemRegex.containsMatchIn(lower)
 
         private fun matchesRowing(lower: String): Boolean =
-            lower.contains("kürek") || lower.contains("kurek") || lower.contains("rowing") ||
+            lower.contains("kurek") || lower.contains("rowing") ||
                 lower.contains("ergometre") || lower.contains("ergometer")
 
         private fun matchesBasketball(lower: String): Boolean =
@@ -184,19 +256,19 @@ enum class SportType(
 
         private fun matchesFootball(lower: String): Boolean =
             lower.contains("futbol") || lower.contains("football") || lower.contains("soccer") ||
-                lower.contains("halı saha") || lower.contains("hali saha") || kaleRegex.containsMatchIn(lower)
+                lower.contains("hali saha") || kaleRegex.containsMatchIn(lower)
 
         private fun matchesCycling(lower: String): Boolean =
             lower.contains("bisiklet") || lower.contains("cycling") || lower.contains("eliptik") ||
                 lower.contains("elliptical") || lower.contains("pedal") || lower.contains("spin")
 
         private fun matchesSwimming(lower: String): Boolean =
-            lower.contains("yüzme") || lower.contains("yuzme") || lower.contains("swimming") ||
+            lower.contains("yuzme") || lower.contains("swimming") ||
                 lower.contains("swim") || lower.contains("havuz")
 
         private fun matchesWalking(lower: String): Boolean =
-            lower.contains("yürüyüş") || lower.contains("yuruyus") || lower.contains("walking") ||
-                lower.contains("yürü") || lower.contains("yuru") || lower.contains("trekking") ||
+            lower.contains("yuruyus") || lower.contains("walking") ||
+                lower.contains("yuru") || lower.contains("trekking") ||
                 lower.contains("hiking")
 
         private fun matchesYogaPilates(lower: String): Boolean =
@@ -205,14 +277,14 @@ enum class SportType(
 
         private fun matchesVolleyball(lower: String): Boolean =
             lower.contains("voleybol") || lower.contains("volleyball") ||
-                lower.contains("plaj voleybolu") || lower.contains("smaç") || lower.contains("smac")
+                lower.contains("plaj voleybolu") || lower.contains("smac")
 
         private fun matchesBoxing(lower: String): Boolean =
             lower.contains("boks") || lower.contains("boxing") || lower.contains("kickboks") ||
                 lower.contains("kickbox") || lower.contains("mma") || lower.contains("muay thai") ||
-                lower.contains("dövüş") || lower.contains("dovus") || lower.contains("karate") ||
+                lower.contains("dovus") || lower.contains("karate") ||
                 lower.contains("taekwondo") || lower.contains("tekvando") || lower.contains("judo") ||
-                lower.contains("güreş") || lower.contains("gures")
+                lower.contains("gures")
 
         private fun matchesHiit(lower: String): Boolean =
             lower.contains("hiit") || lower.contains("crossfit") || lower.contains("tabata") ||
@@ -223,7 +295,7 @@ enum class SportType(
             lower.contains("kalistenik") || lower.contains("calisthenics") ||
                 lower.contains("street workout") || lower.contains("barfiks") ||
                 lower.contains("pull-up") || lower.contains("pullup") ||
-                lower.contains("şınav") || lower.contains("sinav") ||
+                lower.contains("sinav") ||
                 lower.contains("push-up") || lower.contains("pushup") ||
                 lower.contains("dips") || lower.contains("plank") ||
                 lower.contains("cimnastik") || lower.contains("gymnastics")
@@ -235,7 +307,7 @@ enum class SportType(
                 lower.contains("hip hop")
 
         fun fromRawText(rawText: String): SportType {
-            val lower = rawText.lowercase()
+            val lower = normalizeForSportMatch(rawText)
             return when {
                 matchesTennis(lower) -> TENNIS
                 matchesBasketball(lower) -> BASKETBALL
@@ -257,7 +329,7 @@ enum class SportType(
         }
 
         fun detectAll(rawText: String): Set<SportType> {
-            val lower = rawText.lowercase()
+            val lower = normalizeForSportMatch(rawText)
             return buildSet {
                 if (matchesTennis(lower)) add(TENNIS)
                 if (matchesFitness(lower)) add(FITNESS)
@@ -275,6 +347,59 @@ enum class SportType(
                 if (matchesCalisthenics(lower)) add(CALISTHENICS)
                 if (matchesDance(lower)) add(DANCE)
             }
+        }
+
+        fun fromWorkout(workout: WorkoutLog): SportType {
+            val fromRaw = fromRawText(workout.rawText)
+            if (fromRaw != OTHER) return fromRaw
+            val analysis = workout.aiAnalysis?.takeIf { it.isNotBlank() } ?: return OTHER
+            return fromRawText(analysis)
+        }
+
+        fun detectAllForWorkout(workout: WorkoutLog): Set<SportType> {
+            val fromRaw = detectAll(workout.rawText)
+            if (fromRaw.isNotEmpty()) return fromRaw
+            val analysis = workout.aiAnalysis?.takeIf { it.isNotBlank() } ?: return emptySet()
+            return detectAll(analysis)
+        }
+
+        fun fromWire(raw: String?): SportType? {
+            val cleaned = raw?.trim()?.takeIf { it.isNotBlank() } ?: return null
+            return entries.firstOrNull { it.name.equals(cleaned, ignoreCase = true) }
+        }
+
+        fun formatFriendWorkoutNotification(
+            actorFullName: String,
+            rawText: String,
+            durationMinutes: Int,
+            caloriesBurned: Int,
+            language: AppLanguage = LocalizationManager.currentLanguage
+        ): Pair<String, String> {
+            val nickname = actorFullName.trim().substringBefore(" ").ifBlank {
+                trEn("Arkadaşın", "Your friend", language)
+            }
+            val sport = fromRawText(rawText)
+            val phrase = trEn(sport.actionPhraseTr, sport.actionPhraseEn, language)
+            val minUnit = trEn("dk", "min", language)
+            val title = if (durationMinutes > 0) {
+                "${sport.emoji} $nickname $durationMinutes $minUnit $phrase"
+            } else {
+                "${sport.emoji} $nickname $phrase"
+            }
+            val body = if (caloriesBurned > 0) {
+                trEn(
+                    "🔥 $caloriesBurned kcal yaktı • Sen de serini koru!",
+                    "🔥 Burned $caloriesBurned kcal • Keep your streak alive!",
+                    language
+                )
+            } else {
+                trEn(
+                    "HealthTrack'te yeni antrenman kaydı!",
+                    "Logged a new workout on HealthTrack!",
+                    language
+                )
+            }
+            return title to body
         }
     }
 }

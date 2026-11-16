@@ -52,11 +52,33 @@ object GamificationEngine {
         val waterByDate = activeWaters.associateBy { it.date }
         val weightDates = activeWeights.map { it.date }.toSet()
 
-        // Active dates for streak
+        // Exclude historical smartwatch/scale backfills imported from before the user started HealthTrack
+        val manualLogDates = buildList {
+            addAll(foodByDate.keys)
+            nonStepWorkouts.filter { !it.id.startsWith("wdev_") }.forEach { add(it.date) }
+            activeWeights.filter { !it.note.orEmpty().startsWith("⚖️") }.forEach { add(it.date) }
+            activeWaters.filter { it.amountMl > 0 }.forEach { add(it.date) }
+        }
+        val earliestManualDate = manualLogDates.minOrNull()
+        val backfillCutoffDate = if (earliestManualDate != null && earliestManualDate < todayIso) {
+            earliestManualDate
+        } else {
+            todayIso
+        }
+
+        val streakEligibleWorkouts = nonStepWorkouts.filter { workout ->
+            !workout.id.startsWith("wdev_") || workout.date >= backfillCutoffDate
+        }
+        val streakEligibleWeights = activeWeights.filter { weight ->
+            !weight.note.orEmpty().startsWith("⚖️") || weight.date >= backfillCutoffDate
+        }
+
+        // Active dates for HealthTrack usage streak (any daily HealthTrack action keeps the streak)
         val activeDates = buildSet {
             addAll(foodByDate.keys)
-            addAll(workoutByDate.keys)
-            activeWaters.filter { it.amountMl >= 500 }.forEach { add(it.date) }
+            streakEligibleWorkouts.forEach { add(it.date) }
+            activeWaters.filter { it.amountMl > 0 }.forEach { add(it.date) }
+            streakEligibleWeights.forEach { add(it.date) }
         }
 
         val isActiveToday = activeDates.contains(todayIso)
@@ -121,7 +143,7 @@ object GamificationEngine {
 
         val sportCounts = mutableMapOf<SportType, Int>()
         nonStepWorkouts.forEach { workout ->
-            SportType.detectAll(workout.rawText).forEach { sport ->
+            SportType.detectAllForWorkout(workout).forEach { sport ->
                 sportCounts[sport] = (sportCounts[sport] ?: 0) + 1
             }
         }

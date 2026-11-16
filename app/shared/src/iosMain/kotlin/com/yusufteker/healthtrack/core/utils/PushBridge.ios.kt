@@ -30,6 +30,7 @@ object IosPushSwiftBridge {
         actorUsername: String?,
         actorUserId: Int,
         typeRaw: String?,
+        sportType: String? = null,
         title: String?,
         body: String?,
         isForeground: Boolean
@@ -41,6 +42,7 @@ object IosPushSwiftBridge {
             actorUsername = actorUsername,
             actorUserId = actorUserId,
             typeRaw = typeRaw,
+            sportType = sportType,
             title = title,
             body = body
         )

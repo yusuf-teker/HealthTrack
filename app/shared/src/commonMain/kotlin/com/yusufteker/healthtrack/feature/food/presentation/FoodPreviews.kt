@@ -485,8 +485,7 @@ fun FoodAiReviewHealthyMealPreviewDark() {
             aiResult = FoodAiResultDto(
                 summary = "Izgara tavuk göğsü, yulaf ve zeytinyağlı salata dengeli ve yüksek proteinli analiz edildi.",
                 totalCalories = 900,
-                items = sampleFoodItems,
-                healthScore = 92
+                items = sampleFoodItems
             ),
             target = FoodScanTarget.DAILY_MEAL,
             onDismiss = {},
@@ -504,8 +503,7 @@ fun FoodAiReviewHealthyMealPreviewLight() {
             aiResult = FoodAiResultDto(
                 summary = "Izgara tavuk göğsü, yulaf ve zeytinyağlı salata dengeli ve yüksek proteinli analiz edildi.",
                 totalCalories = 900,
-                items = sampleFoodItems,
-                healthScore = 92
+                items = sampleFoodItems
             ),
             target = FoodScanTarget.DAILY_MEAL,
             onDismiss = {},

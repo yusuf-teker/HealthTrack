@@ -304,7 +304,7 @@ class DeviceHealthSyncManager(
                 targetCalories = 300,
                 targetDurationMinutes = 45,
                 aiAnalysis = telemetrySummary,
-                createdAt = deviceWorkout.startTimeMillis.takeIf { it > 0L } ?: now,
+                createdAt = now,
                 updatedAt = maxOf(deviceWorkout.endTimeMillis, now),
                 isDeleted = false,
                 syncStatus = SyncStatus.PENDING

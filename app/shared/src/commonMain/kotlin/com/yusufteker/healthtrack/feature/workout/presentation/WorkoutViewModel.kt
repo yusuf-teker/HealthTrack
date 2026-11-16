@@ -85,7 +85,20 @@ class WorkoutViewModel(
                     observeWorkoutsAndCalories(userId, intent.newDate)
                 }
             }
-            is WorkoutIntent.OnRawTextChanged -> _state.update { it.copy(rawText = intent.text) }
+            is WorkoutIntent.OnRawTextChanged -> {
+                val detected = SportType.detectAll(intent.text)
+                _state.update { current ->
+                    current.copy(
+                        rawText = intent.text,
+                        selectedSport = if (detected.isNotEmpty()) {
+                            SportType.fromRawText(intent.text)
+                        } else {
+                            current.selectedSport
+                        }
+                    )
+                }
+            }
+            is WorkoutIntent.OnSportSelected -> _state.update { it.copy(selectedSport = intent.sport) }
             is WorkoutIntent.OnManualCaloriesChanged -> _state.update { it.copy(manualCalories = intent.value) }
             is WorkoutIntent.OnManualDurationChanged -> _state.update { it.copy(manualDuration = intent.value) }
             is WorkoutIntent.OnTargetCaloriesChanged -> _state.update { it.copy(targetCalories = intent.value) }
@@ -215,11 +228,36 @@ class WorkoutViewModel(
         }
     }
 
+    private fun resolveEffectiveRawText(
+        rawText: String,
+        selectedSport: SportType?,
+        durationMinutes: Int?
+    ): String {
+        val trimmed = rawText.trim()
+        if (trimmed.isBlank()) {
+            if (selectedSport != null && selectedSport != SportType.OTHER) {
+                val dur = durationMinutes?.takeIf { it > 0 } ?: selectedSport.defaultDurationMinutes
+                return trEn("$dur dk ${selectedSport.titleTr}", "$dur min ${selectedSport.titleEn}")
+            }
+            return ""
+        }
+        if (SportType.detectAll(trimmed).isEmpty() && selectedSport != null && selectedSport != SportType.OTHER) {
+            return "$trimmed ${selectedSport.localizedTitle()}"
+        }
+        return trimmed
+    }
+
     private fun calculateWithAi() {
-        val rawText = _state.value.rawText.trim()
-        val date = _state.value.selectedDate
+        val snapshot = _state.value
+        val parsedDur = snapshot.manualDuration.trim().toIntOrNull()
+        val rawText = resolveEffectiveRawText(
+            rawText = snapshot.rawText,
+            selectedSport = snapshot.selectedSport,
+            durationMinutes = parsedDur
+        )
+        val date = snapshot.selectedDate
         val userId = tokenStorage.getUserId()
-        val weight = _state.value.userWeightKg
+        val weight = snapshot.userWeightKg
 
         if (rawText.isBlank()) {
             _state.update {
@@ -259,6 +297,7 @@ class WorkoutViewModel(
                     it.copy(
                         isCalculatingAi = false,
                         rawText = "",
+                        selectedSport = null,
                         infoMessage = trEn(
                             "AI ile spor analizi tamamlandı: ${aiResult.caloriesBurned} kcal yakıldı.",
                             "AI workout analysis complete: ${aiResult.caloriesBurned} kcal burned."
@@ -296,9 +335,9 @@ class WorkoutViewModel(
     }
 
     private fun saveManualWorkout() {
-        val rawText = _state.value.rawText.trim()
-        val rawCalText = _state.value.manualCalories.trim()
-        val rawDurText = _state.value.manualDuration.trim()
+        val snapshot = _state.value
+        val rawCalText = snapshot.manualCalories.trim()
+        val rawDurText = snapshot.manualDuration.trim()
         val parsedCal = rawCalText.toIntOrNull()
         val parsedDur = rawDurText.toIntOrNull()
 
@@ -326,6 +365,12 @@ class WorkoutViewModel(
             return
         }
 
+        val rawText = resolveEffectiveRawText(
+            rawText = snapshot.rawText,
+            selectedSport = snapshot.selectedSport,
+            durationMinutes = parsedDur
+        )
+
         if (rawText.isBlank() && (parsedCal ?: 0) == 0 && (parsedDur ?: 0) == 0) {
             _state.update {
                 it.copy(
@@ -350,14 +395,14 @@ class WorkoutViewModel(
         } else {
             0
         }
-        val weightScale = (_state.value.userWeightKg / 75.0).coerceIn(0.6, 1.8)
+        val weightScale = (snapshot.userWeightKg / 75.0).coerceIn(0.6, 1.8)
         val cal = parsedCal ?: if (rawText.isNotBlank()) {
             val baseDur = detectedSport.defaultDurationMinutes.coerceAtLeast(1).toDouble()
             (detectedSport.defaultCalories * (dur / baseDur) * weightScale).roundToInt().coerceAtLeast(30)
         } else {
             0
         }
-        val date = _state.value.selectedDate
+        val date = snapshot.selectedDate
         val userId = tokenStorage.getUserId()
 
         viewModelScope.launch {
@@ -369,15 +414,22 @@ class WorkoutViewModel(
                 rawText = if (rawText.isNotBlank()) rawText else trEn("Egzersiz ($cal kcal)", "Workout ($cal kcal)"),
                 caloriesBurned = cal,
                 durationMinutes = dur,
-                targetCalories = _state.value.targetCalories,
-                targetDurationMinutes = _state.value.targetDurationMinutes,
+                targetCalories = snapshot.targetCalories,
+                targetDurationMinutes = snapshot.targetDurationMinutes,
                 aiAnalysis = trEn("Elle girildi", "Entered manually"),
                 createdAt = now,
                 updatedAt = now,
                 syncStatus = SyncStatus.PENDING
             )
             database.upsertWorkout(workout)
-            _state.update { it.copy(rawText = "", manualCalories = "", manualDuration = "") }
+            _state.update {
+                it.copy(
+                    rawText = "",
+                    manualCalories = "",
+                    manualDuration = "",
+                    selectedSport = null
+                )
+            }
             _effects.send(WorkoutEffect.ShowToast(trEn("Egzersiz kaydedildi.", "Workout saved.")))
             launch { syncEngine.sync() }
         }

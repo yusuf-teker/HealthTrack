@@ -251,6 +251,16 @@ class TokenStorage(private val settings: Settings = Settings()) {
     fun getAvatarId(): String? = settings.getStringOrNull(KEY_AVATAR_ID)
     fun getProfileImageUrl(): String? = settings.getStringOrNull(KEY_PROFILE_IMAGE_URL)?.takeIf { it.isNotBlank() }
 
+    fun setProfileImageUrl(url: String?) {
+        val clean = url?.trim()?.takeIf { it.isNotBlank() }
+        if (clean != null) {
+            settings.putString(KEY_PROFILE_IMAGE_URL, clean)
+        } else {
+            settings.remove(KEY_PROFILE_IMAGE_URL)
+        }
+        _sessionFlow.value = _sessionFlow.value.copy(profileImageUrl = clean)
+    }
+
     private fun clearUserScopedPreferences() {
         settings.remove(KEY_AVATAR_ID)
         settings.remove(KEY_PROFILE_IMAGE_URL)

@@ -12,6 +12,7 @@ import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -259,6 +260,8 @@ class HealthApiClient(
             val langCode = LocalizationManager.currentLanguage.code
             context.headers.remove(HttpHeaders.AcceptLanguage)
             context.headers.append(HttpHeaders.AcceptLanguage, langCode)
+            context.headers.remove("X-App-Source")
+            context.headers.append("X-App-Source", "healthtrack")
             val path = context.url.buildString()
             val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/send-register-code") || path.contains("auth/refresh")
             if (!isAuthEndpoint) {
@@ -526,6 +529,64 @@ class HealthApiClient(
         }
         if (!response.status.isSuccess()) {
             throw response.toHttpApiException("Push token kaldırılamadı", "Could not unregister push token", json)
+        }
+    }
+
+    suspend fun getMyProfile(): Result<UserProfileDetailDto> = safeApiCall {
+        val response = httpClient.get("/users/me/profile")
+        if (response.status.isSuccess()) {
+            response.body<UserProfileDetailDto>()
+        } else {
+            throw response.toHttpApiException("Profil bilgisi alınamadı", "Could not fetch profile", json)
+        }
+    }
+
+    suspend fun uploadProfileImage(imageBytes: ByteArray): Result<String> = safeApiCall {
+        val response = httpClient.post("/users/profile-image") {
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        append(
+                            "image",
+                            imageBytes,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, "image/jpeg")
+                                append(HttpHeaders.ContentDisposition, "filename=\"profile.jpg\"")
+                            }
+                        )
+                    }
+                )
+            )
+        }
+        if (response.status.isSuccess()) {
+            response.body<ProfileImageUploadResponseDto>().profileImageUrl
+        } else {
+            throw response.toHttpApiException("Profil fotoğrafı yüklenemedi", "Could not upload profile photo", json)
+        }
+    }
+
+    suspend fun getFollowers(): Result<List<FriendUserDto>> = safeApiCall {
+        val response = httpClient.get("/users/followers")
+        if (response.status.isSuccess()) {
+            response.body<List<FriendUserDto>>()
+        } else {
+            throw response.toHttpApiException("Takipçiler alınamadı", "Could not fetch followers", json)
+        }
+    }
+
+    suspend fun getFollowing(): Result<List<FriendUserDto>> = safeApiCall {
+        val response = httpClient.get("/users/following")
+        if (response.status.isSuccess()) {
+            response.body<List<FriendUserDto>>()
+        } else {
+            throw response.toHttpApiException("Takip edilenler alınamadı", "Could not fetch following", json)
+        }
+    }
+
+    suspend fun removeFollower(userId: Int): Result<Unit> = safeApiCall {
+        val response = httpClient.post("/users/$userId/remove-follower")
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("Takipçi çıkarılamadı", "Could not remove follower", json)
         }
     }
 }

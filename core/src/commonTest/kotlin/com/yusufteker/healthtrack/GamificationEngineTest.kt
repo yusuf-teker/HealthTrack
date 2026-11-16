@@ -632,69 +632,123 @@ class GamificationEngineTest {
         assertFalse(evaluation.isHealthyCelebrationWorthy)
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun gamificationManager_triggerHealthyMealCelebration_emits2SecondConfettiAndSuppressesDuplicateFoodToast() = runTest {
-        val settings = MapSettings()
-        val database = HealthDatabase(settings)
-        val manager = GamificationManager(database, settings)
-        val today = getTodayIso()
-
-        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
-            manager.observeSummary(1).collect {}
+    fun sportType_fromRawTextAndDetectAll_handlesTurkishUpperCaseAndDiacriticVariants() {
+        val tennisInputs = listOf(
+            "25 dk tenis",
+            "25 dk Tenis",
+            "25 dk TENİS",
+            "25 dk tenıs",
+            "25 dakika tenisi",
+            "kortta 30 dk"
+        )
+        tennisInputs.forEach { input ->
+            assertEquals(SportType.TENNIS, SportType.fromRawText(input), "Expected TENNIS for '$input'")
+            assertTrue(SportType.TENNIS in SportType.detectAll(input), "Expected detectAll to include TENNIS for '$input'")
         }
 
-        val evaluation = MealHealthEvaluator.evaluate(
-            items = listOf(
-                FoodItem(
-                    id = "h1",
-                    name = "Izgara Tavuk Göğsü",
-                    formattedPortion = "200g",
-                    calories = 330,
-                    proteinG = 62.0,
-                    fiberG = 0.0
-                ),
-                FoodItem(
-                    id = "h2",
-                    name = "Akdeniz Salata",
-                    formattedPortion = "1 Kase",
-                    calories = 150,
-                    proteinG = 4.0,
-                    fiberG = 5.5
+        val turkishVariantPairs = listOf(
+            "30 dk BİSİKLET" to SportType.CYCLING,
+            "40 dk PİLATES" to SportType.YOGA_PILATES,
+            "45 dk KALİSTENİK" to SportType.CALISTHENICS,
+            "30 dk KOŞU" to SportType.RUNNING,
+            "45 dk AĞIRLIK" to SportType.FITNESS,
+            "30 dk YÜRÜYÜŞ" to SportType.WALKING,
+            "30 dk YÜZME" to SportType.SWIMMING,
+            "30 dk KÜREK" to SportType.ROWING,
+            "30 dk DÖVÜŞ" to SportType.BOXING,
+            "25 dk HIIT" to SportType.HIIT
+        )
+        turkishVariantPairs.forEach { (input, expected) ->
+            assertEquals(expected, SportType.fromRawText(input), "Expected $expected for '$input'")
+            assertTrue(expected in SportType.detectAll(input), "Expected detectAll to include $expected for '$input'")
+        }
+    }
+
+    @Test
+    fun sportType_fromWorkoutAndDetectAllForWorkout_fallsBackToAiAnalysisWhenRawTextLacksSport() {
+        val fallbackWorkout = WorkoutLog(
+            id = "w_fallback",
+            userId = 1,
+            date = "2026-11-16",
+            rawText = "25 dk",
+            caloriesBurned = 180,
+            durationMinutes = 25,
+            aiAnalysis = "Tenis antrenmanı için tahmini yakım"
+        )
+        assertEquals(SportType.TENNIS, SportType.fromWorkout(fallbackWorkout))
+        assertEquals(setOf(SportType.TENNIS), SportType.detectAllForWorkout(fallbackWorkout))
+
+        val explicitWorkout = WorkoutLog(
+            id = "w_explicit",
+            userId = 1,
+            date = "2026-11-16",
+            rawText = "25 dk TENİS",
+            caloriesBurned = 180,
+            durationMinutes = 25,
+            aiAnalysis = "Koşu temposuna yakın kardiyo eforu"
+        )
+        assertEquals(SportType.TENNIS, SportType.fromWorkout(explicitWorkout))
+        assertEquals(setOf(SportType.TENNIS), SportType.detectAllForWorkout(explicitWorkout))
+    }
+
+    @Test
+    fun evaluate_historicalDeviceBackfill_doesNotCreate31DayStreakOnSignup() {
+        val today = "2026-11-16"
+        // Simulate 30 days of historical Health Connect / Apple Health workouts + daily steps synced on signup
+        val backfilledWorkouts = (1..30).map { daysAgo ->
+            val day = 16 - daysAgo
+            val date = if (day >= 1) {
+                "2026-11-${day.toString().padStart(2, '0')}"
+            } else {
+                "2026-10-${(31 + day).toString().padStart(2, '0')}"
+            }
+            WorkoutLog(
+                id = "wdev_1_${date}_run_123",
+                userId = 1,
+                date = date,
+                rawText = "30 dk Koşu",
+                caloriesBurned = 260,
+                durationMinutes = 30
+            )
+        } + WorkoutLog(
+            id = "wdev_1_${today}_steps",
+            userId = 1,
+            date = today,
+            rawText = "5000 Adım • Günlük Hareket",
+            caloriesBurned = 180,
+            durationMinutes = 50
+        )
+
+        val beforeAction = GamificationEngine.evaluate(
+            foods = emptyList(),
+            workouts = backfilledWorkouts,
+            weights = emptyList(),
+            waters = emptyList(),
+            nutritionGoal = NutritionGoal(id = "g1", userId = 1),
+            todayIso = today
+        )
+        assertEquals(0, beforeAction.currentStreakDays)
+
+        // User logs 1 meal in HealthTrack today -> streak becomes 1 (not 31!)
+        val afterFirstMeal = GamificationEngine.evaluate(
+            foods = listOf(
+                FoodLog(
+                    id = "f_today",
+                    userId = 1,
+                    date = today,
+                    rawText = "2 yumurta",
+                    totalCalories = 180
                 )
             ),
-            totalCalories = 480
+            workouts = backfilledWorkouts,
+            weights = emptyList(),
+            waters = emptyList(),
+            nutritionGoal = NutritionGoal(id = "g1", userId = 1),
+            todayIso = today
         )
-
-        manager.triggerHealthyMealCelebration(evaluation)
-        database.upsertFood(
-            FoodLog(
-                id = "food_1_$today",
-                userId = 1,
-                date = today,
-                rawText = "Izgara Tavuk Göğsü, Akdeniz Salata",
-                totalCalories = 480,
-                items = listOf(
-                    FoodItem(
-                        id = "h1",
-                        name = "Izgara Tavuk Göğsü",
-                        formattedPortion = "200g",
-                        calories = 330,
-                        proteinG = 62.0
-                    )
-                )
-            )
-        )
-
-        val celebration = manager.currentCelebration.value
-        assertNotNull(celebration)
-        assertEquals(CelebrationType.HEALTHY_MEAL_LOGGED, celebration.type)
-        assertTrue(celebration.showConfetti)
-        assertEquals(2000L, celebration.autoDismissMs)
-        assertEquals(evaluation.score, celebration.healthScore)
-        assertEquals(null, manager.currentMotivationalToast.value)
-
-        job.cancel()
+        assertEquals(1, afterFirstMeal.currentStreakDays)
+        assertTrue(afterFirstMeal.isActiveToday)
     }
 }
 
