@@ -19,11 +19,17 @@ fun WeightScreenRoot(
     val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val dailyReminderNotifier = rememberDailyReminderNotifier()
 
-    LaunchedEffect(state.reminderFrequency) {
+    val latestWeightTimestamp = state.entries.maxOfOrNull { it.updatedAt }
+    LaunchedEffect(state.reminderFrequency, state.reminderHour, state.reminderMinute, latestWeightTimestamp) {
         if (state.reminderFrequency == WeightReminderFrequency.OFF) {
             dailyReminderNotifier.cancelMorningWeightReminder()
         } else {
-            dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+            dailyReminderNotifier.scheduleMorningWeightReminder(
+                hour = state.reminderHour,
+                minute = state.reminderMinute,
+                frequency = state.reminderFrequency,
+                lastWeightTimestamp = latestWeightTimestamp
+            )
         }
     }
 

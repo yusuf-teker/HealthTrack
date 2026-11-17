@@ -160,6 +160,11 @@ sealed interface FoodIntent {
         val presetLevels: List<Double> = emptyList()
     ) : FoodIntent
     data class OnDeleteCustomFood(val id: String) : FoodIntent
+    data class OnUpdateCustomFoodMeta(
+        val id: String,
+        val name: String,
+        val iconKey: String?
+    ) : FoodIntent
     data class OnAnalyzeCustomFoodAi(val prompt: String, val isMixMode: Boolean) : FoodIntent
     data object OnConsumeCustomFoodAiResult : FoodIntent
     data object OnDismissCustomFoodAiError : FoodIntent

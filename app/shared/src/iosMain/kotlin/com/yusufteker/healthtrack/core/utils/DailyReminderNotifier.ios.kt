@@ -8,6 +8,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.ScheduledReminderPayload
+import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import platform.Foundation.NSDateComponents
 import platform.UserNotifications.UNAuthorizationOptionAlert
 import platform.UserNotifications.UNAuthorizationOptionBadge
@@ -25,6 +34,7 @@ import platform.darwin.dispatch_get_main_queue
 
 private const val WORKOUT_REMINDER_ID = "ht_evening_workout_reminder"
 private const val WEIGHT_REMINDER_ID = "ht_morning_weight_reminder"
+private const val WEIGHT_REMINDER_BATCH_COUNT = 14
 private const val FOOD_REMINDER_ID = "ht_midday_food_reminder"
 
 @Composable
@@ -91,17 +101,46 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 )
             }
 
-            override fun scheduleMorningWeightReminder(hour: Int, minute: Int) {
-                scheduleDailyCalendarReminder(
-                    identifier = WEIGHT_REMINDER_ID,
-                    title = trEn("⚖️ Günaydın! Tartılma Zamanı", "⚖️ Good Morning! Time to Weigh In"),
-                    body = trEn(
-                        "Güncel kilonu kaydederek gelişimini ve kalori hedeflerini canlı tut.",
-                        "Log your current weight to keep your progress and calorie targets accurate."
-                    ),
-                    targetTab = "WEIGHT",
+            override fun scheduleMorningWeightReminder(
+                hour: Int,
+                minute: Int,
+                frequency: WeightReminderFrequency,
+                lastWeightTimestamp: Long?
+            ) {
+                cancelMorningWeightReminder()
+                if (frequency == WeightReminderFrequency.OFF) return
+
+                val title = trEn("⚖️ Günaydın! Tartılma Zamanı", "⚖️ Good Morning! Time to Weigh In")
+                val body = trEn(
+                    "Güncel kilonu kaydederek gelişimini ve kalori hedeflerini canlı tut.",
+                    "Log your current weight to keep your progress and calorie targets accurate."
+                )
+
+                if (frequency == WeightReminderFrequency.DAILY) {
+                    scheduleDailyCalendarReminder(
+                        identifier = WEIGHT_REMINDER_ID,
+                        title = title,
+                        body = body,
+                        targetTab = "WEIGHT",
+                        hour = hour,
+                        minute = minute
+                    )
+                    return
+                }
+
+                val intervalDays = when (frequency) {
+                    WeightReminderFrequency.EVERY_2_DAYS -> 2
+                    WeightReminderFrequency.EVERY_3_DAYS -> 3
+                    WeightReminderFrequency.WEEKLY -> 7
+                    else -> 1
+                }
+                schedulePeriodicWeightReminders(
+                    title = title,
+                    body = body,
                     hour = hour,
-                    minute = minute
+                    minute = minute,
+                    intervalDays = intervalDays,
+                    lastWeightTimestamp = lastWeightTimestamp
                 )
             }
 
@@ -125,8 +164,14 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
             }
 
             override fun cancelMorningWeightReminder() {
+                val ids = buildList {
+                    add(WEIGHT_REMINDER_ID)
+                    for (i in 0 until WEIGHT_REMINDER_BATCH_COUNT) {
+                        add("${WEIGHT_REMINDER_ID}_$i")
+                    }
+                }
                 UNUserNotificationCenter.currentNotificationCenter()
-                    .removePendingNotificationRequestsWithIdentifiers(listOf(WEIGHT_REMINDER_ID))
+                    .removePendingNotificationRequestsWithIdentifiers(ids)
             }
 
             override fun cancelMiddayFoodReminder() {
@@ -159,5 +204,51 @@ private fun scheduleDailyCalendarReminder(
     val trigger = UNCalendarNotificationTrigger.triggerWithDateMatchingComponents(components, repeats = true)
     val request = UNNotificationRequest.requestWithIdentifier(identifier, content, trigger)
     center.addNotificationRequest(request, withCompletionHandler = null)
+}
+
+private fun schedulePeriodicWeightReminders(
+    title: String,
+    body: String,
+    hour: Int,
+    minute: Int,
+    intervalDays: Int,
+    lastWeightTimestamp: Long?
+) {
+    val center = UNUserNotificationCenter.currentNotificationCenter()
+    val tz = TimeZone.currentSystemDefault()
+    val nowMs = currentTimeMillis()
+    val nowDateTime = Instant.fromEpochMilliseconds(nowMs).toLocalDateTime(tz)
+
+    var nextDate = if (lastWeightTimestamp != null && lastWeightTimestamp > 0L) {
+        Instant.fromEpochMilliseconds(lastWeightTimestamp).toLocalDateTime(tz).date
+            .plus(DatePeriod(days = intervalDays))
+    } else {
+        nowDateTime.date
+    }
+
+    val targetTime = LocalTime(hour.coerceIn(0, 23), minute.coerceIn(0, 59))
+    while (LocalDateTime(nextDate, targetTime).toInstant(tz).toEpochMilliseconds() <= nowMs) {
+        nextDate = nextDate.plus(DatePeriod(days = intervalDays))
+    }
+
+    for (index in 0 until WEIGHT_REMINDER_BATCH_COUNT) {
+        val scheduledDate = nextDate.plus(DatePeriod(days = index * intervalDays))
+        val components = NSDateComponents().apply {
+            setYear(scheduledDate.year.toLong())
+            setMonth(scheduledDate.monthNumber.toLong())
+            setDay(scheduledDate.dayOfMonth.toLong())
+            setHour(hour.toLong())
+            setMinute(minute.toLong())
+        }
+        val content = UNMutableNotificationContent().apply {
+            setTitle(title)
+            setBody(body)
+            setSound(UNNotificationSound.defaultSound())
+            setUserInfo(mapOf<Any?, Any?>("open_tab" to "WEIGHT"))
+        }
+        val trigger = UNCalendarNotificationTrigger.triggerWithDateMatchingComponents(components, repeats = false)
+        val request = UNNotificationRequest.requestWithIdentifier("${WEIGHT_REMINDER_ID}_$index", content, trigger)
+        center.addNotificationRequest(request, withCompletionHandler = null)
+    }
 }
 

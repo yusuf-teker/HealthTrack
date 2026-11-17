@@ -260,6 +260,7 @@ class FoodViewModel(
             }
             is FoodIntent.OnSaveCustomFood -> saveCustomFood(intent)
             is FoodIntent.OnDeleteCustomFood -> deleteCustomFood(intent.id)
+            is FoodIntent.OnUpdateCustomFoodMeta -> updateCustomFoodMeta(intent.id, intent.name, intent.iconKey)
             is FoodIntent.OnAnalyzeCustomFoodAi -> analyzeCustomFoodWithAi(intent.prompt, intent.isMixMode)
             is FoodIntent.OnConsumeCustomFoodAiResult -> _state.update { it.copy(customFoodAiResult = null) }
             is FoodIntent.OnDismissCustomFoodAiError -> _state.update { it.copy(customFoodAiError = null) }
@@ -592,6 +593,21 @@ class FoodViewModel(
         viewModelScope.launch {
             database.deleteCustomFood(id)
             _effects.send(FoodEffect.ShowToast(trEn("Özel ürün silindi.", "Custom item deleted.")))
+        }
+    }
+
+    private fun updateCustomFoodMeta(id: String, name: String, iconKey: String?) {
+        val cleanName = name.trim()
+        if (cleanName.isBlank()) return
+        val existing = _state.value.customFoods.firstOrNull { it.id == id } ?: return
+        val updated = existing.copy(
+            name = cleanName,
+            iconKey = iconKey,
+            updatedAt = currentTime()
+        )
+        viewModelScope.launch {
+            database.upsertCustomFood(updated)
+            _effects.send(FoodEffect.ShowToast(trEn("Ürün güncellendi.", "Item updated.")))
         }
     }
 

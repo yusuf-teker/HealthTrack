@@ -407,8 +407,8 @@ class BootCompletedReceiver : BroadcastReceiver() {
             if (tokenStorage.getWeightReminderFrequency() != WeightReminderFrequency.OFF) {
                 scheduleDailyBroadcastAlarm(
                     context = context,
-                    hour = 9,
-                    minute = 0,
+                    hour = tokenStorage.getWeightReminderHour(),
+                    minute = tokenStorage.getWeightReminderMinute(),
                     action = HealthReminderNotifications.ACTION_WEIGHT_REMINDER,
                     requestCode = HealthReminderNotifications.WEIGHT_ALARM_REQUEST_CODE
                 )

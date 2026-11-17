@@ -122,6 +122,16 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_WEIGHT_REMINDER_FREQ, freq.id)
     }
 
+    fun getWeightReminderHour(): Int = settings.getInt(KEY_WEIGHT_REMINDER_HOUR, 8)
+    fun setWeightReminderHour(hour: Int) {
+        settings.putInt(KEY_WEIGHT_REMINDER_HOUR, hour.coerceIn(0, 23))
+    }
+
+    fun getWeightReminderMinute(): Int = settings.getInt(KEY_WEIGHT_REMINDER_MINUTE, 0)
+    fun setWeightReminderMinute(minute: Int) {
+        settings.putInt(KEY_WEIGHT_REMINDER_MINUTE, minute.coerceIn(0, 59))
+    }
+
     fun getWorkoutReminderFrequency(): com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency {
         val raw = settings.getStringOrNull(KEY_WORKOUT_REMINDER_FREQ)
         return com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency.fromId(raw)
@@ -362,6 +372,8 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_LAST_AUTO_WEEK_MONDAY = "ht_last_auto_week_monday"
         private const val KEY_DAILY_MEAL_PLAN_DISMISSED_DATE = "ht_daily_meal_plan_dismissed_date"
         private const val KEY_WEIGHT_REMINDER_FREQ = "ht_weight_reminder_frequency"
+        private const val KEY_WEIGHT_REMINDER_HOUR = "ht_weight_reminder_hour"
+        private const val KEY_WEIGHT_REMINDER_MINUTE = "ht_weight_reminder_minute"
         private const val KEY_WORKOUT_REMINDER_FREQ = "ht_workout_reminder_frequency"
         private const val KEY_WORKOUT_REMINDER_HOUR = "ht_workout_reminder_hour"
         private const val KEY_WORKOUT_REMINDER_MINUTE = "ht_workout_reminder_minute"

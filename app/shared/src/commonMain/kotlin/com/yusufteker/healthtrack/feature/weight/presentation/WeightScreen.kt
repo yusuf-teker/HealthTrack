@@ -120,8 +120,12 @@ fun WeightScreen(
     if (state.isReminderDialogOpen) {
         com.yusufteker.healthtrack.feature.weight.presentation.components.WeightReminderDialog(
             currentFrequency = state.reminderFrequency,
+            initialHour = state.reminderHour,
+            initialMinute = state.reminderMinute,
             onDismiss = { onIntent(WeightIntent.OnSetReminderDialogOpen(false)) },
-            onSave = { onIntent(WeightIntent.OnReminderFrequencyChanged(it)) }
+            onSave = { freq, hour, minute ->
+                onIntent(WeightIntent.OnReminderSettingsChanged(freq, hour, minute))
+            }
         )
     }
 
@@ -694,6 +698,15 @@ private fun CurrentBioMassHeroCard(
                                 },
                                 modifier = Modifier.size(13.dp)
                             )
+                            if (!isReminderOff) {
+                                val timeFormatted = "${state.reminderHour.toString().padStart(2, '0')}:${state.reminderMinute.toString().padStart(2, '0')}"
+                                Text(
+                                    text = timeFormatted,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.Primary
+                                )
+                            }
 
                         }
                     }

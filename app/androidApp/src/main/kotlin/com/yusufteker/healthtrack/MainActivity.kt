@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        com.yusufteker.healthtrack.core.database.HealthAndroidDbContext.init(this)
 
         if (BuildConfig.DEBUG) {
             Napier.base(DebugAntilog())

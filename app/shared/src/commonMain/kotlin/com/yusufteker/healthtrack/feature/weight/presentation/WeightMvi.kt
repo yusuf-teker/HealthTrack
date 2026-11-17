@@ -22,6 +22,8 @@ data class WeightState(
     val isSaving: Boolean = false,
     val isSyncingScale: Boolean = false,
     val reminderFrequency: com.yusufteker.healthtrack.core.model.WeightReminderFrequency = com.yusufteker.healthtrack.core.model.WeightReminderFrequency.EVERY_3_DAYS,
+    val reminderHour: Int = 8,
+    val reminderMinute: Int = 0,
     val isReminderDialogOpen: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null
@@ -43,6 +45,11 @@ sealed interface WeightIntent {
     data class OnSetEditingTarget(val isEditing: Boolean) : WeightIntent
     data class OnSaveTargetWeight(val newTargetWeight: Double) : WeightIntent
     data class OnReminderFrequencyChanged(val frequency: com.yusufteker.healthtrack.core.model.WeightReminderFrequency) : WeightIntent
+    data class OnReminderSettingsChanged(
+        val frequency: com.yusufteker.healthtrack.core.model.WeightReminderFrequency,
+        val hour: Int,
+        val minute: Int
+    ) : WeightIntent
     data class OnSetReminderDialogOpen(val isOpen: Boolean) : WeightIntent
     data object OnDismissErrorMessage : WeightIntent
     data object OnDismissInfoMessage : WeightIntent

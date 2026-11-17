@@ -3,6 +3,7 @@ package com.yusufteker.healthtrack.core.utils
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.yusufteker.healthtrack.core.model.ScheduledReminderPayload
+import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 
 @Composable
 actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
@@ -12,7 +13,12 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
             override fun requestPermission(onResult: (Boolean) -> Unit) { onResult(false) }
             override fun sendNotification(payload: ScheduledReminderPayload) {}
             override fun scheduleEveningWorkoutReminder(hour: Int, minute: Int) {}
-            override fun scheduleMorningWeightReminder(hour: Int, minute: Int) {}
+            override fun scheduleMorningWeightReminder(
+                hour: Int,
+                minute: Int,
+                frequency: WeightReminderFrequency,
+                lastWeightTimestamp: Long?
+            ) {}
             override fun scheduleMiddayFoodReminder(hour: Int, minute: Int) {}
             override fun cancelEveningWorkoutReminder() {}
             override fun cancelMorningWeightReminder() {}

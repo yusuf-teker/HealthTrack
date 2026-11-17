@@ -220,8 +220,13 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     } else {
                         dailyReminderNotifier.cancelEveningWorkoutReminder()
                     }
-                    if (tokenStorage.getWeightReminderFrequency() != WeightReminderFrequency.OFF) {
-                        dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+                    val weightFreq = tokenStorage.getWeightReminderFrequency()
+                    if (weightFreq != WeightReminderFrequency.OFF) {
+                        dailyReminderNotifier.scheduleMorningWeightReminder(
+                            hour = tokenStorage.getWeightReminderHour(),
+                            minute = tokenStorage.getWeightReminderMinute(),
+                            frequency = weightFreq
+                        )
                     } else {
                         dailyReminderNotifier.cancelMorningWeightReminder()
                     }

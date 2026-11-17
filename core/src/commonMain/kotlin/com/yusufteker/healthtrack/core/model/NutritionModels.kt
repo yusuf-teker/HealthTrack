@@ -112,7 +112,8 @@ data class WaterEntry(
     val userId: Int,
     val amountMl: Int,
     val targetMl: Int = 2500,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    val syncStatus: SyncStatus = SyncStatus.PENDING
 )
 
 @Serializable

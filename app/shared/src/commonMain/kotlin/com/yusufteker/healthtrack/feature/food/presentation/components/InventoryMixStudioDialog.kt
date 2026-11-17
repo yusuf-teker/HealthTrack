@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -185,28 +184,34 @@ fun InventoryMixStudioDialog(
     onDismiss: () -> Unit,
     onOpenCreateCustomFood: () -> Unit,
     onDeleteCustomFood: ((String) -> Unit)? = null,
+    onUpdateCustomFoodMeta: ((id: String, name: String, iconKey: String?) -> Unit)? = null,
     onAddItemsToMeal: (items: List<FoodItem>, summaryNote: String) -> Unit
 ) {
     val isDark = LocalIsDarkTheme.current
     val lang = appLang()
 
-    var selectedItem by remember(customFoods, initialSelectedItem) {
-        mutableStateOf(initialSelectedItem)
+    var selectedItemId by remember(initialSelectedItem) {
+        mutableStateOf(initialSelectedItem?.id)
     }
+    val selectedItem = remember(customFoods, selectedItemId) {
+        selectedItemId?.let { id -> customFoods.firstOrNull { it.id == id } }
+    }
+    var showEditMetaDialog by remember(selectedItemId) { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember(selectedItemId) { mutableStateOf(false) }
 
     val effectiveIngredients = remember(selectedItem, lang) {
         selectedItem?.toEffectiveIngredients(lang) ?: emptyList()
     }
 
     // Per-ingredient selected amount & enabled state
-    val selectedAmounts = remember(selectedItem) {
+    val selectedAmounts = remember(selectedItemId) {
         mutableStateMapOf<String, Double>().apply {
             effectiveIngredients.forEach { ing ->
                 put(ing.id.ifBlank { ing.name }, ing.defaultAmount)
             }
         }
     }
-    val enabledIngredients = remember(selectedItem) {
+    val enabledIngredients = remember(selectedItemId) {
         mutableStateMapOf<String, Boolean>().apply {
             effectiveIngredients.forEach { ing ->
                 put(ing.id.ifBlank { ing.name }, true)
@@ -215,7 +220,7 @@ fun InventoryMixStudioDialog(
     }
 
     // Add mode: default is false ("Tek satır olarak ekle")
-    var addSeparately by remember(selectedItem) {
+    var addSeparately by remember(selectedItemId) {
         mutableStateOf(false)
     }
 
@@ -452,8 +457,7 @@ fun InventoryMixStudioDialog(
                             items(customFoods, key = { it.id }) { item ->
                                 InventoryGridItemCard(
                                     item = item,
-                                    onSelect = { selectedItem = item },
-                                    onDelete = onDeleteCustomFood
+                                    onSelect = { selectedItemId = item.id }
                                 )
                             }
                         }
@@ -475,7 +479,7 @@ fun InventoryMixStudioDialog(
                             modifier = Modifier.weight(1f)
                         ) {
                             IconButton(
-                                onClick = { selectedItem = null },
+                                onClick = { selectedItemId = null },
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
@@ -510,22 +514,63 @@ fun InventoryMixStudioDialog(
                             }
                         }
 
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight
-                                )
-                                .bounceClick()
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = str("Kapat", "Close"),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            if (onUpdateCustomFoodMeta != null) {
+                                IconButton(
+                                    onClick = { showEditMetaDialog = true },
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(HealthColors.Primary.copy(alpha = 0.14f))
+                                        .bounceClick()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = str("Düzenle", "Edit"),
+                                        tint = HealthColors.Primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            if (onDeleteCustomFood != null) {
+                                IconButton(
+                                    onClick = { showDeleteConfirmDialog = true },
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.14f))
+                                        .bounceClick()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = str("Sil", "Delete"),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isDark) HealthColors.SurfaceContainerHigh else HealthColors.SurfaceVariantLight
+                                    )
+                                    .bounceClick()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = str("Kapat", "Close"),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
@@ -570,11 +615,40 @@ fun InventoryMixStudioDialog(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        FoodIconBadge(
-                                            iconKey = currentSelected.iconKey,
-                                            size = 40.dp,
-                                            tint = HealthColors.Primary
-                                        )
+                                        if (currentSelected.iconKey != null) {
+                                            FoodIconBadge(
+                                                iconKey = currentSelected.iconKey,
+                                                size = 48.dp,
+                                                tint = HealthColors.Primary,
+                                                iconScale = 0.68f,
+                                                modifier = if (onUpdateCustomFoodMeta != null) {
+                                                    Modifier
+                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .clickable { showEditMetaDialog = true }
+                                                } else Modifier
+                                            )
+                                        } else if (onUpdateCustomFoodMeta != null) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(RoundedCornerShape(14.dp))
+                                                    .background(HealthColors.Primary.copy(alpha = 0.1f))
+                                                    .border(
+                                                        1.dp,
+                                                        HealthColors.Primary.copy(alpha = 0.3f),
+                                                        RoundedCornerShape(14.dp)
+                                                    )
+                                                    .clickable { showEditMetaDialog = true },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.AddCircleOutline,
+                                                    contentDescription = str("İkon Ekle", "Add Icon"),
+                                                    tint = HealthColors.Primary,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                            }
+                                        }
                                         Column(modifier = Modifier.weight(1f)) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
@@ -918,6 +992,117 @@ fun InventoryMixStudioDialog(
                     }
                 }
             }
+
+            if (showEditMetaDialog && currentSelected != null && onUpdateCustomFoodMeta != null) {
+                var editName by remember(currentSelected.id, showEditMetaDialog) {
+                    mutableStateOf(currentSelected.name)
+                }
+                var editIconKey by remember(currentSelected.id, showEditMetaDialog) {
+                    mutableStateOf(currentSelected.iconKey)
+                }
+
+                AlertDialog(
+                    onDismissRequest = { showEditMetaDialog = false },
+                    modifier = Modifier.imePadding(),
+                    title = {
+                        Text(
+                            text = str("Ürünü Düzenle", "Edit Item"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = editName,
+                                onValueChange = { editName = it },
+                                label = { Text(str("Ürün / Karışım Adı", "Product / Mix Name")) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Text(
+                                text = str("Ürün İkonu", "Product Icon"),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            FoodIconSelector(
+                                selectedKey = editIconKey,
+                                onSelectKey = { editIconKey = it }
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val cleanName = editName.trim()
+                                if (cleanName.isNotBlank()) {
+                                    onUpdateCustomFoodMeta(currentSelected.id, cleanName, editIconKey)
+                                    showEditMetaDialog = false
+                                }
+                            },
+                            enabled = editName.trim().isNotBlank()
+                        ) {
+                            Text(str("Kaydet", "Save"))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEditMetaDialog = false }) {
+                            Text(str("İptal", "Cancel"))
+                        }
+                    }
+                )
+            }
+
+            if (showDeleteConfirmDialog && currentSelected != null && onDeleteCustomFood != null) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteConfirmDialog = false },
+                    title = {
+                        Text(
+                            text = str("Ürünü Sil", "Delete Item"),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = str(
+                                "\"${currentSelected.name}\" envanterinizden silinecek. Emin misiniz?",
+                                "\"${currentSelected.name}\" will be removed from your inventory. Are you sure?"
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val deleteId = currentSelected.id
+                                showDeleteConfirmDialog = false
+                                selectedItemId = null
+                                onDeleteCustomFood(deleteId)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Text(str("Sil", "Delete"))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                            Text(str("İptal", "Cancel"))
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -926,7 +1111,6 @@ fun InventoryMixStudioDialog(
 private fun InventoryGridItemCard(
     item: CustomFoodItem,
     onSelect: () -> Unit,
-    onDelete: ((String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
@@ -950,10 +1134,10 @@ private fun InventoryGridItemCard(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Top tag & delete
+            // Top tag
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val mixTagColor = if (isMix) {
@@ -975,29 +1159,19 @@ private fun InventoryGridItemCard(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
-
-                if (onDelete != null) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = str("Sil", "Delete"),
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable { onDelete(item.id) }
-                    )
-                }
             }
 
             // Food icon + Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 FoodIconBadge(
                     iconKey = item.iconKey,
-                    size = 32.dp,
-                    tint = HealthColors.Primary
+                    size = 46.dp,
+                    tint = HealthColors.Primary,
+                    iconScale = 0.68f
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -1078,27 +1252,6 @@ private fun InventoryGridItemCard(
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     fontWeight = FontWeight.Bold,
                     color = HealthColors.NutrientLipids
-                )
-            }
-
-            // Action hint
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = str("Ayarla & Ekle", "Adjust & Add"),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    fontWeight = FontWeight.Bold,
-                    color = HealthColors.Primary
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = HealthColors.Primary,
-                    modifier = Modifier.size(11.dp)
                 )
             }
         }

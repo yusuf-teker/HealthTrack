@@ -33,27 +33,45 @@ kotlin {
        }
     }
     sourceSets {
-        commonMain.dependencies {
-            api(libs.kotlinx.serialization.json)
-            api(libs.kotlinx.datetime)
-            api(libs.ktor.client.core)
-            api(libs.ktor.client.content.negotiation)
-            api(libs.ktor.serialization.kotlinx.json)
-            api(libs.ktor.client.logging)
-            api(libs.ktor.client.auth)
-            api(libs.koin.core)
-            api(libs.multiplatform.settings)
-            api(libs.multiplatform.settings.no.arg)
-            api(libs.napier)
+        applyDefaultHierarchyTemplate()
+        val commonMain by getting {
+            dependencies {
+                api(libs.kotlinx.serialization.json)
+                api(libs.kotlinx.datetime)
+                api(libs.ktor.client.core)
+                api(libs.ktor.client.content.negotiation)
+                api(libs.ktor.serialization.kotlinx.json)
+                api(libs.ktor.client.logging)
+                api(libs.ktor.client.auth)
+                api(libs.koin.core)
+                api(libs.multiplatform.settings)
+                api(libs.multiplatform.settings.no.arg)
+                api(libs.napier)
+            }
         }
-        androidMain.dependencies {
-            api(libs.ktor.client.okhttp)
+        val sqliteMain by creating {
+            dependsOn(commonMain)
+            dependencies {
+                implementation(libs.androidx.sqlite.bundled)
+            }
         }
-        iosMain.dependencies {
-            api(libs.ktor.client.darwin)
+        androidMain {
+            dependsOn(sqliteMain)
+            dependencies {
+                api(libs.ktor.client.okhttp)
+            }
         }
-        jvmMain.dependencies {
-            api(libs.ktor.client.cio)
+        iosMain {
+            dependsOn(sqliteMain)
+            dependencies {
+                api(libs.ktor.client.darwin)
+            }
+        }
+        jvmMain {
+            dependsOn(sqliteMain)
+            dependencies {
+                api(libs.ktor.client.cio)
+            }
         }
         jsMain.dependencies {
             api(libs.ktor.client.js)

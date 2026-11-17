@@ -82,7 +82,8 @@ fun FoodIconBadge(
     modifier: Modifier = Modifier,
     size: Dp = 36.dp,
     tint: Color = HealthColors.Primary,
-    backgroundColor: Color = tint.copy(alpha = 0.12f)
+    backgroundColor: Color = tint.copy(alpha = 0.12f),
+    iconScale: Float = 0.62f
 ) {
     val drawableRes = FoodIcons.getDrawable(iconKey) ?: return
     val lang = appLang()
@@ -98,7 +99,7 @@ fun FoodIconBadge(
             painter = painterResource(drawableRes),
             contentDescription = FoodIcons.getTitle(iconKey, lang),
             tint = tint,
-            modifier = Modifier.size((size.value * 0.62f).dp)
+            modifier = Modifier.size((size.value * iconScale).dp)
         )
     }
 }

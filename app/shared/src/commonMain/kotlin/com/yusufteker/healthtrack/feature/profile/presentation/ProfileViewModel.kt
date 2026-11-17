@@ -145,6 +145,8 @@ class ProfileViewModel(
         val fitnessGoal = tokenStorage.getUserFitnessGoal()
         val workoutReminder = tokenStorage.getWorkoutReminderFrequency()
         val weightReminder = tokenStorage.getWeightReminderFrequency()
+        val weightReminderHour = tokenStorage.getWeightReminderHour()
+        val weightReminderMinute = tokenStorage.getWeightReminderMinute()
         val foodReminder = tokenStorage.isFoodReminderEnabled()
         val autoDeviceSync = tokenStorage.isAutoDeviceSyncEnabled()
         val hasConnectedDevice = tokenStorage.hasConnectedDevice()
@@ -166,6 +168,8 @@ class ProfileViewModel(
             fitnessGoal = fitnessGoal,
             workoutReminderFrequency = workoutReminder,
             weightReminderFrequency = weightReminder,
+            weightReminderHour = weightReminderHour,
+            weightReminderMinute = weightReminderMinute,
             foodReminderEnabled = foodReminder,
             isAutoDeviceSyncEnabled = autoDeviceSync,
             hasConnectedDevice = hasConnectedDevice,
@@ -284,15 +288,27 @@ class ProfileViewModel(
                 }
             }
             is ProfileIntent.OnWeightReminderFrequencyChanged -> {
+                onIntent(ProfileIntent.OnWeightReminderSettingsChanged(intent.frequency, state.value.weightReminderHour, state.value.weightReminderMinute))
+            }
+            is ProfileIntent.OnWeightReminderSettingsChanged -> {
                 tokenStorage.setWeightReminderFrequency(intent.frequency)
-                _state.update { it.copy(weightReminderFrequency = intent.frequency) }
+                tokenStorage.setWeightReminderHour(intent.hour)
+                tokenStorage.setWeightReminderMinute(intent.minute)
+                _state.update {
+                    it.copy(
+                        weightReminderFrequency = intent.frequency,
+                        weightReminderHour = intent.hour,
+                        weightReminderMinute = intent.minute
+                    )
+                }
                 val lang = LocalizationManager.currentLanguage
+                val timeStr = "${intent.hour.toString().padStart(2, '0')}:${intent.minute.toString().padStart(2, '0')}"
                 val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
                     trEn("Tartılma hatırlatıcısı kapatıldı.", "Weigh-in reminder turned off.", lang)
                 } else {
                     trEn(
-                        "Tartılma hatırlatıcısı: ${intent.frequency.localizedTitle(lang)} olarak ayarlandı.",
-                        "Weigh-in reminder set to: ${intent.frequency.localizedTitle(lang)}.",
+                        "Tartılma hatırlatıcısı: ${intent.frequency.localizedTitle(lang)} ($timeStr) olarak ayarlandı.",
+                        "Weigh-in reminder set to: ${intent.frequency.localizedTitle(lang)} ($timeStr).",
                         lang
                     )
                 }

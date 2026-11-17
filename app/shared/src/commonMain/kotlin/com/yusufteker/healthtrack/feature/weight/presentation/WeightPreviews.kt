@@ -114,8 +114,10 @@ fun WeightReminderDialogPreview() {
     HealthTrackTheme(darkTheme = true) {
         com.yusufteker.healthtrack.feature.weight.presentation.components.WeightReminderDialog(
             currentFrequency = com.yusufteker.healthtrack.core.model.WeightReminderFrequency.EVERY_3_DAYS,
+            initialHour = 8,
+            initialMinute = 0,
             onDismiss = {},
-            onSave = {}
+            onSave = { _, _, _ -> }
         )
     }
 }

@@ -61,7 +61,16 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 )
             }
 
-            override fun scheduleMorningWeightReminder(hour: Int, minute: Int) {
+            override fun scheduleMorningWeightReminder(
+                hour: Int,
+                minute: Int,
+                frequency: com.yusufteker.healthtrack.core.model.WeightReminderFrequency,
+                lastWeightTimestamp: Long?
+            ) {
+                if (frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
+                    cancelMorningWeightReminder()
+                    return
+                }
                 scheduleDailyBroadcastAlarm(
                     context = context,
                     hour = hour,

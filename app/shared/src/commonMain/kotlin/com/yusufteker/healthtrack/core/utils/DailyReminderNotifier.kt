@@ -2,6 +2,7 @@ package com.yusufteker.healthtrack.core.utils
 
 import androidx.compose.runtime.Composable
 import com.yusufteker.healthtrack.core.model.ScheduledReminderPayload
+import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 
 /**
  * Platform-agnostic contract for workout incentive and weight tracking notifications.
@@ -28,9 +29,14 @@ interface DailyReminderNotifier {
     fun scheduleEveningWorkoutReminder(hour: Int = 18, minute: Int = 0)
 
     /**
-     * Schedules the morning weight tracking reminder (default: 09:00).
+     * Schedules the morning weight tracking reminder (default: 08:00) respecting [frequency].
      */
-    fun scheduleMorningWeightReminder(hour: Int = 9, minute: Int = 0)
+    fun scheduleMorningWeightReminder(
+        hour: Int = 8,
+        minute: Int = 0,
+        frequency: WeightReminderFrequency = WeightReminderFrequency.DAILY,
+        lastWeightTimestamp: Long? = null
+    )
 
     /**
      * Schedules the midday meal logging reminder (default: 13:30).

@@ -57,17 +57,20 @@ class SyncEngine(
                 .filter { isoDateRegex.matches(it.date) }
             val weightsToPush = (if (forceFullPull) database.getAllWeightsForSync(userId) else database.getPendingWeights(userId))
                 .filter { isoDateRegex.matches(it.date) }
+            val watersToPush = (if (forceFullPull) database.getAllWatersForSync(userId) else database.getPendingWaters(userId))
+                .filter { isoDateRegex.matches(it.date) }
 
             val pushPayload = buildPushPayload(
                 foods = foodsToPush,
                 goal = goalToPush,
                 workouts = workoutsToPush,
-                weights = weightsToPush
+                weights = weightsToPush,
+                waters = watersToPush
             )
 
             // ── 2. PUSH TO BACKEND ──
             val hasPending = foodsToPush.isNotEmpty() || goalToPush != null ||
-                    workoutsToPush.isNotEmpty() || weightsToPush.isNotEmpty()
+                    workoutsToPush.isNotEmpty() || weightsToPush.isNotEmpty() || watersToPush.isNotEmpty()
 
             var pushError: String? = null
             if (hasPending) {
@@ -78,13 +81,14 @@ class SyncEngine(
                     pushError = err
                 } else {
                     val pushResponse = pushResult.getOrThrow()
-                    Napier.d("SYNC: Push başarılı. Senkronlanan: foods=${pushResponse.syncedFoodIds.size}, workouts=${pushResponse.syncedWorkoutIds.size}, weights=${pushResponse.syncedWeightIds.size}", tag = "SYNC_LOG")
+                    Napier.d("SYNC: Push başarılı. Senkronlanan: foods=${pushResponse.syncedFoodIds.size}, workouts=${pushResponse.syncedWorkoutIds.size}, weights=${pushResponse.syncedWeightIds.size}, waters=${pushResponse.syncedWaterDates.size}", tag = "SYNC_LOG")
                     database.markFoodsSynced(pushResponse.syncedFoodIds)
                     if (pushResponse.syncedNutritionGoalId != null) {
                         database.markNutritionGoalSynced(userId)
                     }
                     database.markWorkoutsSynced(pushResponse.syncedWorkoutIds)
                     database.markWeightsSynced(pushResponse.syncedWeightIds)
+                    database.markWatersSynced(userId, pushResponse.syncedWaterDates)
                 }
             }
 
@@ -222,6 +226,18 @@ class SyncEngine(
                         syncStatus = SyncStatus.SYNCED
                     )
                 })
+
+                // Merge Water Hydration
+                database.mergePullWaters(pullData.waters.filter { isoDateRegex.matches(it.date) }.map {
+                    WaterEntry(
+                        date = it.date,
+                        userId = userId,
+                        amountMl = it.amountMl,
+                        targetMl = it.targetMl,
+                        updatedAt = it.updatedAt,
+                        syncStatus = SyncStatus.SYNCED
+                    )
+                })
             }
 
             if (gamificationManager != null) {
@@ -331,7 +347,8 @@ class SyncEngine(
         foods: List<FoodLog>,
         goal: NutritionGoal?,
         workouts: List<WorkoutLog>,
-        weights: List<WeightEntry>
+        weights: List<WeightEntry>,
+        waters: List<WaterEntry> = emptyList()
     ): PushRequestPayload {
         return PushRequestPayload(
             foods = foods.map {
@@ -388,6 +405,14 @@ class SyncEngine(
                     note = if (it.isDeleted) null else it.note,
                     updatedAt = it.updatedAt,
                     isDeleted = it.isDeleted
+                )
+            },
+            waters = waters.map {
+                WaterSyncPayload(
+                    date = it.date,
+                    amountMl = it.amountMl,
+                    targetMl = it.targetMl,
+                    updatedAt = it.updatedAt
                 )
             }
         )

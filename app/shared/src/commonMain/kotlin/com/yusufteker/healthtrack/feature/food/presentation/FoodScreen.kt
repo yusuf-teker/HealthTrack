@@ -712,6 +712,9 @@ fun FoodScreen(
                 onDeleteCustomFood = { id ->
                     onIntent(FoodIntent.OnDeleteCustomFood(id))
                 },
+                onUpdateCustomFoodMeta = { id, name, iconKey ->
+                    onIntent(FoodIntent.OnUpdateCustomFoodMeta(id, name, iconKey))
+                },
                 onAddItemsToMeal = { items, summaryNote ->
                     onIntent(FoodIntent.OnAddMultipleItems(items, summaryNote))
                     showInventoryStudio = false

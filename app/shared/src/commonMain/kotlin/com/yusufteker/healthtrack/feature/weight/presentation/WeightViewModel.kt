@@ -31,7 +31,9 @@ class WeightViewModel(
 
     private val _state = MutableStateFlow(
         WeightState(
-            reminderFrequency = tokenStorage.getWeightReminderFrequency()
+            reminderFrequency = tokenStorage.getWeightReminderFrequency(),
+            reminderHour = tokenStorage.getWeightReminderHour(),
+            reminderMinute = tokenStorage.getWeightReminderMinute()
         )
     )
     val state: StateFlow<WeightState> = _state.asStateFlow()
@@ -101,15 +103,28 @@ class WeightViewModel(
             }
             is WeightIntent.OnDeleteWeight -> deleteWeight(intent.id)
             is WeightIntent.OnReminderFrequencyChanged -> {
+                onIntent(WeightIntent.OnReminderSettingsChanged(intent.frequency, state.value.reminderHour, state.value.reminderMinute))
+            }
+            is WeightIntent.OnReminderSettingsChanged -> {
                 tokenStorage.setWeightReminderFrequency(intent.frequency)
-                _state.update { it.copy(reminderFrequency = intent.frequency, isReminderDialogOpen = false) }
+                tokenStorage.setWeightReminderHour(intent.hour)
+                tokenStorage.setWeightReminderMinute(intent.minute)
+                _state.update {
+                    it.copy(
+                        reminderFrequency = intent.frequency,
+                        reminderHour = intent.hour,
+                        reminderMinute = intent.minute,
+                        isReminderDialogOpen = false
+                    )
+                }
                 val lang = LocalizationManager.currentLanguage
+                val timeStr = "${intent.hour.toString().padStart(2, '0')}:${intent.minute.toString().padStart(2, '0')}"
                 val msg = if (intent.frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
                     trEn("Tartı hatırlatıcısı kapatıldı.", "Weigh-in reminder turned off.", lang)
                 } else {
                     trEn(
-                        "Tartı hatırlatıcısı güncellendi: ${intent.frequency.localizedTitle(lang)}",
-                        "Weigh-in reminder updated: ${intent.frequency.localizedTitle(lang)}",
+                        "Tartı hatırlatıcısı güncellendi: ${intent.frequency.localizedTitle(lang)} ($timeStr)",
+                        "Weigh-in reminder updated: ${intent.frequency.localizedTitle(lang)} ($timeStr)",
                         lang
                     )
                 }

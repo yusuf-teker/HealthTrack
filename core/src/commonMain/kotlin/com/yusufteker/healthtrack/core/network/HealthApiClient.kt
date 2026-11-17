@@ -140,11 +140,20 @@ data class WeightSyncPayload(
 )
 
 @Serializable
+data class WaterSyncPayload(
+    val date: String,
+    val amountMl: Int,
+    val targetMl: Int = 2500,
+    val updatedAt: Long = 0L
+)
+
+@Serializable
 data class PushRequestPayload(
     val foods: List<FoodSyncPayload> = emptyList(),
     val nutritionGoals: NutritionGoalSyncPayload? = null,
     val workouts: List<WorkoutSyncPayload> = emptyList(),
-    val weights: List<WeightSyncPayload> = emptyList()
+    val weights: List<WeightSyncPayload> = emptyList(),
+    val waters: List<WaterSyncPayload> = emptyList()
 )
 
 @Serializable
@@ -164,6 +173,7 @@ data class PushResponsePayload(
     val syncedNutritionGoalId: String? = null,
     val syncedWorkoutIds: List<String> = emptyList(),
     val syncedWeightIds: List<String> = emptyList(),
+    val syncedWaterDates: List<String> = emptyList(),
     val serverTimestamp: Long = 0L
 )
 
@@ -173,6 +183,7 @@ data class PullResponsePayload(
     val nutritionGoals: NutritionGoalSyncPayload? = null,
     val workouts: List<WorkoutSyncPayload> = emptyList(),
     val weights: List<WeightSyncPayload> = emptyList(),
+    val waters: List<WaterSyncPayload> = emptyList(),
     val serverTimestamp: Long = 0L
 )
 

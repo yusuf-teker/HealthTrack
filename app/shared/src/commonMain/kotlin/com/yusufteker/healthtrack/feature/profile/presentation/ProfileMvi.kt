@@ -28,6 +28,8 @@ data class ProfileState(
     val nutritionGoal: NutritionGoal = NutritionGoal(id = "default", userId = 0),
     val workoutReminderFrequency: WorkoutReminderFrequency = WorkoutReminderFrequency.SMART_CADENCE,
     val weightReminderFrequency: WeightReminderFrequency = WeightReminderFrequency.EVERY_3_DAYS,
+    val weightReminderHour: Int = 8,
+    val weightReminderMinute: Int = 0,
     val foodReminderEnabled: Boolean = true,
     val isAutoDeviceSyncEnabled: Boolean = true,
     val hasConnectedDevice: Boolean = false,
@@ -93,6 +95,11 @@ sealed interface ProfileIntent {
     data class OnSaveNutritionGoal(val goal: NutritionGoal, val fitnessGoal: FitnessGoal) : ProfileIntent
     data class OnWorkoutReminderFrequencyChanged(val frequency: WorkoutReminderFrequency) : ProfileIntent
     data class OnWeightReminderFrequencyChanged(val frequency: WeightReminderFrequency) : ProfileIntent
+    data class OnWeightReminderSettingsChanged(
+        val frequency: WeightReminderFrequency,
+        val hour: Int,
+        val minute: Int
+    ) : ProfileIntent
     data class OnFoodReminderChanged(val enabled: Boolean) : ProfileIntent
     data class OnAutoDeviceSyncChanged(val enabled: Boolean) : ProfileIntent
     data class OnThemeModeChanged(val isDark: Boolean) : ProfileIntent

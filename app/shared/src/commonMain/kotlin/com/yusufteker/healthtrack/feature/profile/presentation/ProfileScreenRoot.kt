@@ -47,11 +47,15 @@ fun ProfileScreenRoot(
         }
     }
 
-    LaunchedEffect(state.weightReminderFrequency) {
+    LaunchedEffect(state.weightReminderFrequency, state.weightReminderHour, state.weightReminderMinute) {
         if (state.weightReminderFrequency == WeightReminderFrequency.OFF) {
             dailyReminderNotifier.cancelMorningWeightReminder()
         } else {
-            dailyReminderNotifier.scheduleMorningWeightReminder(hour = 9, minute = 0)
+            dailyReminderNotifier.scheduleMorningWeightReminder(
+                hour = state.weightReminderHour,
+                minute = state.weightReminderMinute,
+                frequency = state.weightReminderFrequency
+            )
         }
     }
 
