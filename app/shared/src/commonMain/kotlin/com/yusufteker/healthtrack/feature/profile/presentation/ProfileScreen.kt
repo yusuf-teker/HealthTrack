@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.FitnessGoal
+import com.yusufteker.healthtrack.core.model.FriendUserDto
 import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.feature.food.presentation.components.EditGoalsDialog
@@ -50,6 +51,7 @@ import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.LanguageSelectorPill
 import com.yusufteker.healthtrack.ui.components.PlanoraFindFriendsButton
 import com.yusufteker.healthtrack.ui.components.PlanoraFollowListSheet
+import com.yusufteker.healthtrack.ui.components.PlanoraFriendProfileSheet
 import com.yusufteker.healthtrack.ui.components.PlanoraIncomingRequestsCard
 import com.yusufteker.healthtrack.ui.components.PlanoraProfileHeroCard
 import com.yusufteker.healthtrack.ui.components.PlanoraSearchUsersSheet
@@ -93,6 +95,7 @@ fun ProfileScreen(
     var showCustomApiKeyDialog by remember { mutableStateOf(false) }
     var followListTabToOpen by remember { mutableStateOf<Int?>(null) }
     var showSearchUsersSheet by remember { mutableStateOf(false) }
+    var selectedFriendForProfileSheet by remember { mutableStateOf<FriendUserDto?>(null) }
     val uriHandler = LocalUriHandler.current
 
     if (followListTabToOpen != null) {
@@ -103,6 +106,8 @@ fun ProfileScreen(
             requests = state.followRequests,
             isLoading = state.isLoadingSocial,
             pendingActionUserIds = state.pendingActionUserIds,
+            mutedWorkoutUserIds = state.mutedWorkoutFriendIds,
+            onUserClick = { friend -> selectedFriendForProfileSheet = friend },
             onRemoveFollower = { userId -> onIntent(ProfileIntent.OnRemoveFollower(userId)) },
             onUnfollow = { userId -> onIntent(ProfileIntent.OnToggleFollowUser(userId)) },
             onAcceptRequest = { reqId -> onIntent(ProfileIntent.OnAcceptFollowRequest(reqId)) },
@@ -112,6 +117,24 @@ fun ProfileScreen(
                 showSearchUsersSheet = true
             },
             onDismiss = { followListTabToOpen = null }
+        )
+    }
+
+    if (selectedFriendForProfileSheet != null) {
+        val targetFriend = selectedFriendForProfileSheet!!
+        PlanoraFriendProfileSheet(
+            user = targetFriend,
+            isWorkoutTrackingEnabled = !state.mutedWorkoutFriendIds.contains(targetFriend.id),
+            onToggleWorkoutTracking = {
+                onIntent(ProfileIntent.OnToggleFriendWorkoutTracking(targetFriend.id))
+            },
+            onUnfollow = if (targetFriend.isFollowedByMe) {
+                {
+                    onIntent(ProfileIntent.OnToggleFollowUser(targetFriend.id))
+                    selectedFriendForProfileSheet = null
+                }
+            } else null,
+            onDismiss = { selectedFriendForProfileSheet = null }
         )
     }
 

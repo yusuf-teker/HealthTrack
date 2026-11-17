@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -148,8 +149,16 @@ fun PremiumScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    val headerTitle = when {
+                        state.isPremium -> str("HealthTrack Premium Aktif", "HealthTrack Premium Active")
+                        state.offerType == "welcome" -> str("🎉 İlk Güne Özel Hoş Geldin Fırsatı", "🎉 First Day Welcome Offer")
+                        state.offerType == "quota_exceeded" -> str("⚡ Günlük AI Kotan Doldu: Özel Fırsat", "⚡ Daily AI Quota Reached: Special Offer")
+                        state.isSpecialOffer -> str("🔥 Sınırlı Süreli Premium Fırsatı", "🔥 Limited Time Premium Offer")
+                        else -> str("Bio-Telemetri Deneyimini Yükselt", "Upgrade Your Bio-Telemetry")
+                    }
+
                     Text(
-                        text = if (state.isPremium) str("HealthTrack Premium Aktif", "HealthTrack Premium Active") else str("Bio-Telemetri Deneyimini Yükselt", "Upgrade Your Bio-Telemetry"),
+                        text = headerTitle,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -157,16 +166,31 @@ fun PremiumScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = if (state.isPremium) {
+                    val headerSubtitle = when {
+                        state.isPremium -> {
                             val untilText = state.premiumUntil?.take(10)
                             if (untilText != null) str("Bitiş Tarihi: $untilText", "Expires on: $untilText") else str("Süresiz / Aktif Üyelik", "Lifetime / Active Membership")
-                        } else {
-                            str(
-                                "AI destekli öğün planlama, sınırsız yemek fotoğrafı analizi ve haftalık bio-telemetri raporları.",
-                                "AI-powered meal planning, unlimited food photo analysis, and weekly bio-telemetry reports."
-                            )
-                        },
+                        }
+                        state.offerType == "welcome" -> str(
+                            "Sağlık yolculuğunun ilk gününe özel yıllık planda %48 indirim fırsatıyla başla.",
+                            "Start your health journey with an exclusive 48% discount on the annual plan."
+                        )
+                        state.offerType == "quota_exceeded" -> str(
+                            "3/3 analiz hakkını kullandın. Sana özel hazırlanan tek seferlik indirimle hemen sınırsıza geç!",
+                            "You reached your 3 daily analysis limit. Upgrade to unlimited instantly with this exclusive offer!"
+                        )
+                        state.isSpecialOffer -> str(
+                            "Kısa bir süre için yıllık planda özel indirimden yararlan.",
+                            "Take advantage of special savings on the annual plan for a limited time."
+                        )
+                        else -> str(
+                            "AI destekli öğün planlama, sınırsız yemek fotoğrafı analizi ve haftalık bio-telemetri raporları.",
+                            "AI-powered meal planning, unlimited food photo analysis, and weekly bio-telemetry reports."
+                        )
+                    }
+
+                    Text(
+                        text = headerSubtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -404,7 +428,11 @@ private fun PlanOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) PremiumGold else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    val borderColor = when {
+        isSelected -> PremiumGold
+        plan.isLimitedTimeOffer -> PremiumAmber.copy(alpha = 0.6f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    }
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = if (isSelected) PremiumGold.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -428,17 +456,21 @@ private fun PlanOptionCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    if (plan.isPopular) {
+                    val badgeText = plan.offerBadgeText ?: if (plan.isPopular) {
+                        str("%${plan.discountPercentage} Tasarruf", "Save ${plan.discountPercentage}%")
+                    } else null
+
+                    if (!badgeText.isNullOrBlank()) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(PremiumGold.copy(alpha = 0.2f))
+                                .background(if (plan.isLimitedTimeOffer) PremiumAmber.copy(alpha = 0.25f) else PremiumGold.copy(alpha = 0.2f))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = str("%${plan.discountPercentage} Tasarruf", "Save ${plan.discountPercentage}%"),
+                                text = badgeText,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = PremiumGold,
+                                color = if (plan.isLimitedTimeOffer) PremiumAmber else PremiumGold,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -452,12 +484,26 @@ private fun PlanOptionCard(
                 )
             }
 
-            Text(
-                text = plan.priceText,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) PremiumGold else MaterialTheme.colorScheme.onSurface
-            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center
+            ) {
+                val originalPrice = plan.originalPriceText
+                if (!originalPrice.isNullOrBlank()) {
+                    Text(
+                        text = originalPrice,
+                        style = MaterialTheme.typography.bodySmall,
+                        textDecoration = TextDecoration.LineThrough,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = plan.priceText,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) PremiumGold else MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }

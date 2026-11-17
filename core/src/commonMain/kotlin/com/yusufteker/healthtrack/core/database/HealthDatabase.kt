@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -15,6 +17,8 @@ import kotlinx.serialization.json.Json
  * Persists all entities to local device storage and emits reactive Flows to the UI.
  */
 class HealthDatabase(private val settings: Settings = Settings()) {
+
+    private val dbMutex = Mutex()
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -62,7 +66,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _foodsFlow.value.find { it.id == id && !it.isDeleted }
     }
 
-    suspend fun upsertFood(food: FoodLog) {
+    suspend fun upsertFood(food: FoodLog) = dbMutex.withLock {
         val current = _foodsFlow.value.toMutableList()
         val now = currentTimeMillis()
         val index = current.indexOfFirst {
@@ -97,7 +101,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_FOODS, current)
     }
 
-    suspend fun deleteFood(id: String) {
+    suspend fun deleteFood(id: String) = dbMutex.withLock {
         val current = _foodsFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == id }
         if (index >= 0) {
@@ -124,8 +128,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _foodsFlow.value.filter { it.userId == userId }
     }
 
-    suspend fun markFoodsSynced(ids: List<String>) {
-        if (ids.isEmpty()) return
+    suspend fun markFoodsSynced(ids: List<String>) = dbMutex.withLock {
+        if (ids.isEmpty()) return@withLock
         val idSet = ids.toSet()
         val current = _foodsFlow.value.toMutableList()
         var changed = false
@@ -221,7 +225,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         }
     }
 
-    suspend fun upsertNutritionGoal(goal: NutritionGoal) {
+    suspend fun upsertNutritionGoal(goal: NutritionGoal) = dbMutex.withLock {
         val current = _goalsFlow.value.toMutableMap()
         current[goal.userId] = goal
         _goalsFlow.value = current
@@ -237,7 +241,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _goalsFlow.value[userId]
     }
 
-    suspend fun markNutritionGoalSynced(userId: Int) {
+    suspend fun markNutritionGoalSynced(userId: Int) = dbMutex.withLock {
         val current = _goalsFlow.value.toMutableMap()
         val goal = current[userId]
         if (goal != null && goal.syncStatus == SyncStatus.PENDING) {
@@ -273,7 +277,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _workoutsFlow.value.filter { it.userId == userId && !it.isDeleted }
     }
 
-    suspend fun upsertWorkout(workout: WorkoutLog) {
+    suspend fun upsertWorkout(workout: WorkoutLog) = dbMutex.withLock {
         val current = _workoutsFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == workout.id }
         if (index >= 0) {
@@ -285,7 +289,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_WORKOUTS, current)
     }
 
-    suspend fun deleteWorkout(id: String) {
+    suspend fun deleteWorkout(id: String) = dbMutex.withLock {
         val current = _workoutsFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == id }
         if (index >= 0) {
@@ -312,8 +316,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _workoutsFlow.value.filter { it.userId == userId }
     }
 
-    suspend fun markWorkoutsSynced(ids: List<String>) {
-        if (ids.isEmpty()) return
+    suspend fun markWorkoutsSynced(ids: List<String>) = dbMutex.withLock {
+        if (ids.isEmpty()) return@withLock
         val idSet = ids.toSet()
         val current = _workoutsFlow.value.toMutableList()
         var changed = false
@@ -355,7 +359,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         }
     }
 
-    suspend fun upsertWeight(weight: WeightEntry) {
+    suspend fun upsertWeight(weight: WeightEntry) = dbMutex.withLock {
         val current = _weightsFlow.value.toMutableList()
         val now = currentTimeMillis()
         val index = current.indexOfFirst {
@@ -386,7 +390,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_WEIGHTS, current)
     }
 
-    suspend fun deleteWeight(id: String) {
+    suspend fun deleteWeight(id: String) = dbMutex.withLock {
         val current = _weightsFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == id }
         if (index >= 0) {
@@ -410,8 +414,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _weightsFlow.value.filter { it.userId == userId }
     }
 
-    suspend fun markWeightsSynced(ids: List<String>) {
-        if (ids.isEmpty()) return
+    suspend fun markWeightsSynced(ids: List<String>) = dbMutex.withLock {
+        if (ids.isEmpty()) return@withLock
         val idSet = ids.toSet()
         val current = _weightsFlow.value.toMutableList()
         var changed = false
@@ -443,7 +447,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
      * for the same (userId, date) so only the most recently updated record remains active while
      * older duplicates are queued as deletion tombstones for the remote server.
      */
-    suspend fun deduplicateAndSanitizeLocalData(userId: Int, isoDateRegex: Regex) {
+    suspend fun deduplicateAndSanitizeLocalData(userId: Int, isoDateRegex: Regex) = dbMutex.withLock {
         val now = currentTimeMillis()
 
         // 1. Foods: remove invalid dates, deduplicate same-day active logs
@@ -560,8 +564,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
     // SYNC PULL MERGE ENGINE (LAST-WRITE-WINS & TOMBSTONE PURGE)
     // ─────────────────────────────────────────────────────────────
 
-    suspend fun mergePullFoods(incoming: List<FoodLog>) {
-        if (incoming.isEmpty()) return
+    suspend fun mergePullFoods(incoming: List<FoodLog>) = dbMutex.withLock {
+        if (incoming.isEmpty()) return@withLock
         val now = currentTimeMillis()
         val current = _foodsFlow.value.toMutableList()
         incoming.forEach { remote ->
@@ -623,7 +627,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_FOODS, current)
     }
 
-    suspend fun mergePullNutritionGoal(remote: NutritionGoal) {
+    suspend fun mergePullNutritionGoal(remote: NutritionGoal) = dbMutex.withLock {
         val current = _goalsFlow.value.toMutableMap()
         val local = current[remote.userId]
         if (local == null || (remote.updatedAt >= local.updatedAt && !(local.syncStatus == SyncStatus.PENDING && local.updatedAt > remote.updatedAt))) {
@@ -633,8 +637,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         }
     }
 
-    suspend fun mergePullWorkouts(incoming: List<WorkoutLog>) {
-        if (incoming.isEmpty()) return
+    suspend fun mergePullWorkouts(incoming: List<WorkoutLog>) = dbMutex.withLock {
+        if (incoming.isEmpty()) return@withLock
         val current = _workoutsFlow.value.toMutableList()
         incoming.forEach { remote ->
             val index = current.indexOfFirst { it.id == remote.id }
@@ -663,8 +667,8 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_WORKOUTS, current)
     }
 
-    suspend fun mergePullWeights(incoming: List<WeightEntry>) {
-        if (incoming.isEmpty()) return
+    suspend fun mergePullWeights(incoming: List<WeightEntry>) = dbMutex.withLock {
+        if (incoming.isEmpty()) return@withLock
         val now = currentTimeMillis()
         val current = _weightsFlow.value.toMutableList()
         incoming.forEach { remote ->
@@ -795,7 +799,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         saveList(KEY_DAILY_MEAL_PLANS, current)
     }
 
-    suspend fun clearAll() {
+    suspend fun clearAll() = dbMutex.withLock {
         _foodsFlow.value = emptyList()
         _goalsFlow.value = emptyMap()
         _workoutsFlow.value = emptyList()
@@ -844,7 +848,7 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         return _waterFlow.value.filter { it.userId == userId }
     }
 
-    suspend fun addWater(userId: Int, date: String, deltaMl: Int, defaultTargetMl: Int = 2500): WaterEntry {
+    suspend fun addWater(userId: Int, date: String, deltaMl: Int, defaultTargetMl: Int = 2500): WaterEntry = dbMutex.withLock {
         val current = _waterFlow.value.toMutableList()
         val now = currentTimeMillis()
         val index = current.indexOfFirst { it.userId == userId && it.date == date }
@@ -868,10 +872,10 @@ class HealthDatabase(private val settings: Settings = Settings()) {
         }
         _waterFlow.value = current
         saveList(KEY_WATER, current)
-        return updatedEntry
+        updatedEntry
     }
 
-    suspend fun resetWater(userId: Int, date: String) {
+    suspend fun resetWater(userId: Int, date: String) = dbMutex.withLock {
         val current = _waterFlow.value.toMutableList()
         val index = current.indexOfFirst { it.userId == userId && it.date == date }
         if (index >= 0) {

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,6 +72,8 @@ import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.accentColor
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.keepVisibleAboveIme
+import com.yusufteker.healthtrack.ui.components.rememberKeyboardDismisser
 import com.yusufteker.healthtrack.ui.components.iconVector
 import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import kotlinx.coroutines.launch
@@ -77,6 +82,7 @@ import kotlinx.coroutines.launch
 fun WorkoutScreen(
     state: WorkoutState,
     onIntent: (WorkoutIntent) -> Unit,
+    onOpenPremiumOffer: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
@@ -89,8 +95,16 @@ fun WorkoutScreen(
     var rawTextInput by remember { mutableStateOf(state.rawText) }
     var manualCaloriesInput by remember { mutableStateOf(state.manualCalories) }
     var manualDurationInput by remember { mutableStateOf(state.manualDuration) }
+    val dismissKeyboard = rememberKeyboardDismisser()
     LaunchedEffect(state.rawText) {
-        if (rawTextInput != state.rawText) rawTextInput = state.rawText
+        if (rawTextInput != state.rawText) {
+            // Antrenman kaydedildi / metin sıfırlandı -> klavyeyi otomatik kapat
+            if (state.rawText.isBlank() && rawTextInput.isNotBlank()) dismissKeyboard()
+            rawTextInput = state.rawText
+        }
+    }
+    LaunchedEffect(state.isCalculatingAi) {
+        if (state.isCalculatingAi) dismissKeyboard()
     }
     LaunchedEffect(state.manualCalories) {
         if (manualCaloriesInput != state.manualCalories) manualCaloriesInput = state.manualCalories
@@ -336,6 +350,15 @@ fun WorkoutScreen(
                     }
                 )
 
+                val workoutAiQuota = state.aiQuota?.takeIf { !state.hasCustomGeminiKey }
+                val isWorkoutQuotaExhausted = workoutAiQuota != null && workoutAiQuota.dailyRemaining <= 0
+                val workoutQuotaBadge = workoutAiQuota?.let { "${it.dailyRemaining}/${it.dailyLimit}" }
+
+                // Input + chips + "AI ile Hesapla" klavye açıkken birlikte görünür kalsın
+                Column(
+                    modifier = Modifier.fillMaxWidth().keepVisibleAboveIme(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                 // Compact Expandable Text Input Well
                 OutlinedTextField(
                     value = rawTextInput,
@@ -415,6 +438,18 @@ fun WorkoutScreen(
                         focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
                     ),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send
+                    ),
+                    keyboardActions = KeyboardActions(onSend = {
+                        dismissKeyboard()
+                        val canCalculate = !state.isCalculatingAi && (
+                            rawTextInput.isNotBlank() ||
+                                (state.selectedSport != null && state.selectedSport != SportType.OTHER)
+                            )
+                        if (canCalculate) onIntent(WorkoutIntent.OnCalculateAiClicked)
+                    }),
                     minLines = 1,
                     maxLines = 3
                 )
@@ -468,10 +503,6 @@ fun WorkoutScreen(
                     }
                 }
 
-                val workoutAiQuota = state.aiQuota?.takeIf { !state.hasCustomGeminiKey }
-                val isWorkoutQuotaExhausted = workoutAiQuota != null && workoutAiQuota.dailyRemaining <= 0
-                val workoutQuotaBadge = workoutAiQuota?.let { "${it.dailyRemaining}/${it.dailyLimit}" }
-
                 // AI Calculate Button
                 ShimmeringAiButton(
                     text = str(
@@ -485,19 +516,52 @@ fun WorkoutScreen(
                         rawTextInput.isNotBlank() ||
                             (state.selectedSport != null && state.selectedSport != SportType.OTHER)
                         ),
-                    onClick = { onIntent(WorkoutIntent.OnCalculateAiClicked) },
+                    onClick = {
+                        dismissKeyboard()
+                        onIntent(WorkoutIntent.OnCalculateAiClicked)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .spotlightTarget(SpotlightTargetId.WORKOUT_CALCULATE_BUTTON),
                     height = 44.dp
                 )
+                }
 
                 if (isWorkoutQuotaExhausted) {
-                    Text(
-                        text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = HealthColors.Primary
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFD97706).copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.35f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenPremiumOffer?.invoke() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = str("🔥 Günlük Ücretsiz AI Kotan Doldu", "🔥 Daily Free AI Quota Reached"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD97706)
+                                )
+                                Text(
+                                    text = str("Sana özel fırsatla sınırsıza geç", "Upgrade with your exclusive offer"),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = str("249.99 ₺ >", "249.99 ₺ >"),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD97706)
+                            )
+                        }
+                    }
                 }
 
                 // Manual Fields Section (Expanded via Header Pill)
@@ -505,6 +569,7 @@ fun WorkoutScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .keepVisibleAboveIme()
                             .background(
                                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(14.dp)
@@ -523,7 +588,7 @@ fun WorkoutScreen(
                                     onIntent(WorkoutIntent.OnManualCaloriesChanged(it))
                                 },
                                 label = { Text(str("Kalori (kcal)", "Calories (kcal)")) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
                                 singleLine = true
@@ -535,7 +600,8 @@ fun WorkoutScreen(
                                     onIntent(WorkoutIntent.OnManualDurationChanged(it))
                                 },
                                 label = { Text(str("Süre (dk)", "Duration (min)")) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { dismissKeyboard() }),
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
                                 singleLine = true
@@ -544,6 +610,7 @@ fun WorkoutScreen(
 
                         Button(
                             onClick = {
+                                dismissKeyboard()
                                 onIntent(WorkoutIntent.OnSaveManualClicked)
                                 showManualFields = false
                             },

@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.feature.food.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -69,6 +71,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,6 +117,8 @@ import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.keepVisibleAboveIme
+import com.yusufteker.healthtrack.ui.components.rememberKeyboardDismisser
 import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import io.github.aakira.napier.Napier
 
@@ -121,6 +127,7 @@ fun FoodScreen(
     state: FoodState,
     onIntent: (FoodIntent) -> Unit,
     onNavigateToWeight: (() -> Unit)? = null,
+    onOpenPremiumOffer: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
@@ -130,8 +137,17 @@ fun FoodScreen(
     var showInventoryStudio by remember { mutableStateOf(false) }
     var initialStudioItem by remember { mutableStateOf<CustomFoodItem?>(null) }
     var rawTextInput by remember { mutableStateOf(state.rawText) }
+    val dismissKeyboard = rememberKeyboardDismisser()
     LaunchedEffect(state.rawText) {
-        if (rawTextInput != state.rawText) rawTextInput = state.rawText
+        if (rawTextInput != state.rawText) {
+            // Öğün eklendi / metin sıfırlandı -> klavyeyi otomatik kapat
+            if (state.rawText.isBlank() && rawTextInput.isNotBlank()) dismissKeyboard()
+            rawTextInput = state.rawText
+        }
+    }
+    // AI hesaplaması başladığında veya inceleme sayfası açıldığında klavye artık gerekmez
+    LaunchedEffect(state.isCalculatingAi, state.isAiReviewSheetOpen) {
+        if (state.isCalculatingAi || state.isAiReviewSheetOpen) dismissKeyboard()
     }
 
     val pendingDeepLink by WidgetDeepLinkBus.pendingTarget.collectAsState()
@@ -209,7 +225,11 @@ fun FoodScreen(
                 elevation = 8.dp
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // Klavye açıldığında input + "AI ile Hesapla" butonu birlikte görünür kalsın
+                        .keepVisibleAboveIme()
+                        .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
@@ -382,6 +402,16 @@ fun FoodScreen(
                             focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.36f),
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
                         ),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Send
+                        ),
+                        keyboardActions = KeyboardActions(onSend = {
+                            dismissKeyboard()
+                            if (!state.isCalculatingAi && rawTextInput.isNotBlank()) {
+                                onIntent(FoodIntent.OnCalculateAiClicked)
+                            }
+                        }),
                         minLines = 1,
                         maxLines = 3
                     )
@@ -434,7 +464,10 @@ fun FoodScreen(
                         isBadgeAlert = isFoodQuotaExhausted,
                         isLoading = state.isCalculatingAi,
                         enabled = !state.isCalculatingAi && rawTextInput.isNotBlank(),
-                        onClick = { onIntent(FoodIntent.OnCalculateAiClicked) },
+                        onClick = {
+                            dismissKeyboard()
+                            onIntent(FoodIntent.OnCalculateAiClicked)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .spotlightTarget(SpotlightTargetId.FOOD_CALCULATE_BUTTON),
@@ -442,11 +475,40 @@ fun FoodScreen(
                     )
 
                     if (isFoodQuotaExhausted) {
-                        Text(
-                            text = str("Profil > Özel API Key ile sınırsız", "Unlimited via Profile > Custom API Key"),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = HealthColors.Primary
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFD97706).copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenPremiumOffer?.invoke() }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = str("🔥 Günlük Ücretsiz AI Kotan Doldu", "🔥 Daily Free AI Quota Reached"),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFD97706)
+                                    )
+                                    Text(
+                                        text = str("Sana özel fırsatla sınırsıza geç", "Upgrade with your exclusive offer"),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = str("249.99 ₺ >", "249.99 ₺ >"),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD97706)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -832,6 +894,8 @@ private fun ManualAddBottomSheet(
     var proteinText by remember { mutableStateOf("") }
     var carbsText by remember { mutableStateOf("") }
     var fatText by remember { mutableStateOf("") }
+    val dismissManualKeyboard = rememberKeyboardDismisser()
+    val nextImeOptions = KeyboardOptions(imeAction = ImeAction.Next)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1129,6 +1193,7 @@ private fun ManualAddBottomSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                         },
+                        keyboardOptions = nextImeOptions.copy(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = calmFieldColors,
@@ -1161,6 +1226,7 @@ private fun ManualAddBottomSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                         },
+                        keyboardOptions = nextImeOptions,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = calmFieldColors,
@@ -1272,7 +1338,7 @@ private fun ManualAddBottomSheet(
                                 modifier = Modifier.padding(end = 12.dp)
                             )
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = calmFieldColors,
@@ -1300,7 +1366,12 @@ private fun ManualAddBottomSheet(
                     }
                 }
 
-                // 4. Optional Macros (Protein, Carbs, Fat)
+                // 4. Optional Macros (Protein, Carbs, Fat) + Action Buttons
+                // Makro alanlarına yazarken "Öğünü Ekle" butonu klavyenin üstünde görünür kalsın
+                Column(
+                    modifier = Modifier.fillMaxWidth().keepVisibleAboveIme(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = str("Makro Değerleri (İsteğe Bağlı)", "Macro Values (Optional)"),
@@ -1318,7 +1389,7 @@ private fun ManualAddBottomSheet(
                                 Text("0", color = placeholderColor)
                             },
                             label = { Text("Protein (g)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             colors = calmFieldColors,
@@ -1331,7 +1402,7 @@ private fun ManualAddBottomSheet(
                                 Text("0", color = placeholderColor)
                             },
                             label = { Text(str("Karb (g)", "Carbs (g)")) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             colors = calmFieldColors,
@@ -1344,7 +1415,8 @@ private fun ManualAddBottomSheet(
                                 Text("0", color = placeholderColor)
                             },
                             label = { Text(str("Yağ (g)", "Fat (g)")) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { dismissManualKeyboard() }),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             colors = calmFieldColors,
@@ -1352,8 +1424,6 @@ private fun ManualAddBottomSheet(
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(6.dp))
 
                 // Action Buttons
                 val defaultServingLabel = str("1 Porsiyon", "1 Serving")
@@ -1371,6 +1441,7 @@ private fun ManualAddBottomSheet(
 
                     Button(
                         onClick = {
+                            dismissManualKeyboard()
                             val calInt = calories.toIntOrNull() ?: 0
                             if (name.isNotBlank()) {
                                 val prot = proteinText.toLocaleDoubleOrNull() ?: 0.0
@@ -1403,6 +1474,7 @@ private fun ManualAddBottomSheet(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(str("Öğünü Ekle", "Add Meal"), fontWeight = FontWeight.Bold)
                     }
+                }
                 }
 
                 // Return to Presets Tab Link

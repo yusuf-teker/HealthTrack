@@ -8,28 +8,55 @@ import com.yusufteker.healthtrack.core.model.PremiumFeatureItem
 import com.yusufteker.healthtrack.core.model.SubscriptionPeriod
 import com.yusufteker.healthtrack.core.model.SubscriptionPlan
 
-fun localizedHealthTrackPlans(language: AppLanguage = LocalizationManager.currentLanguage): List<SubscriptionPlan> = listOf(
-    SubscriptionPlan(
-        id = "healthtrack_premium_annual",
-        name = trEn("Yıllık Plan", "Annual Plan", language),
-        priceText = trEn("799.99 ₺ / Yıl", "799.99 ₺ / Year", language),
-        priceAmount = 799.99,
-        period = SubscriptionPeriod.ANNUAL,
-        discountPercentage = 33,
-        isPopular = true,
-        description = trEn("Aylık sadece 66.60 ₺ (%33 Tasarruf)", "Only 66.60 ₺/mo (Save 33%)", language)
-    ),
-    SubscriptionPlan(
+fun localizedHealthTrackPlans(
+    language: AppLanguage = LocalizationManager.currentLanguage,
+    isSpecialOffer: Boolean = false
+): List<SubscriptionPlan> {
+    val annualPlan = if (isSpecialOffer) {
+        SubscriptionPlan(
+            id = "healthtrack_premium_annual_offer",
+            name = trEn("Özel Yıllık Fırsat", "Special Annual Offer", language),
+            priceText = trEn("249.99 ₺ / Yıl", "249.99 ₺ / Year", language),
+            originalPriceText = "299.99 ₺",
+            priceAmount = 249.99,
+            period = SubscriptionPeriod.ANNUAL,
+            discountPercentage = 48,
+            isPopular = true,
+            isLimitedTimeOffer = true,
+            offerBadgeText = trEn("🔥 SINIRLI SÜRELİ FIRSAT", "🔥 LIMITED TIME OFFER", language),
+            storeOfferId = "limited_annual_offer",
+            description = trEn("Aylık sadece 20.80 ₺ (%48 Tasarruf)", "Only 20.80 ₺/mo (Save 48%)", language)
+        )
+    } else {
+        SubscriptionPlan(
+            id = "healthtrack_premium_annual",
+            name = trEn("Yıllık Plan", "Annual Plan", language),
+            priceText = trEn("299.99 ₺ / Yıl", "299.99 ₺ / Year", language),
+            originalPriceText = null,
+            priceAmount = 299.99,
+            period = SubscriptionPeriod.ANNUAL,
+            discountPercentage = 37,
+            isPopular = true,
+            isLimitedTimeOffer = false,
+            offerBadgeText = null,
+            description = trEn("Aylık sadece 25.00 ₺ (%37 Tasarruf)", "Only 25.00 ₺/mo (Save 37%)", language)
+        )
+    }
+
+    val monthlyPlan = SubscriptionPlan(
         id = "healthtrack_premium_monthly",
         name = trEn("Aylık Plan", "Monthly Plan", language),
-        priceText = trEn("99.99 ₺ / Ay", "99.99 ₺ / Month", language),
-        priceAmount = 99.99,
+        priceText = trEn("39.99 ₺ / Ay", "39.99 ₺ / Month", language),
+        priceAmount = 39.99,
         period = SubscriptionPeriod.MONTHLY,
         discountPercentage = 0,
         isPopular = false,
+        isLimitedTimeOffer = false,
         description = trEn("İstediğiniz zaman iptal edebilirsiniz", "Cancel anytime", language)
     )
-)
+
+    return listOf(annualPlan, monthlyPlan)
+}
 
 fun localizedHealthTrackFeatures(language: AppLanguage = LocalizationManager.currentLanguage): List<PremiumFeatureItem> = listOf(
     PremiumFeatureItem(
@@ -92,6 +119,7 @@ data class PremiumState(
     val premiumUntil: String? = null,
     val activePlanId: String? = null,
     val provider: String? = null,
+    val offerType: String? = null,
     val availablePlans: List<SubscriptionPlan> = defaultHealthTrackPlans,
     val selectedPlan: SubscriptionPlan = defaultHealthTrackPlans.first(),
     val features: List<PremiumFeatureItem> = defaultHealthTrackFeatures,
@@ -104,9 +132,12 @@ data class PremiumState(
     val showPaymentSheet: Boolean = false,
     val infoMessage: String? = null,
     val errorMessage: String? = null
-)
+) {
+    val isSpecialOffer: Boolean get() = !offerType.isNullOrBlank()
+}
 
 sealed interface PremiumIntent {
+    data class SetOfferType(val offerType: String?) : PremiumIntent
     data class OnPlanSelected(val plan: SubscriptionPlan) : PremiumIntent
     data class OnPaymentMethodSelected(val method: PaymentMethod) : PremiumIntent
     data object OnStartPurchaseClicked : PremiumIntent

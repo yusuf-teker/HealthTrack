@@ -166,7 +166,8 @@ class SyncEngine(
                         ?: tokenStorage.getUserWeight().takeIf { it > 0.0 }
                         ?: 0.0
 
-                    val inferredGoal = if (currentWeight > 0.0) {
+                    val explicitGoal = goalDto.fitnessGoal?.takeIf { it.isNotBlank() }?.let { FitnessGoal.fromId(it) }
+                    val inferredGoal = explicitGoal ?: if (currentWeight > 0.0) {
                         val ratio = goalDto.proteinG / currentWeight
                         when {
                             ratio in 1.10..1.30 -> FitnessGoal.LOSE_WEIGHT
@@ -359,6 +360,7 @@ class SyncEngine(
                     ironMg = it.ironMg,
                     calciumMg = it.calciumMg,
                     magnesiumMg = it.magnesiumMg,
+                    fitnessGoal = it.fitnessGoal,
                     updatedAt = it.updatedAt,
                     isDeleted = it.isDeleted
                 )

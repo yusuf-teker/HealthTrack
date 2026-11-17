@@ -491,7 +491,7 @@ private suspend fun readHealthConnectData(
                     .sumOf { it.caloriesBurned }
 
                 val remainingActiveKcal = (totalDayActiveKcal - exerciseKcalOnDay)
-                    .takeIf { it in 5..2500 } ?: 0
+                    .takeIf { it in 5..6000 } ?: 0
 
                 val estimatedDurationMinutes = (remainingSteps / 100).coerceAtLeast(1)
                 val lastRecordEndMillis = dayStepRecords.maxOfOrNull { it.endTime.toEpochMilli() }

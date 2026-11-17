@@ -43,6 +43,8 @@ data class GamificationState(
     val followRequests: List<FollowRequestItemDto> = emptyList(),
     val isLoadingFollowRequests: Boolean = false,
     val pendingActionUserIds: Set<Int> = emptySet(),
+    val selectedFriendProfile: FriendUserDto? = null,
+    val mutedWorkoutFriendIds: Set<Int> = emptySet(),
     val infoMessage: String? = null,
     val errorMessage: String? = null
 )
@@ -58,6 +60,8 @@ sealed interface GamificationIntent {
     data class OnSetFriendsSheetOpen(val open: Boolean) : GamificationIntent
     data class OnSetFollowListTab(val tab: Int?) : GamificationIntent
     data class OnSetSearchSheetOpen(val open: Boolean) : GamificationIntent
+    data class OnSelectFriendProfile(val user: FriendUserDto?) : GamificationIntent
+    data class OnToggleFriendWorkoutTracking(val friendUserId: Int) : GamificationIntent
     data class OnFriendSearchQueryChanged(val query: String) : GamificationIntent
     data class OnToggleFollowUser(val userId: Int) : GamificationIntent
     data class OnRemoveFollower(val userId: Int) : GamificationIntent

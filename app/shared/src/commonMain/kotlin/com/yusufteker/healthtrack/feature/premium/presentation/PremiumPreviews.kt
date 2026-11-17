@@ -57,3 +57,20 @@ fun PremiumScreenEnglishPreview() {
         )
     }
 }
+
+@Preview
+@Composable
+fun PremiumScreenSpecialOfferPreview() {
+    val offerPlans = localizedHealthTrackPlans(isSpecialOffer = true)
+    HealthTrackTheme(darkTheme = true) {
+        PremiumScreen(
+            state = PremiumState(
+                isPremium = false,
+                offerType = "welcome",
+                availablePlans = offerPlans,
+                selectedPlan = offerPlans.first()
+            ),
+            onIntent = {}
+        )
+    }
+}

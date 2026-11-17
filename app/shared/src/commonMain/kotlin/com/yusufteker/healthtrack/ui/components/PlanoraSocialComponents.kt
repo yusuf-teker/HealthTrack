@@ -34,6 +34,8 @@ import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Search
@@ -52,6 +54,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -81,6 +85,7 @@ import com.yusufteker.healthtrack.core.model.FollowRequestItemDto
 import com.yusufteker.healthtrack.core.model.FriendUserDto
 import com.yusufteker.healthtrack.core.utils.CapturedPhoto
 import com.yusufteker.healthtrack.core.utils.rememberCameraPhotoLauncher
+import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.str
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -788,6 +793,8 @@ fun PlanoraFollowListSheet(
     requests: List<FollowRequestItemDto>,
     isLoading: Boolean,
     pendingActionUserIds: Set<Int> = emptySet(),
+    mutedWorkoutUserIds: Set<Int> = emptySet(),
+    onUserClick: ((FriendUserDto) -> Unit)? = null,
     onRemoveFollower: (Int) -> Unit,
     onUnfollow: (Int) -> Unit,
     onAcceptRequest: (Int) -> Unit,
@@ -904,6 +911,8 @@ fun PlanoraFollowListSheet(
                                     profileImageUrl = user.profileImageUrl,
                                     name = user.name,
                                     username = user.username,
+                                    isWorkoutMuted = mutedWorkoutUserIds.contains(user.id),
+                                    onClick = onUserClick?.let { { it(user) } },
                                     actionButton = {
                                         OutlinedButton(
                                             onClick = { if (!isBusy) onRemoveFollower(user.id) },
@@ -948,6 +957,8 @@ fun PlanoraFollowListSheet(
                                     profileImageUrl = user.profileImageUrl,
                                     name = user.name,
                                     username = user.username,
+                                    isWorkoutMuted = mutedWorkoutUserIds.contains(user.id),
+                                    onClick = onUserClick?.let { { it(user) } },
                                     actionButton = {
                                         Button(
                                             onClick = { if (!isBusy) onUnfollow(user.id) },
@@ -1222,10 +1233,16 @@ private fun PlanoraFollowUserRow(
     profileImageUrl: String?,
     name: String,
     username: String,
+    isWorkoutMuted: Boolean = false,
+    onClick: (() -> Unit)? = null,
     actionButton: @Composable () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AvatarImage(
@@ -1238,14 +1255,27 @@ private fun PlanoraFollowUserRow(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (isWorkoutMuted) {
+                    Icon(
+                        imageVector = Icons.Rounded.NotificationsOff,
+                        contentDescription = str("Spor bildirimleri sessizde", "Workout notifications muted"),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
             if (username.isNotBlank()) {
                 Text(
                     text = "@$username",
@@ -1316,6 +1346,209 @@ private fun SocialEmptyState(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(actionLabel, maxLines = 1, softWrap = false)
             }
+        }
+    }
+}
+
+/**
+ * Friend Profile Details Sheet
+ * Shows friend avatar, name, username, follow status, and Workout Tracking & Notification toggle.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlanoraFriendProfileSheet(
+    user: FriendUserDto,
+    isWorkoutTrackingEnabled: Boolean,
+    onToggleWorkoutTracking: () -> Unit,
+    onFollow: (() -> Unit)? = null,
+    onUnfollow: (() -> Unit)? = null,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header / Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Rounded.Close, contentDescription = str("Kapat", "Close"))
+                }
+            }
+
+            // Big Avatar with Luxury Gradient Border
+            Box(
+                modifier = Modifier
+                    .size(86.dp)
+                    .clip(CircleShape)
+                    .border(
+                        width = 2.5.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                AvatarImage(
+                    profileImageUrl = user.profileImageUrl,
+                    fallbackInitial = user.name.firstOrNull()?.uppercase() ?: "?",
+                    modifier = Modifier.fillMaxSize(),
+                    textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black)
+                )
+            }
+
+            // Name & Username
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = user.name,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                if (user.username.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "@${user.username}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Follow Status Badge
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = if (user.isFollowedByMe) HealthColors.PrimaryGlow.copy(alpha = 0.16f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(
+                    1.dp,
+                    if (user.isFollowedByMe) HealthColors.PrimaryGlow.copy(alpha = 0.4f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Text(
+                    text = if (user.isFollowedByMe) str("Takip Ediliyor", "Following")
+                    else str("Takip Edilmiyor", "Not Following"),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = if (user.isFollowedByMe) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                )
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+
+            if (user.isFollowedByMe) {
+                // ── SPOR TAKİBİ & BİLDİRİM KARTI (Workout Tracking & Notification Card) ──
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isWorkoutTrackingEnabled) HealthColors.PrimaryGlow.copy(alpha = 0.18f)
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isWorkoutTrackingEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.NotificationsOff,
+                                contentDescription = null,
+                                tint = if (isWorkoutTrackingEnabled) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = str("Spor Takibi & Bildirimleri", "Workout Tracking & Alerts"),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isWorkoutTrackingEnabled) {
+                                    str(
+                                        "Arkadaşın antrenman yaptığında anlık bildirim alırsın ve sporunu takip edersin.",
+                                        "Receive instant alerts and track friend's workout activities."
+                                    )
+                                } else {
+                                    str(
+                                        "Spor bildirimleri sessize alındı. Antrenman yaptığında sana bildirim gelmez.",
+                                        "Workout notifications muted. You won't receive alerts from this friend."
+                                    )
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Switch(
+                            checked = isWorkoutTrackingEnabled,
+                            onCheckedChange = { onToggleWorkoutTracking() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        )
+                    }
+                }
+
+                if (onUnfollow != null) {
+                    OutlinedButton(
+                        onClick = onUnfollow,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(46.dp)
+                    ) {
+                        Text(str("Takipten Çıkar", "Unfollow Friend"), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            } else if (onFollow != null) {
+                Button(
+                    onClick = onFollow,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().height(46.dp)
+                ) {
+                    Text(str("Takip Et", "Follow"), fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }

@@ -109,6 +109,7 @@ data class NutritionGoalSyncPayload(
     val ironMg: Double = 14.0,
     val calciumMg: Double = 1000.0,
     val magnesiumMg: Double = 350.0,
+    val fitnessGoal: String? = null,
     val updatedAt: Long,
     val isDeleted: Boolean = false
 )
@@ -408,9 +409,12 @@ class HealthApiClient(
         }
     }
 
-    suspend fun fetchSubscriptionPlans(): Result<List<SubscriptionPlan>> = safeApiCall {
+    suspend fun fetchSubscriptionPlans(offer: String? = null): Result<List<SubscriptionPlan>> = safeApiCall {
         val response = httpClient.get("/api/subscriptions/plans") {
             parameter("app", "healthtrack")
+            if (!offer.isNullOrBlank()) {
+                parameter("offer", offer)
+            }
         }
         if (response.status.isSuccess()) {
             response.body<List<SubscriptionPlan>>()
@@ -587,6 +591,25 @@ class HealthApiClient(
         val response = httpClient.post("/users/$userId/remove-follower")
         if (!response.status.isSuccess()) {
             throw response.toHttpApiException("Takipçi çıkarılamadı", "Could not remove follower", json)
+        }
+    }
+
+    suspend fun getMutedWorkoutFriendIds(): Result<List<Int>> = safeApiCall {
+        val response = httpClient.get("/health/friends/muted-workouts")
+        if (response.status.isSuccess()) {
+            response.body<List<Int>>()
+        } else {
+            throw response.toHttpApiException("Sessize alınan arkadaşlar alınamadı", "Could not fetch muted friends", json)
+        }
+    }
+
+    suspend fun toggleFriendWorkoutNotifications(targetUserId: Int): Result<Boolean> = safeApiCall {
+        val response = httpClient.post("/health/friends/$targetUserId/toggle-workout-notifications")
+        if (response.status.isSuccess()) {
+            val body = response.body<Map<String, Boolean>>()
+            body["isMuted"] ?: false
+        } else {
+            throw response.toHttpApiException("Spor bildirim tercihi güncellenemedi", "Could not update workout notification preference", json)
         }
     }
 }

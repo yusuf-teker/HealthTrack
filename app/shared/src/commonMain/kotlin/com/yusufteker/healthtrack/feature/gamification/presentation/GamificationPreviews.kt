@@ -176,7 +176,7 @@ private val friendsEmptyState = GamificationState(
                 isCurrentUser = true,
                 score = 88,
                 primaryValueLabel = "88 / 100",
-                secondaryLabel = "1 gün • ort %88",
+                secondaryLabel = "ortalama %88",
                 streakDays = 9
             )
         ),
@@ -188,7 +188,7 @@ private val friendsEmptyState = GamificationState(
             isCurrentUser = true,
             score = 88,
             primaryValueLabel = "88 / 100",
-            secondaryLabel = "1 gün • ort %88",
+            secondaryLabel = "ortalama %88",
             streakDays = 9
         )
     )

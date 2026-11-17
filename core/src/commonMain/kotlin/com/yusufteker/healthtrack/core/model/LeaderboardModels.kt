@@ -116,3 +116,13 @@ data class ProfileImageUploadResponseDto(
     val profileImageUrl: String = ""
 )
 
+fun LeaderboardEntryDto.toFriendUserDto(): FriendUserDto = FriendUserDto(
+    id = userId,
+    name = name,
+    username = username,
+    avatarId = avatarId,
+    profileImageUrl = profileImageUrl,
+    isFollowedByMe = isFollowedByMe,
+    isPremium = isPremium
+)
+

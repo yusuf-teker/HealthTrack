@@ -10,6 +10,8 @@ import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 class TokenStorage(private val settings: Settings = Settings()) {
 
@@ -25,7 +27,13 @@ class TokenStorage(private val settings: Settings = Settings()) {
     private val _hasConnectedDeviceFlow = MutableStateFlow(hasConnectedDevice())
     val hasConnectedDeviceFlow: StateFlow<Boolean> = _hasConnectedDeviceFlow.asStateFlow()
 
-    fun isPremium(): Boolean = settings.getBoolean(KEY_IS_PREMIUM, false)
+    @OptIn(ExperimentalTime::class)
+    fun isPremium(): Boolean {
+        if (!settings.getBoolean(KEY_IS_PREMIUM, false)) return false
+        val untilRaw = getPremiumUntil() ?: return true
+        val parsed = runCatching { Instant.parse(untilRaw) }.getOrNull() ?: return true
+        return parsed.toEpochMilliseconds() > com.yusufteker.healthtrack.core.utils.currentTimeMillis()
+    }
     fun getPremiumUntil(): String? = settings.getStringOrNull(KEY_PREMIUM_UNTIL)
 
     fun setPremium(isPremium: Boolean, premiumUntil: String? = null) {
@@ -372,6 +380,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_FRIEND_BASELINE_PREFIX = "ht_friend_baseline"
         private const val KEY_FRIEND_BASELINE_LAST_DATE = "ht_friend_baseline_last_date"
         private const val KEY_SEEN_FOLLOW_REQUESTS = "ht_seen_follow_requests"
+        private const val KEY_MUTED_WORKOUT_FRIENDS_PREFIX = "ht_muted_workout_friends"
         const val KEY_FCM_TOKEN = "ht_fcm_token"
         private const val KEY_AUTO_DEVICE_SYNC_ENABLED = "ht_auto_device_sync_enabled"
         const val KEY_HAS_CONNECTED_DEVICE = "ht_has_connected_device"
@@ -518,6 +527,42 @@ class TokenStorage(private val settings: Settings = Settings()) {
             settings.putString(KEY_FCM_TOKEN, clean)
         } else {
             settings.remove(KEY_FCM_TOKEN)
+        }
+    }
+
+    fun getMutedWorkoutFriendIds(userId: Int = getUserId()): Set<Int> {
+        if (userId <= 0) return emptySet()
+        val raw = settings.getStringOrNull("${KEY_MUTED_WORKOUT_FRIENDS_PREFIX}_$userId") ?: return emptySet()
+        return raw.split(',').mapNotNull { it.trim().toIntOrNull() }.toSet()
+    }
+
+    fun setFriendWorkoutTrackingEnabled(friendUserId: Int, enabled: Boolean, userId: Int = getUserId()) {
+        if (userId <= 0 || friendUserId <= 0) return
+        val current = getMutedWorkoutFriendIds(userId).toMutableSet()
+        if (enabled) {
+            current.remove(friendUserId)
+        } else {
+            current.add(friendUserId)
+        }
+        if (current.isEmpty()) {
+            settings.remove("${KEY_MUTED_WORKOUT_FRIENDS_PREFIX}_$userId")
+        } else {
+            settings.putString("${KEY_MUTED_WORKOUT_FRIENDS_PREFIX}_$userId", current.joinToString(","))
+        }
+    }
+
+    fun isFriendWorkoutTrackingEnabled(friendUserId: Int, userId: Int = getUserId()): Boolean {
+        if (friendUserId <= 0) return true
+        return friendUserId !in getMutedWorkoutFriendIds(userId)
+    }
+
+    fun syncMutedWorkoutFriendIds(mutedIds: Collection<Int>, userId: Int = getUserId()) {
+        if (userId <= 0) return
+        val clean = mutedIds.filter { it > 0 }.toSet()
+        if (clean.isEmpty()) {
+            settings.remove("${KEY_MUTED_WORKOUT_FRIENDS_PREFIX}_$userId")
+        } else {
+            settings.putString("${KEY_MUTED_WORKOUT_FRIENDS_PREFIX}_$userId", clean.joinToString(","))
         }
     }
 }

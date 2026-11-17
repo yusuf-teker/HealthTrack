@@ -173,7 +173,8 @@ class ProfileViewModel(
             isDarkMode = isDark,
             themeAccent = accent,
             language = LocalizationManager.currentLanguage,
-            customGeminiApiKey = customGeminiApiKey
+            customGeminiApiKey = customGeminiApiKey,
+            mutedWorkoutFriendIds = tokenStorage.getMutedWorkoutFriendIds(userId)
         )
     }
 
@@ -457,6 +458,7 @@ class ProfileViewModel(
             }
             is ProfileIntent.OnToggleFollowUser -> toggleFollowUser(intent.userId)
             is ProfileIntent.OnRemoveFollower -> removeFollower(intent.userId)
+            is ProfileIntent.OnToggleFriendWorkoutTracking -> toggleFriendWorkoutTracking(intent.friendUserId)
             is ProfileIntent.OnAcceptFollowRequest -> acceptFollowRequest(intent.requestId)
             is ProfileIntent.OnRejectFollowRequest -> rejectFollowRequest(intent.requestId)
             ProfileIntent.OnDismissInfoMessage -> _state.update { it.copy(infoMessage = null) }
@@ -484,11 +486,17 @@ class ProfileViewModel(
                     val followersDeferred = async { apiClient.getFollowers() }
                     val followingDeferred = async { apiClient.getFollowing() }
                     val requestsDeferred = async { apiClient.getFollowRequests() }
+                    val mutedDeferred = async { apiClient.getMutedWorkoutFriendIds() }
 
                     val profileRes = profileDeferred.await()
                     val followersRes = followersDeferred.await()
                     val followingRes = followingDeferred.await()
                     val requestsRes = requestsDeferred.await()
+                    val mutedRes = mutedDeferred.await()
+
+                    mutedRes.onSuccess { mutedList ->
+                        tokenStorage.syncMutedWorkoutFriendIds(mutedList)
+                    }
 
                     profileRes.onSuccess { p ->
                         if (p.profileImageUrl != tokenStorage.getProfileImageUrl()) {
@@ -500,7 +508,8 @@ class ProfileViewModel(
                                 username = p.username.ifBlank { it.username },
                                 profileImageUrl = p.profileImageUrl ?: it.profileImageUrl,
                                 followersCount = p.followersCount,
-                                followingCount = p.followingCount
+                                followingCount = p.followingCount,
+                                mutedWorkoutFriendIds = tokenStorage.getMutedWorkoutFriendIds()
                             )
                         }
                     }
@@ -527,6 +536,27 @@ class ProfileViewModel(
             } finally {
                 _state.update { it.copy(isLoadingSocial = false) }
             }
+        }
+    }
+
+    private fun toggleFriendWorkoutTracking(friendUserId: Int) {
+        if (friendUserId <= 0) return
+        val currentMuted = _state.value.mutedWorkoutFriendIds
+        val isCurrentlyMuted = currentMuted.contains(friendUserId)
+        val willBeEnabled = isCurrentlyMuted
+        tokenStorage.setFriendWorkoutTrackingEnabled(friendUserId, willBeEnabled)
+        val updatedMuted = if (willBeEnabled) currentMuted - friendUserId else currentMuted + friendUserId
+        val lang = LocalizationManager.currentLanguage
+        val message = if (willBeEnabled) {
+            trEn("Arkadaşının spor takibi ve bildirimleri açıldı.", "Workout tracking & alerts enabled for this friend.", lang)
+        } else {
+            trEn("Arkadaşının spor bildirimleri sessize alındı.", "Workout notifications muted for this friend.", lang)
+        }
+        _state.update {
+            it.copy(mutedWorkoutFriendIds = updatedMuted, infoMessage = message)
+        }
+        viewModelScope.launch {
+            apiClient.toggleFriendWorkoutNotifications(friendUserId)
         }
     }
 

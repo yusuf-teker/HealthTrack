@@ -100,6 +100,7 @@ import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.GlassCard
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.PlanoraFollowListSheet
+import com.yusufteker.healthtrack.ui.components.PlanoraFriendProfileSheet
 import com.yusufteker.healthtrack.ui.components.PlanoraSearchUsersSheet
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
 import com.yusufteker.healthtrack.ui.components.SportIcons
@@ -125,6 +126,8 @@ fun GamificationScreen(
             requests = state.followRequests,
             isLoading = state.isLoadingSocialLists || state.isLoadingFollowRequests,
             pendingActionUserIds = state.pendingActionUserIds,
+            mutedWorkoutUserIds = state.mutedWorkoutFriendIds,
+            onUserClick = { user -> onIntent(GamificationIntent.OnSelectFriendProfile(user)) },
             onRemoveFollower = { userId -> onIntent(GamificationIntent.OnRemoveFollower(userId)) },
             onUnfollow = { userId -> onIntent(GamificationIntent.OnToggleFollowUser(userId)) },
             onAcceptRequest = { reqId -> onIntent(GamificationIntent.OnAcceptFollowRequest(reqId)) },
@@ -134,6 +137,30 @@ fun GamificationScreen(
                 onIntent(GamificationIntent.OnSetSearchSheetOpen(true))
             },
             onDismiss = { onIntent(GamificationIntent.OnSetFollowListTab(null)) }
+        )
+    }
+
+    if (state.selectedFriendProfile != null) {
+        val targetFriend = state.selectedFriendProfile
+        PlanoraFriendProfileSheet(
+            user = targetFriend,
+            isWorkoutTrackingEnabled = !state.mutedWorkoutFriendIds.contains(targetFriend.id),
+            onToggleWorkoutTracking = {
+                onIntent(GamificationIntent.OnToggleFriendWorkoutTracking(targetFriend.id))
+            },
+            onFollow = if (!targetFriend.isFollowedByMe) {
+                {
+                    onIntent(GamificationIntent.OnToggleFollowUser(targetFriend.id))
+                    onIntent(GamificationIntent.OnSelectFriendProfile(null))
+                }
+            } else null,
+            onUnfollow = if (targetFriend.isFollowedByMe) {
+                {
+                    onIntent(GamificationIntent.OnToggleFollowUser(targetFriend.id))
+                    onIntent(GamificationIntent.OnSelectFriendProfile(null))
+                }
+            } else null,
+            onDismiss = { onIntent(GamificationIntent.OnSelectFriendProfile(null)) }
         )
     }
 
@@ -1441,12 +1468,21 @@ private fun LeaderboardSection(
 
                     // Top 3 Podium
                     val topThree = data.entries.take(3)
-                    LeaderboardPodium(entries = topThree, isDark = isDark)
+                    LeaderboardPodium(
+                        entries = topThree,
+                        isDark = isDark,
+                        onUserClick = { user -> onIntent(GamificationIntent.OnSelectFriendProfile(user)) }
+                    )
 
                     // All Ranked Rows (#1+)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         data.entries.forEach { entry ->
-                            LeaderboardRowCard(entry = entry)
+                            LeaderboardRowCard(
+                                entry = entry,
+                                onClick = if (!entry.isCurrentUser) {
+                                    { onIntent(GamificationIntent.OnSelectFriendProfile(entry.toFriendUserDto())) }
+                                } else null
+                            )
                         }
                     }
                 }
@@ -1517,7 +1553,8 @@ private fun MyRankSummaryBanner(entry: LeaderboardEntryDto) {
 @Composable
 private fun LeaderboardPodium(
     entries: List<LeaderboardEntryDto>,
-    isDark: Boolean
+    isDark: Boolean,
+    onUserClick: ((FriendUserDto) -> Unit)? = null
 ) {
     val first = entries.getOrNull(0)
     val second = entries.getOrNull(1)
@@ -1549,6 +1586,7 @@ private fun LeaderboardPodium(
                     podiumHeight = 76.dp,
                     glowAlpha = 0.5f,
                     isDark = isDark,
+                    onClick = if (!second.isCurrentUser && onUserClick != null) { { onUserClick(second.toFriendUserDto()) } } else null,
                     modifier = Modifier.weight(1f)
                 )
             } else {
@@ -1563,6 +1601,7 @@ private fun LeaderboardPodium(
                     glowAlpha = crownGlow,
                     isDark = isDark,
                     isChampion = true,
+                    onClick = if (!first.isCurrentUser && onUserClick != null) { { onUserClick(first.toFriendUserDto()) } } else null,
                     modifier = Modifier.weight(1.15f)
                 )
             }
@@ -1574,6 +1613,7 @@ private fun LeaderboardPodium(
                     podiumHeight = 62.dp,
                     glowAlpha = 0.45f,
                     isDark = isDark,
+                    onClick = if (!third.isCurrentUser && onUserClick != null) { { onUserClick(third.toFriendUserDto()) } } else null,
                     modifier = Modifier.weight(1f)
                 )
             } else {
@@ -1591,10 +1631,13 @@ private fun PodiumSlot(
     glowAlpha: Float,
     isDark: Boolean,
     modifier: Modifier = Modifier,
-    isChampion: Boolean = false
+    isChampion: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .then(if (onClick != null) Modifier.bounceClick().clickable(onClick = onClick) else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -1733,10 +1776,15 @@ private fun LeaderboardRankMedalSlot(
 }
 
 @Composable
-private fun LeaderboardRowCard(entry: LeaderboardEntryDto) {
+private fun LeaderboardRowCard(
+    entry: LeaderboardEntryDto,
+    onClick: (() -> Unit)? = null
+) {
     val highlight = entry.isCurrentUser
     GlassCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.bounceClick().clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(16.dp),
         borderGradient = if (highlight) listOf(HealthColors.PrimaryGlow.copy(alpha = 0.55f), HealthColors.Primary.copy(alpha = 0.22f)) else null,
         borderWidth = if (highlight) 1.4.dp else 1.dp

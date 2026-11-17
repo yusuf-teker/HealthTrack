@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +40,8 @@ import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
 import com.yusufteker.healthtrack.ui.components.LanguageSelectorPill
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.keepVisibleAboveIme
+import com.yusufteker.healthtrack.ui.components.rememberKeyboardDismisser
 
 @Composable
 fun AuthScreen(
@@ -76,13 +81,49 @@ fun AuthScreen(
 
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
+    val dismissKeyboard = rememberKeyboardDismisser()
+    val otpFocusRequester = remember { FocusRequester() }
+
+    val canLogin = !state.isLoading && identifierInput.isNotBlank() && passwordInput.isNotBlank()
+    val canSendCode = !state.isLoading &&
+        registerNameInput.isNotBlank() &&
+        registerUsernameInput.isNotBlank() &&
+        registerEmailInput.isNotBlank() &&
+        registerPasswordInput.isNotBlank()
+    val canRegister = !state.isLoading && registerCodeInput.length == 6
+
+    val submitLogin = {
+        if (canLogin) {
+            dismissKeyboard()
+            onIntent(AuthIntent.OnLoginClicked)
+        }
+    }
+    val submitSendCode = {
+        if (canSendCode) {
+            dismissKeyboard()
+            onIntent(AuthIntent.OnSendRegisterCodeClicked)
+        }
+    }
+    val submitRegister = {
+        if (canRegister) {
+            dismissKeyboard()
+            onIntent(AuthIntent.OnRegisterClicked)
+        }
+    }
+
+    // Kod gönderildiğinde doğrulama alanına otomatik odaklan (klavye direkt açılsın)
+    LaunchedEffect(state.isRegisterMode, state.isRegisterCodeSent) {
+        if (state.isRegisterMode && state.isRegisterCodeSent && registerCodeInput.length < 6) {
+            runCatching { otpFocusRequester.requestFocus() }
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .clearFocusOnTap()
-            .imePadding(),
+            .windowInsetsPadding(WindowInsets.safeDrawing),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -245,6 +286,7 @@ fun AuthScreen(
 
                     if (!state.isRegisterMode) {
                         // ── LOGIN FORM ──
+                        Column(modifier = Modifier.fillMaxWidth().keepVisibleAboveIme()) {
                         OutlinedTextField(
                             value = identifierInput,
                             onValueChange = {
@@ -298,6 +340,9 @@ fun AuthScreen(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done
                             ),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (canLogin) submitLogin() else dismissKeyboard()
+                            }),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp)
@@ -306,8 +351,8 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Button(
-                            onClick = { onIntent(AuthIntent.OnLoginClicked) },
-                            enabled = !state.isLoading && identifierInput.isNotBlank() && passwordInput.isNotBlank(),
+                            onClick = submitLogin,
+                            enabled = canLogin,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -332,6 +377,7 @@ fun AuthScreen(
                                     )
                                 )
                             }
+                        }
                         }
                     } else if (!state.isRegisterCodeSent) {
                         // ── REGISTER STEP 1: Account Info ──
@@ -404,6 +450,7 @@ fun AuthScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        Column(modifier = Modifier.fillMaxWidth().keepVisibleAboveIme()) {
                         OutlinedTextField(
                             value = registerPasswordInput,
                             onValueChange = {
@@ -432,6 +479,9 @@ fun AuthScreen(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done
                             ),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (canSendCode) submitSendCode() else dismissKeyboard()
+                            }),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp)
@@ -440,12 +490,8 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(22.dp))
 
                         Button(
-                            onClick = { onIntent(AuthIntent.OnSendRegisterCodeClicked) },
-                            enabled = !state.isLoading &&
-                                registerNameInput.isNotBlank() &&
-                                registerUsernameInput.isNotBlank() &&
-                                registerEmailInput.isNotBlank() &&
-                                registerPasswordInput.isNotBlank(),
+                            onClick = submitSendCode,
+                            enabled = canSendCode,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -471,14 +517,22 @@ fun AuthScreen(
                                 )
                             }
                         }
+                        }
                     } else {
                         // ── REGISTER STEP 2: OTP Verification Code ──
+                        Column(modifier = Modifier.fillMaxWidth().keepVisibleAboveIme()) {
                         OutlinedTextField(
                             value = registerCodeInput,
                             onValueChange = {
                                 val sanitized = it.filter { ch -> ch.isDigit() }.take(6)
+                                val justCompleted = sanitized.length == 6 && registerCodeInput.length < 6
                                 registerCodeInput = sanitized
                                 onIntent(AuthIntent.OnRegisterCodeChanged(sanitized))
+                                // 6. hane girildiğinde (veya kod yapıştırıldığında) klavyeyi kapat ve otomatik doğrula
+                                if (justCompleted && !state.isLoading) {
+                                    dismissKeyboard()
+                                    onIntent(AuthIntent.OnRegisterClicked)
+                                }
                             },
                             label = { Text(str("6 Haneli Doğrulama Kodu", "6-Digit Verification Code")) },
                             leadingIcon = {
@@ -489,19 +543,24 @@ fun AuthScreen(
                                 )
                             },
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
+                                keyboardType = KeyboardType.NumberPassword,
                                 imeAction = ImeAction.Done
                             ),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (canRegister) submitRegister() else dismissKeyboard()
+                            }),
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(otpFocusRequester),
                             shape = RoundedCornerShape(16.dp)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Button(
-                            onClick = { onIntent(AuthIntent.OnRegisterClicked) },
-                            enabled = !state.isLoading && registerCodeInput.length == 6,
+                            onClick = submitRegister,
+                            enabled = canRegister,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -526,6 +585,7 @@ fun AuthScreen(
                                     )
                                 )
                             }
+                        }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))

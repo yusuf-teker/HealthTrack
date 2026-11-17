@@ -191,6 +191,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
 
             var isOnboardingVisible by remember { mutableStateOf(!tokenStorage.hasSeenOnboarding()) }
             var isPremiumScreenOpen by remember { mutableStateOf(false) }
+            var premiumOfferType by remember { mutableStateOf<String?>(null) }
             var gamificationSectionOpen by remember { mutableStateOf<GamificationSection?>(null) }
             var isInitialSetupVisible by remember(session.isLoggedIn, session.userId) {
                 mutableStateOf(
@@ -461,6 +462,10 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onFinish = {
                             tokenStorage.setOnboardingSeen(true)
                             isOnboardingVisible = false
+                            if (!tokenStorage.isPremium()) {
+                                premiumOfferType = "welcome"
+                                isPremiumScreenOpen = true
+                            }
                         },
                         onLanguageSelected = { newLang ->
                             LocalizationManager.setLanguage(newLang)
@@ -483,9 +488,14 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     @OptIn(ExperimentalComposeUiApi::class)
                     BackHandler(enabled = true) {
                         isPremiumScreenOpen = false
+                        premiumOfferType = null
                     }
                     PremiumScreenRoot(
-                        onNavigateBack = { isPremiumScreenOpen = false },
+                        offerType = premiumOfferType,
+                        onNavigateBack = {
+                            isPremiumScreenOpen = false
+                            premiumOfferType = null
+                        },
                         onShowToast = showToast
                     )
                 } else if (gamificationSectionOpen != null) {
@@ -509,7 +519,10 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onBack = { isProfileScreenOpen = false },
                         onThemeAccentChanged = { currentThemeColor = it },
                         onDarkModeChanged = { isDark = it },
-                        onOpenPremium = { isPremiumScreenOpen = true },
+                        onOpenPremium = {
+                            premiumOfferType = null
+                            isPremiumScreenOpen = true
+                        },
                         onReplayOnboarding = {
                             isProfileScreenOpen = false
                             isOnboardingVisible = true
@@ -797,9 +810,19 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                 pagerState.animateScrollToPage(HealthTab.WEIGHT.ordinal)
                                             }
                                         },
+                                        onOpenPremiumOffer = {
+                                            premiumOfferType = "quota_exceeded"
+                                            isPremiumScreenOpen = true
+                                        },
                                         onShowToast = showToast
                                     )
-                                    HealthTab.WORKOUT -> WorkoutScreenRoot(onShowToast = showToast)
+                                    HealthTab.WORKOUT -> WorkoutScreenRoot(
+                                        onOpenPremiumOffer = {
+                                            premiumOfferType = "quota_exceeded"
+                                            isPremiumScreenOpen = true
+                                        },
+                                        onShowToast = showToast
+                                    )
                                     HealthTab.WEIGHT -> WeightScreenRoot(onShowToast = showToast)
                                     HealthTab.ANALYTICS -> AnalyticsScreenRoot(onShowToast = showToast)
                                 }

@@ -144,5 +144,45 @@ class FriendActivityMonitorTest {
         monitor.clearAll()
         assertNull(monitor.currentBanner.value)
     }
+
+    @Test
+    fun detectFriendActivityChangesSkipsMutedFriends() {
+        val previous = listOf(
+            FriendBaselineEntry(userId = 1, score = 100, caloriesBurned = 200, workoutMinutes = 20, healthyEatingScore = 60, streakDays = 2),
+            FriendBaselineEntry(userId = 2, score = 80, caloriesBurned = 0, workoutMinutes = 0, healthyEatingScore = 50, streakDays = 1)
+        )
+
+        val current = listOf(
+            LeaderboardEntryDto(rank = 1, userId = 1, name = "Ayşe", username = "ayse", score = 140, caloriesBurned = 450, workoutMinutes = 45, healthyEatingScore = 60, streakDays = 2),
+            LeaderboardEntryDto(rank = 2, userId = 2, name = "Mert", username = "mert", score = 90, caloriesBurned = 0, workoutMinutes = 30, healthyEatingScore = 50, streakDays = 1)
+        )
+
+        // Mute user 1 (Ayşe)
+        val events = FriendActivityMonitor.detectFriendActivityChanges(
+            previous = previous,
+            current = current,
+            dateIso = "2026-11-15",
+            nowMs = 5_000L,
+            mutedUserIds = setOf(1)
+        )
+
+        assertEquals(1, events.size)
+        assertEquals("Mert", events[0].actorName)
+    }
+
+    @Test
+    fun tokenStorageManagesMutedFriends() {
+        val storage = TokenStorage(MapSettings())
+        storage.saveSession(10, "Test", "test", "token", "refresh")
+
+        assertTrue(storage.isFriendWorkoutTrackingEnabled(99))
+        storage.setFriendWorkoutTrackingEnabled(99, enabled = false)
+        kotlin.test.assertFalse(storage.isFriendWorkoutTrackingEnabled(99))
+        assertEquals(setOf(99), storage.getMutedWorkoutFriendIds())
+
+        storage.setFriendWorkoutTrackingEnabled(99, enabled = true)
+        assertTrue(storage.isFriendWorkoutTrackingEnabled(99))
+        assertTrue(storage.getMutedWorkoutFriendIds().isEmpty())
+    }
 }
 

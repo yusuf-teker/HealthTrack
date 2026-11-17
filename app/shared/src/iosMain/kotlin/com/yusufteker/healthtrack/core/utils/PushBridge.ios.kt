@@ -36,6 +36,12 @@ object IosPushSwiftBridge {
         isForeground: Boolean
     ) {
         if (typeRaw != null && typeRaw.equals("MEAL", ignoreCase = true)) return
+        if (typeRaw != null && typeRaw.equals("WORKOUT", ignoreCase = true) && actorUserId > 0) {
+            val storage = TokenStorage(com.russhwolf.settings.NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults))
+            if (!storage.isFriendWorkoutTrackingEnabled(actorUserId)) {
+                return
+            }
+        }
         val event = FriendNotificationBus.emitFromPushPayload(
             id = id,
             actorName = actorName,

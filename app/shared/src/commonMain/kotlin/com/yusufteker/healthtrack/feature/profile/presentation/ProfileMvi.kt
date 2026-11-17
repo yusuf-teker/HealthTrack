@@ -55,6 +55,7 @@ data class ProfileState(
     val searchResults: List<FriendUserDto> = emptyList(),
     val isSearchingFriends: Boolean = false,
     val pendingActionUserIds: Set<Int> = emptySet(),
+    val mutedWorkoutFriendIds: Set<Int> = emptySet(),
     val lastDeviceSyncSummary: String? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null
@@ -111,6 +112,7 @@ sealed interface ProfileIntent {
     data class OnFriendSearchQueryChanged(val query: String) : ProfileIntent
     data class OnToggleFollowUser(val userId: Int) : ProfileIntent
     data class OnRemoveFollower(val userId: Int) : ProfileIntent
+    data class OnToggleFriendWorkoutTracking(val friendUserId: Int) : ProfileIntent
     data class OnAcceptFollowRequest(val requestId: Int) : ProfileIntent
     data class OnRejectFollowRequest(val requestId: Int) : ProfileIntent
     data object OnDismissInfoMessage : ProfileIntent

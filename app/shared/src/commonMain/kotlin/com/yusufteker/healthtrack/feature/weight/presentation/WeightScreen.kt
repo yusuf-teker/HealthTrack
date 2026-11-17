@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +60,7 @@ import com.yusufteker.healthtrack.ui.components.SpotlightTargetId
 import com.yusufteker.healthtrack.ui.components.ToastType
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
+import com.yusufteker.healthtrack.ui.components.rememberKeyboardDismisser
 import com.yusufteker.healthtrack.ui.components.spotlightTarget
 import io.github.aakira.napier.Napier
 
@@ -300,6 +303,7 @@ private fun AddWeightDialog(
     }
     val isDark = LocalIsDarkTheme.current
     val scrollState = rememberScrollState()
+    val dismissKeyboard = rememberKeyboardDismisser()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -388,7 +392,14 @@ private fun AddWeightDialog(
                     placeholder = { Text(str("Örn: 74.5", "e.g. 74.5")) },
                     isError = state.errorMessage != null,
                     supportingText = state.errorMessage?.let { err -> { Text(err) } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        // Klavyeden "Bitti" -> geçerli kilo girildiyse direkt kaydet
+                        dismissKeyboard()
+                        if (weightInput.toLocaleDoubleOrNull() != null) {
+                            onIntent(WeightIntent.OnSaveWeightClicked)
+                        }
+                    }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     singleLine = true
@@ -510,6 +521,7 @@ private fun AddWeightDialog(
                                 onIntent(WeightIntent.OnInputDateChanged(it))
                             },
                             label = { Text(str("Tarih (GG.AA.YYYY)", "Date (DD.MM.YYYY)")) },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
@@ -522,6 +534,8 @@ private fun AddWeightDialog(
                             },
                             label = { Text(str("Not (Opsiyonel)", "Note (Optional)")) },
                             placeholder = { Text(str("Aç karna, antrenman sonrası...", "Fasted morning, post-workout...")) },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { dismissKeyboard() }),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
@@ -558,6 +572,7 @@ private fun AddWeightDialog(
 
                     Button(
                         onClick = {
+                            dismissKeyboard()
                             onIntent(WeightIntent.OnSaveWeightClicked)
                         },
                         modifier = Modifier.weight(1.3f).height(48.dp).bounceClick(),

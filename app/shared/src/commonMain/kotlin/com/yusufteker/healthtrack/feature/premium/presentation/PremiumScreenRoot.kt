@@ -8,11 +8,16 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun PremiumScreenRoot(
+    offerType: String? = null,
     viewModel: PremiumViewModel = koinViewModel(),
     onNavigateBack: () -> Unit,
     onShowToast: (String) -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(offerType) {
+        viewModel.setOfferType(offerType)
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->

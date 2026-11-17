@@ -137,10 +137,9 @@ fun DeviceConnectionGuideDialog(
                             )
                         } else {
                             listOf(
-                                str("Telefonunuzdaki Zepp Life veya Mi Fitness uygulamasını açın.", "Open the Zepp Life or Mi Fitness app on your phone."),
-                                str("Profil → Üçüncü Taraf Verileri (Bağlı Uygulamalar) → \"$platformName\" yolunu izleyin.", "Go to Profile → Third-Party Data (Connected Apps) → \"$platformName\"."),
-                                str("Kilo, Vücut Yağ Oranı, Adım ve Egzersiz okuma/yazma izinlerini aktif edin.", "Enable Weight, Body Fat, Steps, and Workout sharing."),
-                                str("Tartıya çıktığınızda ölçümünüz otomatik olarak $platformName üzerinden HealthTrack'e akar.", "Whenever you weigh in, readings sync automatically via $platformName.")
+                                str("Zepp Life (Eski Mi Fit): Profil → Hesap Ekle → \"Google Fit\" bağlantısını açın. Ardından Play Store'dan \"Health Sync\" yükleyip Kaynak: Google Fit, Hedef: \"$platformName\" seçin (veya Google Fit Ayarlar → \"Fit'i $platformName ile senkronize et\" seçeneğini açın).", "Zepp Life: Profile → Add Accounts → connect \"Google Fit\". Then install \"Health Sync\" from Play Store, pick Source: Google Fit, Destination: \"$platformName\" (or enable \"Sync Fit with $platformName\" in Google Fit Settings)."),
+                                str("Mi Fitness / Zepp (Yeni Nesil): Profil → Üçüncü Taraf Verileri → \"$platformName\" seçeneğini doğrudan aktif edin.", "Mi Fitness / Zepp: Profile → Third-Party Data → enable \"$platformName\" directly."),
+                                str("Kilo, Vücut Yağ Oranı, Adım ve Egzersiz izinlerini açın; tartıya çıktığınızda ölçümünüz otomatik olarak $platformName üzerinden HealthTrack'e akar.", "Enable Weight, Body Fat, Steps, and Workout sharing so readings sync automatically via $platformName.")
                             )
                         }
                     )
@@ -163,9 +162,9 @@ fun DeviceConnectionGuideDialog(
                             )
                         } else {
                             listOf(
-                                str("Doğrudan Bağlantı: Huawei Sağlık → Ben → Gizlilik Yönetimi → Veri Paylaşımı → \"$platformName\" menüsünden Adım ve Egzersiz paylaşımını açın.", "Direct: Huawei Health → Me → Privacy Management → Data Sharing → \"$platformName\", enable Steps and Workouts."),
-                                str("Geçmiş 30 Günü Aktarmak İçin: Play Store'dan \"Health Sync\" yükleyip Kaynak: Huawei Health Kit, Hedef: \"$platformName\" seçin.", "Past 30 Days: Install \"Health Sync\" from Play Store, pick Source: Huawei Health Kit, Destination: \"$platformName\"."),
-                                str("Saatten antrenman başlatmasanız bile günlük adım ve tahmini kalori otomatik çekilir.", "Daily steps and active burn are imported automatically even without manual watch workouts.")
+                                str("Health Sync Köprüsü (Önerilen): Google Play Store'dan \"Health Sync\" uygulamasını indirin. Kaynak olarak \"Huawei Sağlık (Huawei Health)\", Hedef olarak \"$platformName\" seçip Adım, Egzersiz (Tenis, Koşu vb.), Nabız ve Kalori aktarımını açın.", "Health Sync Bridge (Recommended): Install \"Health Sync\" from Google Play. Set Source to \"Huawei Health\" and Destination to \"$platformName\", then enable Steps, Activities (Tennis, Running, etc.), Heart Rate & Calories."),
+                                str("Alternatif Doğrudan Bağlantı: Huawei Sağlık uygulamanızın sürümü destekliyorsa Ben → Gizlilik Yönetimi → Veri Paylaşımı → \"$platformName\" menüsünden de izin verebilirsiniz.", "Alternative Direct Sync: If supported by your Huawei Health version, go to Me → Privacy Management → Data Sharing → \"$platformName\" and enable permissions."),
+                                str("Saatten antrenman başlatmasanız bile günlük adım ve tahmini kalori otomatik çekilir; çakışmasız birleştirme ile çift sayım olmaz.", "Daily steps and active burn are imported automatically even without manual watch workouts, with conflict-free deduplication.")
                             )
                         }
                     )

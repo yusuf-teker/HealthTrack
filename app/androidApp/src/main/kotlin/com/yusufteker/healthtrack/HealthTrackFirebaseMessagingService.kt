@@ -42,6 +42,15 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
         val sportType = data["sportType"]
         val id = data["notificationId"] ?: message.messageId
 
+        if (typeRaw != null && typeRaw.equals("WORKOUT", ignoreCase = true) && actorUserId > 0) {
+            val prefs = getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+            val storage = TokenStorage(com.russhwolf.settings.SharedPreferencesSettings(prefs))
+            if (!storage.isFriendWorkoutTrackingEnabled(actorUserId)) {
+                Napier.d("Workout notification dropped for muted friend $actorUserId", tag = "FCM")
+                return
+            }
+        }
+
         val event = FriendNotificationBus.emitFromPushPayload(
             id = id,
             actorName = actorName,

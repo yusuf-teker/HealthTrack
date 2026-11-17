@@ -12,6 +12,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun WorkoutScreenRoot(
+    onOpenPremiumOffer: (() -> Unit)? = null,
     onShowToast: (String) -> Unit = {},
     viewModel: WorkoutViewModel = koinViewModel(),
     modifier: Modifier = Modifier
@@ -38,6 +39,7 @@ fun WorkoutScreenRoot(
     WorkoutScreen(
         state = state,
         onIntent = viewModel::onIntent,
+        onOpenPremiumOffer = onOpenPremiumOffer,
         modifier = modifier
     )
 }

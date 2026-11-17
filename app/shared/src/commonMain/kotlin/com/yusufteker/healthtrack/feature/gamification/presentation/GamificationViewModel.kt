@@ -39,7 +39,8 @@ class GamificationViewModel(
                 _state.update {
                     it.copy(
                         userId = session.userId,
-                        userName = if (session.name.isNotBlank()) session.name else session.username
+                        userName = if (session.name.isNotBlank()) session.name else session.username,
+                        mutedWorkoutFriendIds = tokenStorage.getMutedWorkoutFriendIds(session.userId)
                     )
                 }
                 summaryJob?.cancel()
@@ -121,6 +122,12 @@ class GamificationViewModel(
             }
             is GamificationIntent.OnSetSearchSheetOpen -> {
                 _state.update { it.copy(isSearchSheetOpen = intent.open) }
+            }
+            is GamificationIntent.OnSelectFriendProfile -> {
+                _state.update { it.copy(selectedFriendProfile = intent.user) }
+            }
+            is GamificationIntent.OnToggleFriendWorkoutTracking -> {
+                toggleFriendWorkoutTracking(intent.friendUserId)
             }
             is GamificationIntent.OnFriendSearchQueryChanged -> {
                 _state.update { it.copy(friendSearchQuery = intent.query) }
@@ -238,21 +245,46 @@ class GamificationViewModel(
                 val requestsDeferred = async { apiClient.getFollowRequests() }
                 val followersDeferred = async { apiClient.getFollowers() }
                 val followingDeferred = async { apiClient.getFollowing() }
+                val mutedDeferred = async { apiClient.getMutedWorkoutFriendIds() }
 
                 val requests = requestsDeferred.await().getOrNull()
                 val followers = followersDeferred.await().getOrNull()
                 val following = followingDeferred.await().getOrNull()
+                val mutedList = mutedDeferred.await().getOrNull()
+
+                mutedList?.let { tokenStorage.syncMutedWorkoutFriendIds(it) }
 
                 _state.update { current ->
                     current.copy(
                         followRequests = requests ?: current.followRequests,
                         followers = followers ?: current.followers,
                         following = following ?: current.following,
+                        mutedWorkoutFriendIds = tokenStorage.getMutedWorkoutFriendIds(),
                         isLoadingFollowRequests = false,
                         isLoadingSocialLists = false
                     )
                 }
             }
+        }
+    }
+
+    private fun toggleFriendWorkoutTracking(friendUserId: Int) {
+        if (friendUserId <= 0) return
+        val currentMuted = _state.value.mutedWorkoutFriendIds
+        val isCurrentlyMuted = currentMuted.contains(friendUserId)
+        val willBeEnabled = isCurrentlyMuted
+        tokenStorage.setFriendWorkoutTrackingEnabled(friendUserId, willBeEnabled)
+        val updatedMuted = if (willBeEnabled) currentMuted - friendUserId else currentMuted + friendUserId
+        val message = if (willBeEnabled) {
+            trEn("Arkadaşının spor takibi ve bildirimleri açıldı.", "Workout tracking & alerts enabled for this friend.")
+        } else {
+            trEn("Arkadaşının spor bildirimleri sessize alındı.", "Workout notifications muted for this friend.")
+        }
+        _state.update {
+            it.copy(mutedWorkoutFriendIds = updatedMuted, infoMessage = message)
+        }
+        viewModelScope.launch {
+            apiClient.toggleFriendWorkoutNotifications(friendUserId)
         }
     }
 

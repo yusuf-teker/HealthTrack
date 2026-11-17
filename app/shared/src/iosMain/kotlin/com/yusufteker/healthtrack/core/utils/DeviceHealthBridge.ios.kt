@@ -463,7 +463,7 @@ private fun mapDailyStepWorkouts(
                 .sumOf { it.caloriesBurned }
 
             val remainingActiveKcal = (totalDayActiveKcal - exerciseKcalOnDay)
-                .takeIf { it in 5..2500 } ?: 0
+                .takeIf { it in 5..6000 } ?: 0
 
             val dayHrSamples = heartRateByDate[isoDate].orEmpty()
             val dayHrBundle = if (dayHrSamples.isNotEmpty()) pickPreferredBundleId(dayHrSamples, preferredBundleId) else ""

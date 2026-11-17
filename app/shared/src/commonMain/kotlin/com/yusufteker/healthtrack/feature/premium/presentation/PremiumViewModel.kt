@@ -43,6 +43,8 @@ class PremiumViewModel(
     private val _effects = Channel<PremiumEffect>(Channel.BUFFERED)
     val effects: Flow<PremiumEffect> = _effects.receiveAsFlow()
 
+    private var currentOfferType: String? = null
+
     init {
         viewModelScope.launch {
             tokenStorage.isPremiumFlow.collect { isPrem ->
@@ -56,7 +58,7 @@ class PremiumViewModel(
         }
         viewModelScope.launch {
             LocalizationManager.languageFlow.collect { lang ->
-                val plans = localizedHealthTrackPlans(lang)
+                val plans = localizedHealthTrackPlans(lang, isSpecialOffer = !currentOfferType.isNullOrBlank())
                 val features = localizedHealthTrackFeatures(lang)
                 _state.update { current ->
                     val selected = plans.firstOrNull { it.id == current.selectedPlan.id } ?: plans.first()
@@ -67,8 +69,15 @@ class PremiumViewModel(
         loadPlansAndStatus()
     }
 
+    fun setOfferType(offerType: String?) {
+        currentOfferType = offerType
+        _state.update { it.copy(offerType = offerType) }
+        loadPlansAndStatus(offerType)
+    }
+
     fun onIntent(intent: PremiumIntent) {
         when (intent) {
+            is PremiumIntent.SetOfferType -> setOfferType(intent.offerType)
             is PremiumIntent.OnPlanSelected -> {
                 _state.update { it.copy(selectedPlan = intent.plan) }
             }
@@ -95,11 +104,20 @@ class PremiumViewModel(
         }
     }
 
-    private fun loadPlansAndStatus() {
+    private fun loadPlansAndStatus(offerType: String? = currentOfferType) {
         viewModelScope.launch {
             _state.update { it.copy(isSyncing = true) }
 
-            apiClient.fetchSubscriptionPlans().onSuccess { plans ->
+            val fallbackPlans = localizedHealthTrackPlans(
+                language = LocalizationManager.currentLanguage,
+                isSpecialOffer = !offerType.isNullOrBlank()
+            )
+            _state.update { current ->
+                val selected = fallbackPlans.firstOrNull { it.id == current.selectedPlan.id } ?: fallbackPlans.first()
+                current.copy(availablePlans = fallbackPlans, selectedPlan = selected)
+            }
+
+            apiClient.fetchSubscriptionPlans(offer = offerType).onSuccess { plans ->
                 if (plans.isNotEmpty()) {
                     _state.update { current ->
                         val matchingSelected = plans.firstOrNull { it.id == current.selectedPlan.id } ?: plans.first()

@@ -39,6 +39,9 @@ class FriendActivityMonitor(
     suspend fun observeLivePushBus() {
         FriendNotificationBus.liveEvents.collect { event ->
             if (!isSupportedNotification(event)) return@collect
+            if (event.type == FriendActivityType.WORKOUT && !tokenStorage.isFriendWorkoutTrackingEnabled(event.actorUserId)) {
+                return@collect
+            }
             if (tokenStorage.isLoggedIn()) {
                 enqueueForImmediateDisplay(event)
             } else {
@@ -57,6 +60,7 @@ class FriendActivityMonitor(
             tokenStorage.clearPendingFriendNotifications()
             storedPushes
                 .filter(::isSupportedNotification)
+                .filter { it.type != FriendActivityType.WORKOUT || tokenStorage.isFriendWorkoutTrackingEnabled(it.actorUserId) }
                 .forEach { enqueueForImmediateDisplay(it) }
         }
     }
@@ -70,6 +74,11 @@ class FriendActivityMonitor(
 
         // 1. Flush any push events persisted while app was closed / in background
         flushPendingPushes()
+
+        // Sync muted workout friend ids from backend
+        apiClient.getMutedWorkoutFriendIds().onSuccess { mutedList ->
+            tokenStorage.syncMutedWorkoutFriendIds(mutedList, userId)
+        }
 
         val nowMs = currentTimeMillis()
         val generatedEvents = mutableListOf<FriendNotificationEvent>()
@@ -101,11 +110,13 @@ class FriendActivityMonitor(
             val currentFriends = dto.entries.filter { !it.isCurrentUser && it.userId != userId }
 
             if (previousBaseline != null) {
+                val mutedIds = tokenStorage.getMutedWorkoutFriendIds(userId)
                 val detected = detectFriendActivityChanges(
                     previous = previousBaseline,
                     current = currentFriends,
                     dateIso = todayIso,
-                    nowMs = nowMs
+                    nowMs = nowMs,
+                    mutedUserIds = mutedIds
                 )
                 generatedEvents.addAll(detected)
             }
@@ -189,12 +200,14 @@ class FriendActivityMonitor(
             previous: List<FriendBaselineEntry>,
             current: List<LeaderboardEntryDto>,
             dateIso: String,
-            nowMs: Long = currentTimeMillis()
+            nowMs: Long = currentTimeMillis(),
+            mutedUserIds: Set<Int> = emptySet()
         ): List<FriendNotificationEvent> {
             val prevById = previous.associateBy { it.userId }
             val results = mutableListOf<FriendNotificationEvent>()
 
             current.forEach { entry ->
+                if (entry.userId in mutedUserIds) return@forEach
                 val prev = prevById[entry.userId] ?: return@forEach
                 val actor = entry.name.trim().substringBefore(" ")
                     .ifBlank { entry.username.ifBlank { "Arkadaşın" } }
