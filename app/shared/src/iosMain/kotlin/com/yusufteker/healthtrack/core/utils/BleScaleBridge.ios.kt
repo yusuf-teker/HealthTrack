@@ -10,6 +10,8 @@ import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import platform.CoreBluetooth.CBAdvertisementDataLocalNameKey
+import platform.CoreBluetooth.CBAdvertisementDataManufacturerDataKey
 import platform.CoreBluetooth.CBAdvertisementDataServiceDataKey
 import platform.CoreBluetooth.CBCentralManager
 import platform.CoreBluetooth.CBCentralManagerDelegateProtocol
@@ -90,42 +92,44 @@ private class IosBleScaleController : BleScaleBridge {
             advertisementData: Map<Any?, *>,
             RSSI: NSNumber
         ) {
-            val serviceData = advertisementData[CBAdvertisementDataServiceDataKey] as? Map<*, *> ?: return
+            val serviceData = advertisementData[CBAdvertisementDataServiceDataKey] as? Map<*, *>
             var bytes181B: ByteArray? = null
             var bytes181D: ByteArray? = null
 
-            for ((key, value) in serviceData) {
-                val uuidStr = (key as? CBUUID)?.UUIDString ?: continue
-                val data = value as? NSData ?: continue
-                when {
-                    uuidStr.equals("181B", ignoreCase = true) ||
-                        uuidStr.startsWith("0000181B", ignoreCase = true) -> {
-                        bytes181B = data.toByteArray()
-                    }
-                    uuidStr.equals("181D", ignoreCase = true) ||
-                        uuidStr.startsWith("0000181D", ignoreCase = true) -> {
-                        bytes181D = data.toByteArray()
+            if (serviceData != null) {
+                for ((key, value) in serviceData) {
+                    val uuidStr = (key as? CBUUID)?.UUIDString ?: continue
+                    val data = value as? NSData ?: continue
+                    when {
+                        uuidStr.equals("181B", ignoreCase = true) ||
+                            uuidStr.startsWith("0000181B", ignoreCase = true) -> {
+                            bytes181B = data.toByteArray()
+                        }
+                        uuidStr.equals("181D", ignoreCase = true) ||
+                            uuidStr.startsWith("0000181D", ignoreCase = true) -> {
+                            bytes181D = data.toByteArray()
+                        }
                     }
                 }
             }
 
-            val decoded = when {
-                bytes181B != null -> XiaomiScaleBleParser.parseServiceData(
-                    XiaomiScaleBleParser.SERVICE_UUID_BODY_COMPOSITION,
-                    bytes181B,
-                    heightCm = heightCm,
-                    age = age,
-                    isMale = isMale
-                )
-                bytes181D != null -> XiaomiScaleBleParser.parseServiceData(
-                    XiaomiScaleBleParser.SERVICE_UUID_WEIGHT_SCALE,
-                    bytes181D,
-                    heightCm = heightCm,
-                    age = age,
-                    isMale = isMale
-                )
-                else -> null
-            } ?: return
+            val mfgData = (advertisementData[CBAdvertisementDataManufacturerDataKey] as? NSData)?.toByteArray()
+            val manufacturerFrames = if (mfgData != null && mfgData.isNotEmpty()) listOf(mfgData) else emptyList()
+
+            if (bytes181B == null && bytes181D == null && manufacturerFrames.isEmpty()) return
+
+            val deviceName = (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
+                ?: didDiscoverPeripheral.name
+
+            val decoded = SmartScaleBleParser.parseAdvertisement(
+                serviceData181B = bytes181B,
+                serviceData181D = bytes181D,
+                manufacturerDataList = manufacturerFrames,
+                deviceName = deviceName,
+                heightCm = heightCm,
+                age = age,
+                isMale = isMale
+            ) ?: return
 
             val prevState = _state.value
             val prevReading = prevState.liveReading

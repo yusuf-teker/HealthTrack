@@ -169,7 +169,10 @@ fun BleScaleMeasureDialogContent(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = str("Xiaomi Mi Scale 1 & 2 (Doğrudan Okuma)", "Xiaomi Mi Scale 1 & 2 (Direct Read)"),
+                                text = str(
+                                    "Xiaomi, Polosmart (OKOK), Fitdays, Renpho (Doğrudan BLE)",
+                                    "Xiaomi, Polosmart (OKOK), Fitdays, Renpho (Direct BLE)"
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

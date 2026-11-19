@@ -143,28 +143,40 @@ actual fun rememberBleScaleBridge(): BleScaleBridge {
 
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                val serviceData = result.scanRecord?.serviceData ?: return
-                val bytes181B = serviceData[UUID_BODY_COMPOSITION]
-                val bytes181D = serviceData[UUID_WEIGHT_SCALE]
+                val record = result.scanRecord ?: return
+                val serviceData = record.serviceData
+                val bytes181B = serviceData?.get(UUID_BODY_COMPOSITION)
+                val bytes181D = serviceData?.get(UUID_WEIGHT_SCALE)
 
+                val manufacturerFrames = mutableListOf<ByteArray>()
+                val mfgSparse = record.manufacturerSpecificData
+                if (mfgSparse != null) {
+                    for (i in 0 until mfgSparse.size()) {
+                        val companyId = mfgSparse.keyAt(i)
+                        val payload = mfgSparse.valueAt(i) ?: continue
+                        // Reconstruct raw manufacturer bytes [companyIdLo, companyIdHi, payload...]
+                        // so Android matches iOS CBAdvertisementDataManufacturerDataKey byte-for-byte.
+                        val full = ByteArray(payload.size + 2)
+                        full[0] = (companyId and 0xFF).toByte()
+                        full[1] = ((companyId shr 8) and 0xFF).toByte()
+                        payload.copyInto(full, destinationOffset = 2)
+                        manufacturerFrames.add(full)
+                    }
+                }
+
+                if (bytes181B == null && bytes181D == null && manufacturerFrames.isEmpty()) return
+
+                val deviceName = record.deviceName ?: runCatching { result.device?.name }.getOrNull()
                 val (h, a, male) = activeProfile
-                val decoded = when {
-                    bytes181B != null -> XiaomiScaleBleParser.parseServiceData(
-                        XiaomiScaleBleParser.SERVICE_UUID_BODY_COMPOSITION,
-                        bytes181B,
-                        heightCm = h,
-                        age = a,
-                        isMale = male
-                    )
-                    bytes181D != null -> XiaomiScaleBleParser.parseServiceData(
-                        XiaomiScaleBleParser.SERVICE_UUID_WEIGHT_SCALE,
-                        bytes181D,
-                        heightCm = h,
-                        age = a,
-                        isMale = male
-                    )
-                    else -> null
-                } ?: return
+                val decoded = SmartScaleBleParser.parseAdvertisement(
+                    serviceData181B = bytes181B,
+                    serviceData181D = bytes181D,
+                    manufacturerDataList = manufacturerFrames,
+                    deviceName = deviceName,
+                    heightCm = h,
+                    age = a,
+                    isMale = male
+                ) ?: return
 
                 val prevState = stateFlow.value
                 val prevReading = prevState.liveReading

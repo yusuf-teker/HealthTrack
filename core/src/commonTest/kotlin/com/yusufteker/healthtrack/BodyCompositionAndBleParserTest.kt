@@ -1,6 +1,7 @@
 package com.yusufteker.healthtrack
 
 import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
+import com.yusufteker.healthtrack.core.utils.SmartScaleBleParser
 import com.yusufteker.healthtrack.core.utils.XiaomiScaleBleParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -194,6 +195,102 @@ class BodyCompositionAndBleParserTest {
         assertEquals(18.2, omittedMuscle.bodyFatPercent)
         assertNull(omittedMuscle.muscleMassKg)
         assertNull(omittedMuscle.musclePercent)
+    }
+
+    @Test
+    fun `parses OKOK C0 broadcast packet with weight impedance and checksum`() {
+        // 74.5 kg -> 745 (0x02E9 LE -> E9, 02), impedance 512 Ohm (0x0200 LE -> 00, 02), stabilized (flags=0x01)
+        val payload = byteArrayOf(
+            0xC0.toByte(),
+            0x04, // seq
+            0xE9.toByte(), 0x02, // weight = 745 -> 74.5 kg
+            0x00, 0x02, // impedance = 512 Ohm
+            0x12, 0x34, // product id
+            0x01, // flags: stabilized=1, kg, div=10
+            0x00 // placeholder checksum
+        )
+        var xor = 0
+        for (i in 1 until payload.lastIndex) xor = xor xor (payload[i].toInt() and 0xFF)
+        payload[payload.lastIndex] = xor.toByte()
+
+        val reading = SmartScaleBleParser.parseAdvertisement(
+            manufacturerDataList = listOf(payload),
+            deviceName = "Polosmart PSC05",
+            heightCm = 178.0,
+            age = 28,
+            isMale = true
+        )
+
+        assertNotNull(reading)
+        assertEquals(74.5, reading.weightKg)
+        assertEquals(512, reading.impedanceOhm)
+        assertTrue(reading.isStabilized)
+        assertEquals("Polosmart Smart Scale", reading.scaleModel)
+        assertNotNull(reading.bodyFatPercent)
+        assertNotNull(reading.muscleMassKg)
+
+        // Corrupt checksum must be rejected
+        payload[payload.lastIndex] = (xor xor 0xFF).toByte()
+        assertNull(
+            SmartScaleBleParser.parseAdvertisement(
+                manufacturerDataList = listOf(payload),
+                deviceName = "Polosmart PSC05",
+                heightCm = 178.0,
+                age = 28,
+                isMale = true
+            )
+        )
+    }
+
+    @Test
+    fun `parses Chipsea CA V20 and Fitdays Lefu AC02 broadcast packets`() {
+        // Chipsea CA V2.0: 81.2 kg (0x032C BE), impedance 4850 (485.0 Ohm -> 485 Ohm), locked=0x01
+        val caFrame = byteArrayOf(
+            0xCA.toByte(), 0x20, 0x0B,
+            0x00, 0x00, 0x00, 0x00, // product id
+            0x00, // flags (kg)
+            0x01, // locked/stabilized
+            0x05, // seq
+            0x03, 0x2C, // weight BE = 812 -> 81.2 kg
+            0x12, 0xF2.toByte(), // impedance BE = 4850 -> 485 Ohm
+            0x00 // placeholder XOR
+        )
+        var caXor = 0
+        for (i in 0 until caFrame.lastIndex) caXor = caXor xor (caFrame[i].toInt() and 0xFF)
+        caFrame[caFrame.lastIndex] = caXor.toByte()
+
+        val caReading = SmartScaleBleParser.parseManufacturerData(
+            raw = caFrame,
+            deviceName = "Chipsea-BLE",
+            heightCm = 180.0,
+            age = 30,
+            isMale = true
+        )
+        assertNotNull(caReading)
+        assertEquals(81.2, caReading.weightKg)
+        assertEquals(485, caReading.impedanceOhm)
+        assertTrue(caReading.isStabilized)
+        assertNotNull(caReading.bodyFatPercent)
+
+        // Fitdays / Lefu AC 02: 84.1 kg (0x0349 BE), status=0xCA (stable), checksum=(0x03+0x49+0+0+0xCA)&0xFF = 0x16
+        val fitdaysFrame = byteArrayOf(
+            0xAC.toByte(), 0x02,
+            0x03, 0x49,
+            0x00, 0x00,
+            0xCA.toByte(),
+            0x16
+        )
+        val fitdaysReading = SmartScaleBleParser.parseManufacturerData(
+            raw = fitdaysFrame,
+            deviceName = "Renpho-Scale",
+            heightCm = 175.0,
+            age = 28,
+            isMale = true
+        )
+        assertNotNull(fitdaysReading)
+        assertEquals(84.1, fitdaysReading.weightKg)
+        assertTrue(fitdaysReading.isStabilized)
+        assertEquals("Renpho Smart Scale", fitdaysReading.scaleModel)
     }
 
     @Test
