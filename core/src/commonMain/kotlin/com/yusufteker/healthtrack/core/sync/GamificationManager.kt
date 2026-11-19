@@ -200,7 +200,7 @@ class GamificationManager(
     )
 
     fun observeSummary(userId: Int): Flow<GamificationSummary> {
-        if (userId <= 0) return flowOf(GamificationSummary())
+        if (userId == 0) return flowOf(GamificationSummary())
 
         val deviceConnectedFlow = tokenStorage?.hasConnectedDeviceFlow
             ?: flowOf(settings.getBoolean(TokenStorage.KEY_HAS_CONNECTED_DEVICE, false))

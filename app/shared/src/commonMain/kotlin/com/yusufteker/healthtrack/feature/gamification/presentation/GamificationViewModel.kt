@@ -39,20 +39,24 @@ class GamificationViewModel(
                 _state.update {
                     it.copy(
                         userId = session.userId,
+                        isGuest = session.isGuest,
                         userName = if (session.name.isNotBlank()) session.name else session.username,
+                        selectedSection = if (session.isGuest) GamificationSection.OVERVIEW else it.selectedSection,
                         mutedWorkoutFriendIds = tokenStorage.getMutedWorkoutFriendIds(session.userId)
                     )
                 }
                 summaryJob?.cancel()
-                if (session.userId > 0) {
+                if (session.hasActiveSession && session.userId != 0) {
                     summaryJob = viewModelScope.launch {
                         gamificationManager.observeSummary(session.userId).collect { summary ->
                             _state.update { it.copy(summary = summary) }
                         }
                     }
-                    loadFollowRequests()
-                    if (_state.value.selectedSection == GamificationSection.LEADERBOARD) {
-                        loadLeaderboard()
+                    if (session.isAuthenticated) {
+                        loadFollowRequests()
+                        if (_state.value.selectedSection == GamificationSection.LEADERBOARD) {
+                            loadLeaderboard()
+                        }
                     }
                 }
             }
@@ -60,10 +64,11 @@ class GamificationViewModel(
     }
 
     fun setInitialSection(section: GamificationSection) {
-        if (_state.value.selectedSection != section) {
-            _state.update { it.copy(selectedSection = section) }
+        val resolvedSection = if (tokenStorage.isGuest()) GamificationSection.OVERVIEW else section
+        if (_state.value.selectedSection != resolvedSection) {
+            _state.update { it.copy(selectedSection = resolvedSection) }
         }
-        if (section == GamificationSection.LEADERBOARD && _state.value.leaderboard == null) {
+        if (resolvedSection == GamificationSection.LEADERBOARD && _state.value.leaderboard == null) {
             loadLeaderboard()
         }
     }

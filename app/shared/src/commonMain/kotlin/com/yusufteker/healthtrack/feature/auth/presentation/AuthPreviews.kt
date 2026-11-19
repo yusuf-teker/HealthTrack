@@ -62,3 +62,35 @@ fun AuthScreenEnglishPreview() {
         )
     }
 }
+
+@Preview
+@Composable
+fun AuthScreenGuestUpgradeDarkPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        AuthScreen(
+            state = AuthState(
+                isGuestUpgrade = true,
+                hasGuestDataToTransfer = true,
+                transferGuestData = true,
+                identifier = "demo@healthtrack.com"
+            ),
+            onIntent = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun AuthScreenGuestUpgradeLightPreview() {
+    HealthTrackTheme(darkTheme = false) {
+        AuthScreen(
+            state = AuthState(
+                isGuestUpgrade = true,
+                hasGuestDataToTransfer = true,
+                transferGuestData = true,
+                isRegisterMode = true
+            ),
+            onIntent = {}
+        )
+    }
+}

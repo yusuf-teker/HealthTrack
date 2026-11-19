@@ -34,7 +34,7 @@ class WidgetSnapshotBuilder(
         val accentId = settings.getString("theme_accent", "ocean")
         val langCode = LocalizationManager.currentLanguage.code
 
-        if (!tokenStorage.isLoggedIn() || userId <= 0) {
+        if (!tokenStorage.hasActiveSession() || userId == 0) {
             return WidgetTelemetrySnapshot(
                 userId = 0,
                 dateIso = todayIso,
@@ -130,7 +130,7 @@ class WidgetSnapshotBuilder(
     }
 
     fun observeTodaySnapshot(userId: Int): Flow<WidgetTelemetrySnapshot> {
-        if (userId <= 0) {
+        if (userId == 0) {
             return flowOf(buildTodaySnapshot(userId = 0))
         }
         val dataFlow = combine(

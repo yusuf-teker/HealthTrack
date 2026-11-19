@@ -52,5 +52,18 @@ data class UserSession(
     val avatarId: String? = null,
     val isPremium: Boolean = false,
     val isLoggedIn: Boolean = false,
-    val profileImageUrl: String? = null
-)
+    val profileImageUrl: String? = null,
+    val isGuest: Boolean = false
+) {
+    /** True when the user is signed in with a real backend account. */
+    val isAuthenticated: Boolean
+        get() = isLoggedIn && !isGuest && userId > 0
+
+    /** True when the user can access the app (either authenticated or local-only guest). */
+    val hasActiveSession: Boolean
+        get() = isAuthenticated || (isGuest && userId == GUEST_USER_ID)
+
+    companion object {
+        const val GUEST_USER_ID = -1
+    }
+}

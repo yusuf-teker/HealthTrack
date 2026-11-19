@@ -16,6 +16,7 @@ enum class GamificationSection(val titleTr: String, val titleEn: String) {
 
 data class GamificationState(
     val userId: Int = 0,
+    val isGuest: Boolean = false,
     val userName: String = "",
     val selectedSection: GamificationSection = GamificationSection.OVERVIEW,
     val summary: GamificationSummary = GamificationSummary(),

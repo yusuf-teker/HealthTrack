@@ -72,6 +72,7 @@ fun ProfileScreen(
     onIntent: (ProfileIntent) -> Unit,
     onBack: () -> Unit,
     onOpenPremium: () -> Unit = {},
+    onOpenGuestAuth: () -> Unit = {},
     onReplayOnboarding: () -> Unit = {},
     onOpenWidgetPromo: (() -> Unit)? = null,
     onLogout: () -> Unit = {},
@@ -357,49 +358,126 @@ fun ProfileScreen(
             }
 
             if (selectedTab == ProfileTab.PROFILE_GOALS) {
-                // ── Section 1: Planora 1:1 Sosyal Profil Kahraman Kartı (Fotoğraf + Seri / Takipçi / Takip Edilen) ──
-                PlanoraProfileHeroCard(
-                    name = state.name,
-                    username = state.username,
-                    profileImageUrl = state.profileImageUrl,
-                    streakDays = state.streakDays,
-                    followersCount = state.followersCount,
-                    followingCount = state.followingCount,
-                    isPremium = state.isPremium,
-                    isUploadingImage = state.isUploadingProfileImage,
-                    onUploadProfileImageBytes = { bytes ->
-                        onIntent(ProfileIntent.OnUploadProfileImage(bytes))
-                    },
-                    onFollowersClick = {
-                        onIntent(ProfileIntent.OnRefreshSocial)
-                        followListTabToOpen = 0
-                    },
-                    onFollowingClick = {
-                        onIntent(ProfileIntent.OnRefreshSocial)
-                        followListTabToOpen = 1
-                    },
-                    onStreakClick = null
-                )
+                if (state.isGuest) {
+                    // ── Guest Mode Hero & Upgrade Card ──
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        elevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Person,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = str("Misafir Modu", "Guest Mode"),
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = str(
+                                            "Verilerin yalnızca bu cihazda tutuluyor",
+                                            "Your data is stored locally on this device"
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
 
-                // ── Section 1b: Arkadaş Bul & Ekle Pill Butonu ──
-                PlanoraFindFriendsButton(
-                    onClick = {
-                        onIntent(ProfileIntent.OnRefreshSocial)
-                        showSearchUsersSheet = true
+                            Text(
+                                text = str(
+                                    "Giriş yaparak veya hesap oluşturarak tüm öğün, kilo, antrenman ve hedef verilerini hesabına aktarabilir, bulut yedekleme ve liderlik tablosunu açabilirsin.",
+                                    "Sign in or create an account to transfer all your meals, weight, workouts & goals, and unlock cloud sync and leaderboards."
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Button(
+                                onClick = onOpenGuestAuth,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .bounceClick(),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text(
+                                    text = str("Giriş Yap / Verileri Hesaba Aktar", "Sign In / Transfer Data to Account"),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        }
                     }
-                )
-
-                // ── Section 1c: Gelen Arkadaşlık İstekleri Kartı ──
-                if (state.followRequests.isNotEmpty()) {
-                    PlanoraIncomingRequestsCard(
-                        requests = state.followRequests,
-                        onAccept = { requestId -> onIntent(ProfileIntent.OnAcceptFollowRequest(requestId)) },
-                        onReject = { requestId -> onIntent(ProfileIntent.OnRejectFollowRequest(requestId)) },
-                        onSeeAllClick = {
+                } else {
+                    // ── Section 1: Planora 1:1 Sosyal Profil Kahraman Kartı (Fotoğraf + Seri / Takipçi / Takip Edilen) ──
+                    PlanoraProfileHeroCard(
+                        name = state.name,
+                        username = state.username,
+                        profileImageUrl = state.profileImageUrl,
+                        streakDays = state.streakDays,
+                        followersCount = state.followersCount,
+                        followingCount = state.followingCount,
+                        isPremium = state.isPremium,
+                        isUploadingImage = state.isUploadingProfileImage,
+                        onUploadProfileImageBytes = { bytes ->
+                            onIntent(ProfileIntent.OnUploadProfileImage(bytes))
+                        },
+                        onFollowersClick = {
                             onIntent(ProfileIntent.OnRefreshSocial)
-                            followListTabToOpen = 2
+                            followListTabToOpen = 0
+                        },
+                        onFollowingClick = {
+                            onIntent(ProfileIntent.OnRefreshSocial)
+                            followListTabToOpen = 1
+                        },
+                        onStreakClick = null
+                    )
+
+                    // ── Section 1b: Arkadaş Bul & Ekle Pill Butonu ──
+                    PlanoraFindFriendsButton(
+                        onClick = {
+                            onIntent(ProfileIntent.OnRefreshSocial)
+                            showSearchUsersSheet = true
                         }
                     )
+
+                    // ── Section 1c: Gelen Arkadaşlık İstekleri Kartı ──
+                    if (state.followRequests.isNotEmpty()) {
+                        PlanoraIncomingRequestsCard(
+                            requests = state.followRequests,
+                            onAccept = { requestId -> onIntent(ProfileIntent.OnAcceptFollowRequest(requestId)) },
+                            onReject = { requestId -> onIntent(ProfileIntent.OnRejectFollowRequest(requestId)) },
+                            onSeeAllClick = {
+                                onIntent(ProfileIntent.OnRefreshSocial)
+                                followListTabToOpen = 2
+                            }
+                        )
+                    }
                 }
 
                 // ── Section 1d: Kompakt Fiziksel Bilgiler & BMI Şeridi ──
@@ -1508,6 +1586,22 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (state.isGuest) {
+                        Button(
+                            onClick = onOpenGuestAuth,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .bounceClick(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = str("Giriş Yap / Hesaba Aktar", "Sign In / Transfer to Account"),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
                     OutlinedButton(
                         onClick = { showLogoutDialog = true },
                         modifier = Modifier
@@ -1522,36 +1616,38 @@ fun ProfileScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = str("Çıkış Yap", "Sign Out"),
+                            contentDescription = if (state.isGuest) str("Misafir Modundan Çık", "Exit Guest Mode") else str("Çıkış Yap", "Sign Out"),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = str("Çıkış Yap", "Sign Out"),
+                            text = if (state.isGuest) str("Misafir Modundan Çık", "Exit Guest Mode") else str("Çıkış Yap", "Sign Out"),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.error
                         )
                     }
 
-                    TextButton(
-                        onClick = { showDeleteAccountDialog = true },
-                        enabled = !state.isDeletingAccount,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.DeleteForever,
-                            contentDescription = str("Hesabı Sil", "Delete Account"),
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (state.isDeletingAccount) str("Hesap Siliniyor...", "Deleting Account...") else str("Hesabı Kalıcı Olarak Sil", "Permanently Delete Account"),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
-                        )
+                    if (!state.isGuest) {
+                        TextButton(
+                            onClick = { showDeleteAccountDialog = true },
+                            enabled = !state.isDeletingAccount,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteForever,
+                                contentDescription = str("Hesabı Sil", "Delete Account"),
+                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (state.isDeletingAccount) str("Hesap Siliniyor...", "Deleting Account...") else str("Hesabı Kalıcı Olarak Sil", "Permanently Delete Account"),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
+                            )
+                        }
                     }
                 }
             }

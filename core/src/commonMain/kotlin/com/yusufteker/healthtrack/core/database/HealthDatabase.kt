@@ -18,6 +18,23 @@ private data class FavoriteFoodListPayload(
     val foodIds: List<String>
 )
 
+data class GuestMigrationSummary(
+    val foodsMigrated: Int = 0,
+    val workoutsMigrated: Int = 0,
+    val weightsMigrated: Int = 0,
+    val watersMigrated: Int = 0,
+    val customFoodsMigrated: Int = 0,
+    val goalMigrated: Boolean = false,
+    val favoritesMigrated: Int = 0,
+    val reportsMigrated: Int = 0,
+    val mealPlansMigrated: Int = 0
+) {
+    val totalRecords: Int
+        get() = foodsMigrated + workoutsMigrated + weightsMigrated + watersMigrated +
+            customFoodsMigrated + (if (goalMigrated) 1 else 0) + favoritesMigrated +
+            reportsMigrated + mealPlansMigrated
+}
+
 /**
  * HealthTrack Offline-First Local Database.
  * Acts as the Single Source of Truth (SSOT) for the entire application.
@@ -1119,6 +1136,345 @@ class HealthDatabase(
         if (changed) {
             _waterFlow.value = current
             persistChanges(KEY_WATER, current, upsertedRows)
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // GUEST MODE MIGRATION & USER DATA CLEANUP
+    // ─────────────────────────────────────────────────────────────
+
+    fun hasDataForUser(userId: Int): Boolean {
+        if (_foodsFlow.value.any { it.userId == userId && !it.isDeleted }) return true
+        if (_workoutsFlow.value.any { it.userId == userId && !it.isDeleted }) return true
+        if (_weightsFlow.value.any { it.userId == userId && !it.isDeleted }) return true
+        if (_waterFlow.value.any { it.userId == userId && it.amountMl > 0 }) return true
+        if (_goalsFlow.value[userId]?.let { !it.isDeleted } == true) return true
+        if (_customFoodsFlow.value.any { it.userId == userId }) return true
+        if (!_favoriteFoodsFlow.value[userId].isNullOrEmpty()) return true
+        if (_reportsFlow.value.any { it.userId == userId }) return true
+        if (_dailyMealPlansFlow.value.any { it.userId == userId }) return true
+        return false
+    }
+
+    /**
+     * Atomically transfers all local records owned by [guestUserId] to [targetUserId]
+     * and marks syncable entities as [SyncStatus.PENDING] so [SyncEngine] pushes them to the backend.
+     */
+    suspend fun migrateGuestDataToUser(
+        guestUserId: Int = UserSession.GUEST_USER_ID,
+        targetUserId: Int,
+        preferGuestGoal: Boolean = true
+    ): GuestMigrationSummary = dbMutex.withLock {
+        if (guestUserId == targetUserId || targetUserId <= 0) return@withLock GuestMigrationSummary()
+
+        val now = currentTimeMillis()
+
+        // 1. Foods
+        var foodsMigrated = 0
+        val foodsList = _foodsFlow.value.toMutableList()
+        val foodRows = mutableListOf<HealthRecordRow>()
+        for (i in foodsList.indices) {
+            val item = foodsList[i]
+            if (item.userId == guestUserId) {
+                val migrated = item.copy(
+                    userId = targetUserId,
+                    syncStatus = SyncStatus.PENDING,
+                    updatedAt = maxOf(item.updatedAt, now)
+                )
+                foodsList[i] = migrated
+                foodRows.add(migrated.toRow())
+                if (!item.isDeleted) foodsMigrated++
+            }
+        }
+        if (foodRows.isNotEmpty()) {
+            _foodsFlow.value = foodsList
+            persistChanges(KEY_FOODS, foodsList, foodRows)
+        }
+
+        // 2. Workouts
+        var workoutsMigrated = 0
+        val workoutsList = _workoutsFlow.value.toMutableList()
+        val workoutRows = mutableListOf<HealthRecordRow>()
+        for (i in workoutsList.indices) {
+            val item = workoutsList[i]
+            if (item.userId == guestUserId) {
+                val migrated = item.copy(
+                    userId = targetUserId,
+                    syncStatus = SyncStatus.PENDING,
+                    updatedAt = maxOf(item.updatedAt, now)
+                )
+                workoutsList[i] = migrated
+                workoutRows.add(migrated.toRow())
+                if (!item.isDeleted) workoutsMigrated++
+            }
+        }
+        if (workoutRows.isNotEmpty()) {
+            _workoutsFlow.value = workoutsList
+            persistChanges(KEY_WORKOUTS, workoutsList, workoutRows)
+        }
+
+        // 3. Weights
+        var weightsMigrated = 0
+        val weightsList = _weightsFlow.value.toMutableList()
+        val weightRows = mutableListOf<HealthRecordRow>()
+        for (i in weightsList.indices) {
+            val item = weightsList[i]
+            if (item.userId == guestUserId) {
+                val migrated = item.copy(
+                    userId = targetUserId,
+                    syncStatus = SyncStatus.PENDING,
+                    updatedAt = maxOf(item.updatedAt, now)
+                )
+                weightsList[i] = migrated
+                weightRows.add(migrated.toRow())
+                if (!item.isDeleted) weightsMigrated++
+            }
+        }
+        if (weightRows.isNotEmpty()) {
+            _weightsFlow.value = weightsList
+            persistChanges(KEY_WEIGHTS, weightsList, weightRows)
+        }
+
+        // 4. Water entries (recordId includes userId -> delete old guest rows, upsert target rows)
+        var watersMigrated = 0
+        val watersList = _waterFlow.value.toMutableList()
+        val guestWaters = watersList.filter { it.userId == guestUserId }
+        if (guestWaters.isNotEmpty()) {
+            val deleteIds = mutableListOf<String>()
+            val upsertRows = mutableListOf<HealthRecordRow>()
+            watersList.removeAll { it.userId == guestUserId }
+            guestWaters.forEach { gw ->
+                deleteIds.add("${guestUserId}_${gw.date}")
+                val existingIdx = watersList.indexOfFirst { it.userId == targetUserId && it.date == gw.date }
+                val merged = if (existingIdx >= 0) {
+                    val existing = watersList[existingIdx]
+                    existing.copy(
+                        amountMl = maxOf(existing.amountMl, gw.amountMl),
+                        targetMl = if (gw.targetMl > 0) gw.targetMl else existing.targetMl,
+                        updatedAt = maxOf(existing.updatedAt, gw.updatedAt, now),
+                        syncStatus = SyncStatus.PENDING
+                    )
+                } else {
+                    gw.copy(
+                        userId = targetUserId,
+                        updatedAt = maxOf(gw.updatedAt, now),
+                        syncStatus = SyncStatus.PENDING
+                    )
+                }
+                if (existingIdx >= 0) {
+                    watersList[existingIdx] = merged
+                } else {
+                    watersList.add(merged)
+                }
+                upsertRows.add(merged.toRow())
+                if (gw.amountMl > 0) watersMigrated++
+            }
+            _waterFlow.value = watersList
+            persistChanges(
+                legacyKey = KEY_WATER,
+                fullList = watersList,
+                rowsToUpsert = upsertRows,
+                deleteBucket = BUCKET_WATER,
+                idsToDelete = deleteIds
+            )
+        }
+
+        // 5. Nutrition Goal (recordId = userId.toString())
+        var goalMigrated = false
+        val goalsMap = _goalsFlow.value.toMutableMap()
+        val guestGoal = goalsMap.remove(guestUserId)
+        if (guestGoal != null) {
+            val existingGoal = goalsMap[targetUserId]
+            val shouldApplyGuestGoal = !guestGoal.isDeleted && (existingGoal == null || existingGoal.isDeleted || preferGuestGoal)
+            if (shouldApplyGuestGoal) {
+                val migratedGoal = guestGoal.copy(
+                    userId = targetUserId,
+                    updatedAt = maxOf(guestGoal.updatedAt, now),
+                    syncStatus = SyncStatus.PENDING
+                )
+                goalsMap[targetUserId] = migratedGoal
+                goalMigrated = true
+                if (useRowStore) {
+                    recordStore.deleteRecord(BUCKET_GOALS, guestUserId.toString())
+                    recordStore.upsertRecord(migratedGoal.toRow())
+                }
+            } else if (useRowStore) {
+                recordStore.deleteRecord(BUCKET_GOALS, guestUserId.toString())
+            }
+            _goalsFlow.value = goalsMap
+            if (!useRowStore) {
+                saveMap(KEY_GOALS, goalsMap)
+            }
+        }
+
+        // 6. Custom Foods
+        var customFoodsMigrated = 0
+        val customFoodsList = _customFoodsFlow.value.toMutableList()
+        val customFoodRows = mutableListOf<HealthRecordRow>()
+        for (i in customFoodsList.indices) {
+            val item = customFoodsList[i]
+            if (item.userId == guestUserId) {
+                val migrated = item.copy(userId = targetUserId, updatedAt = maxOf(item.updatedAt, now))
+                customFoodsList[i] = migrated
+                customFoodRows.add(migrated.toRow())
+                customFoodsMigrated++
+            }
+        }
+        if (customFoodRows.isNotEmpty()) {
+            _customFoodsFlow.value = customFoodsList
+            persistChanges(KEY_CUSTOM_FOODS, customFoodsList, customFoodRows)
+        }
+
+        // 7. Favorite Foods
+        var favoritesMigrated = 0
+        val favMap = _favoriteFoodsFlow.value.toMutableMap()
+        val guestFavs = favMap.remove(guestUserId)
+        if (guestFavs != null) {
+            val mergedFavs = (favMap[targetUserId].orEmpty() + guestFavs).distinct()
+            favoritesMigrated = guestFavs.size
+            if (mergedFavs.isNotEmpty()) {
+                favMap[targetUserId] = mergedFavs
+            }
+            _favoriteFoodsFlow.value = favMap
+            if (useRowStore) {
+                recordStore.deleteRecord(BUCKET_FAVORITE_FOODS, guestUserId.toString())
+                if (mergedFavs.isNotEmpty()) {
+                    recordStore.upsertRecord(favoriteRow(targetUserId, mergedFavs))
+                }
+            } else {
+                saveMap(KEY_FAVORITE_FOODS, favMap)
+            }
+        }
+
+        // 8. AI Reports
+        var reportsMigrated = 0
+        val reportsList = _reportsFlow.value.toMutableList()
+        val reportRows = mutableListOf<HealthRecordRow>()
+        for (i in reportsList.indices) {
+            val item = reportsList[i]
+            if (item.userId == guestUserId) {
+                val migrated = item.copy(userId = targetUserId)
+                reportsList[i] = migrated
+                reportRows.add(migrated.toRow())
+                reportsMigrated++
+            }
+        }
+        if (reportRows.isNotEmpty()) {
+            _reportsFlow.value = reportsList
+            persistChanges(KEY_AI_REPORTS, reportsList, reportRows)
+        }
+
+        // 9. Daily Meal Plans (recordId = "${userId}_$dateIso")
+        var mealPlansMigrated = 0
+        val plansList = _dailyMealPlansFlow.value.toMutableList()
+        val guestPlans = plansList.filter { it.userId == guestUserId }
+        if (guestPlans.isNotEmpty()) {
+            val deleteIds = mutableListOf<String>()
+            val upsertRows = mutableListOf<HealthRecordRow>()
+            plansList.removeAll { it.userId == guestUserId }
+            guestPlans.forEach { gp ->
+                deleteIds.add("${guestUserId}_${gp.dateIso}")
+                val existingIdx = plansList.indexOfFirst { it.userId == targetUserId && it.dateIso == gp.dateIso }
+                if (existingIdx < 0) {
+                    val migrated = gp.copy(userId = targetUserId)
+                    plansList.add(migrated)
+                    upsertRows.add(migrated.toRow())
+                    mealPlansMigrated++
+                }
+            }
+            _dailyMealPlansFlow.value = plansList
+            persistChanges(
+                legacyKey = KEY_DAILY_MEAL_PLANS,
+                fullList = plansList,
+                rowsToUpsert = upsertRows,
+                deleteBucket = BUCKET_DAILY_MEAL_PLANS,
+                idsToDelete = deleteIds
+            )
+        }
+
+        val summary = GuestMigrationSummary(
+            foodsMigrated = foodsMigrated,
+            workoutsMigrated = workoutsMigrated,
+            weightsMigrated = weightsMigrated,
+            watersMigrated = watersMigrated,
+            customFoodsMigrated = customFoodsMigrated,
+            goalMigrated = goalMigrated,
+            favoritesMigrated = favoritesMigrated,
+            reportsMigrated = reportsMigrated,
+            mealPlansMigrated = mealPlansMigrated
+        )
+        Napier.i(
+            "Migrated guest data ($guestUserId -> $targetUserId): total=${summary.totalRecords}",
+            tag = "HEALTH_DB"
+        )
+        summary
+    }
+
+    /**
+     * Deletes all local records belonging to [userId] without touching other users' cached data.
+     */
+    suspend fun clearUserData(userId: Int) = dbMutex.withLock {
+        val foodDeleteIds = _foodsFlow.value.filter { it.userId == userId }.map { it.id }
+        if (foodDeleteIds.isNotEmpty()) {
+            val remaining = _foodsFlow.value.filterNot { it.userId == userId }
+            _foodsFlow.value = remaining
+            persistChanges(KEY_FOODS, remaining, emptyList(), BUCKET_FOODS, foodDeleteIds)
+        }
+
+        val workoutDeleteIds = _workoutsFlow.value.filter { it.userId == userId }.map { it.id }
+        if (workoutDeleteIds.isNotEmpty()) {
+            val remaining = _workoutsFlow.value.filterNot { it.userId == userId }
+            _workoutsFlow.value = remaining
+            persistChanges(KEY_WORKOUTS, remaining, emptyList(), BUCKET_WORKOUTS, workoutDeleteIds)
+        }
+
+        val weightDeleteIds = _weightsFlow.value.filter { it.userId == userId }.map { it.id }
+        if (weightDeleteIds.isNotEmpty()) {
+            val remaining = _weightsFlow.value.filterNot { it.userId == userId }
+            _weightsFlow.value = remaining
+            persistChanges(KEY_WEIGHTS, remaining, emptyList(), BUCKET_WEIGHTS, weightDeleteIds)
+        }
+
+        val waterDeleteIds = _waterFlow.value.filter { it.userId == userId }.map { "${it.userId}_${it.date}" }
+        if (waterDeleteIds.isNotEmpty()) {
+            val remaining = _waterFlow.value.filterNot { it.userId == userId }
+            _waterFlow.value = remaining
+            persistChanges(KEY_WATER, remaining, emptyList(), BUCKET_WATER, waterDeleteIds)
+        }
+
+        if (_goalsFlow.value.containsKey(userId)) {
+            val remaining = _goalsFlow.value.toMutableMap().apply { remove(userId) }
+            _goalsFlow.value = remaining
+            if (useRowStore) recordStore.deleteRecord(BUCKET_GOALS, userId.toString())
+            else saveMap(KEY_GOALS, remaining)
+        }
+
+        val customDeleteIds = _customFoodsFlow.value.filter { it.userId == userId }.map { it.id }
+        if (customDeleteIds.isNotEmpty()) {
+            val remaining = _customFoodsFlow.value.filterNot { it.userId == userId }
+            _customFoodsFlow.value = remaining
+            persistChanges(KEY_CUSTOM_FOODS, remaining, emptyList(), BUCKET_CUSTOM_FOODS, customDeleteIds)
+        }
+
+        if (_favoriteFoodsFlow.value.containsKey(userId)) {
+            val remaining = _favoriteFoodsFlow.value.toMutableMap().apply { remove(userId) }
+            _favoriteFoodsFlow.value = remaining
+            if (useRowStore) recordStore.deleteRecord(BUCKET_FAVORITE_FOODS, userId.toString())
+            else saveMap(KEY_FAVORITE_FOODS, remaining)
+        }
+
+        val reportDeleteIds = _reportsFlow.value.filter { it.userId == userId }.map { it.id }
+        if (reportDeleteIds.isNotEmpty()) {
+            val remaining = _reportsFlow.value.filterNot { it.userId == userId }
+            _reportsFlow.value = remaining
+            persistChanges(KEY_AI_REPORTS, remaining, emptyList(), BUCKET_AI_REPORTS, reportDeleteIds)
+        }
+
+        val planDeleteIds = _dailyMealPlansFlow.value.filter { it.userId == userId }.map { "${it.userId}_${it.dateIso}" }
+        if (planDeleteIds.isNotEmpty()) {
+            val remaining = _dailyMealPlansFlow.value.filterNot { it.userId == userId }
+            _dailyMealPlansFlow.value = remaining
+            persistChanges(KEY_DAILY_MEAL_PLANS, remaining, emptyList(), BUCKET_DAILY_MEAL_PLANS, planDeleteIds)
         }
     }
 

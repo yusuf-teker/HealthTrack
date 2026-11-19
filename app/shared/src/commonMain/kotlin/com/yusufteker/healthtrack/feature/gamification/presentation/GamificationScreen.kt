@@ -272,14 +272,16 @@ fun GamificationScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Top Section Switcher (Rozetler & Seri vs Liderlik)
-                SectionSegmentedControl(
-                    selected = state.selectedSection,
-                    pendingRequestsCount = state.followRequests.size,
-                    onSelect = { onIntent(GamificationIntent.OnSectionSelected(it)) }
-                )
+                // Top Section Switcher (Rozetler & Seri vs Liderlik) — hidden in Guest Mode
+                if (!state.isGuest) {
+                    SectionSegmentedControl(
+                        selected = state.selectedSection,
+                        pendingRequestsCount = state.followRequests.size,
+                        onSelect = { onIntent(GamificationIntent.OnSectionSelected(it)) }
+                    )
+                }
 
-                when (state.selectedSection) {
+                when (if (state.isGuest) GamificationSection.OVERVIEW else state.selectedSection) {
                     GamificationSection.OVERVIEW -> {
                         OverviewSection(state = state, onIntent = onIntent, isDark = isDark)
                     }

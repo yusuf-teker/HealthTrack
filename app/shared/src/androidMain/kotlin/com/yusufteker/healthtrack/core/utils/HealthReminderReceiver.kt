@@ -231,7 +231,7 @@ class HealthReminderReceiver : BroadcastReceiver() {
             val settings = Settings()
             LocalizationManager.init(settings)
             val tokenStorage = TokenStorage(settings)
-            if (!tokenStorage.isLoggedIn()) return
+            if (!tokenStorage.hasActiveSession()) return
 
             val userId = tokenStorage.getUserId()
             val userName = tokenStorage.sessionFlow.value.name
@@ -393,7 +393,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         try {
             val settings = Settings()
             val tokenStorage = TokenStorage(settings)
-            if (!tokenStorage.isLoggedIn()) return
+            if (!tokenStorage.hasActiveSession()) return
 
             if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
                 scheduleDailyBroadcastAlarm(

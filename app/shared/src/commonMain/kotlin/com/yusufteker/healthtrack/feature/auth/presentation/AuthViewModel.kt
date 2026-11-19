@@ -10,6 +10,7 @@ import com.yusufteker.healthtrack.core.model.AuthResponse
 import com.yusufteker.healthtrack.core.model.LoginRequest
 import com.yusufteker.healthtrack.core.model.RegisterRequest
 import com.yusufteker.healthtrack.core.model.SendRegisterCodeRequest
+import com.yusufteker.healthtrack.core.model.UserSession
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
@@ -47,6 +48,19 @@ class AuthViewModel(
         }
     }
 
+    fun setGuestUpgradeMode(enabled: Boolean) {
+        val hasGuestData = enabled && database.hasDataForUser(UserSession.GUEST_USER_ID)
+        _state.update {
+            it.copy(
+                isGuestUpgrade = enabled,
+                hasGuestDataToTransfer = hasGuestData,
+                transferGuestData = true,
+                errorMessage = null,
+                infoMessage = null
+            )
+        }
+    }
+
     fun onIntent(intent: AuthIntent) {
         when (intent) {
             is AuthIntent.OnToggleAuthMode -> _state.update {
@@ -60,6 +74,7 @@ class AuthViewModel(
             is AuthIntent.OnRegisterPasswordChanged -> _state.update { it.copy(registerPassword = intent.value, errorMessage = null) }
             is AuthIntent.OnRegisterCodeChanged -> _state.update { it.copy(registerCode = intent.value.filter { ch -> ch.isDigit() }.take(6), errorMessage = null) }
             is AuthIntent.OnLanguageChanged -> LocalizationManager.setLanguage(intent.language, settings)
+            is AuthIntent.OnTransferGuestDataChanged -> _state.update { it.copy(transferGuestData = intent.transfer) }
             is AuthIntent.OnDismissError -> _state.update { it.copy(errorMessage = null, infoMessage = null) }
             is AuthIntent.OnLoginClicked -> performLogin()
             is AuthIntent.OnSendRegisterCodeClicked -> sendRegisterCode()
@@ -67,7 +82,21 @@ class AuthViewModel(
             is AuthIntent.OnEditRegisterInfoClicked -> _state.update {
                 it.copy(isRegisterCodeSent = false, registerCode = "", errorMessage = null, infoMessage = null)
             }
+            is AuthIntent.OnContinueAsGuestClicked -> continueAsGuest()
+            is AuthIntent.OnCancelGuestUpgradeClicked -> {
+                // Handled by AuthScreenRoot callback
+            }
             is AuthIntent.OnLogoutClicked -> performLogout()
+        }
+    }
+
+    private fun continueAsGuest() {
+        viewModelScope.launch {
+            val lang = _state.value.language
+            tokenStorage.startGuestSession(
+                guestName = trEn("Misafir", "Guest", lang)
+            )
+            _effects.send(AuthEffect.NavigateToHome)
         }
     }
 
@@ -94,7 +123,7 @@ class AuthViewModel(
 
             val result = apiClient.login(LoginRequest(identifier, password))
             result.onSuccess { response ->
-                handleAuthSuccess(response)
+                handleAuthSuccess(response, isRegister = false)
             }.onFailure { err ->
                 _state.update {
                     it.copy(
@@ -199,7 +228,7 @@ class AuthViewModel(
                 )
             )
             result.onSuccess { response ->
-                handleAuthSuccess(response)
+                handleAuthSuccess(response, isRegister = true)
             }.onFailure { err ->
                 _state.update {
                     it.copy(
@@ -217,7 +246,22 @@ class AuthViewModel(
         }
     }
 
-    private suspend fun handleAuthSuccess(response: AuthResponse) {
+    private suspend fun handleAuthSuccess(response: AuthResponse, isRegister: Boolean) {
+        val wasGuest = tokenStorage.isGuest()
+        val shouldMigrateGuest = wasGuest && _state.value.transferGuestData
+        var migratedCount = 0
+
+        if (shouldMigrateGuest) {
+            val migration = database.migrateGuestDataToUser(
+                guestUserId = UserSession.GUEST_USER_ID,
+                targetUserId = response.userId,
+                preferGuestGoal = isRegister
+            )
+            migratedCount = migration.totalRecords
+        } else if (wasGuest) {
+            database.clearUserData(UserSession.GUEST_USER_ID)
+        }
+
         tokenStorage.saveSession(
             userId = response.userId,
             name = response.name,
@@ -226,12 +270,13 @@ class AuthViewModel(
             refreshToken = response.refreshToken,
             avatarId = response.avatarId,
             profileImageUrl = response.profileImageUrl,
-            isPremium = response.isPremium
+            isPremium = response.isPremium,
+            preserveGuestPreferences = shouldMigrateGuest
         )
         tokenStorage.setPremium(response.isPremium, response.premiumUntil)
 
-        // Await initial sync so that weights, goals, workouts, and foods are restored
-        // BEFORE navigating to Home and before checking profile configuration.
+        // Await initial sync so that migrated guest records are pushed and existing
+        // cloud weights, goals, workouts, and foods are restored BEFORE navigating to Home.
         try {
             syncEngine.sync(forceFullPull = true)
         } catch (e: CancellationException) {
@@ -240,7 +285,25 @@ class AuthViewModel(
             Napier.e("Giriş/Kayıt sonrası senkronizasyon hatası: ${e.message}", tag = "AUTH_LOG")
         }
 
-        _state.update { it.copy(isLoading = false) }
+        if (shouldMigrateGuest && migratedCount > 0) {
+            _effects.send(
+                AuthEffect.ShowToast(
+                    trEn(
+                        "Misafir verilerin ($migratedCount kayıt) hesabına aktarıldı!",
+                        "Your guest data ($migratedCount records) has been transferred to your account!",
+                        _state.value.language
+                    )
+                )
+            )
+        }
+
+        _state.update {
+            it.copy(
+                isLoading = false,
+                isGuestUpgrade = false,
+                hasGuestDataToTransfer = false
+            )
+        }
         _effects.send(AuthEffect.NavigateToHome)
     }
 

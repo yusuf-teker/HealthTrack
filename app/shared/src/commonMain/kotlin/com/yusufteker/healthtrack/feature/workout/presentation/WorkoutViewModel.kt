@@ -53,9 +53,9 @@ class WorkoutViewModel(
     init {
         viewModelScope.launch {
             tokenStorage.sessionFlow
-                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
-                    if (session.isLoggedIn && session.userId > 0) {
+                    if (session.hasActiveSession && session.userId != 0) {
                         observeWorkoutsAndCalories(session.userId, _state.value.selectedDate)
                         observeAllWorkoutsHistory(session.userId)
                         observeWeight(session.userId)
@@ -68,7 +68,7 @@ class WorkoutViewModel(
     private fun refreshAiQuota() {
         val hasCustomKey = !tokenStorage.getCustomGeminiApiKey().isNullOrBlank()
         _state.update { it.copy(hasCustomGeminiKey = hasCustomKey) }
-        if (hasCustomKey) return
+        if (hasCustomKey || !tokenStorage.isAuthenticated()) return
         viewModelScope.launch {
             apiClient.getAiQuota().onSuccess { quota ->
                 _state.update { it.copy(aiQuota = quota) }
@@ -81,7 +81,7 @@ class WorkoutViewModel(
             is WorkoutIntent.OnDateChanged -> {
                 _state.update { it.copy(selectedDate = intent.newDate) }
                 val userId = tokenStorage.getUserId()
-                if (userId > 0) {
+                if (userId != 0) {
                     observeWorkoutsAndCalories(userId, intent.newDate)
                 }
             }

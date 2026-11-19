@@ -5,7 +5,7 @@
 -renamesourcefileattribute SourceFile
 
 # Preserve annotations for serialization and framework reflection
--keepattributes *Annotation*,Signature,Exception
+-keepAppe misafir modu getirmek ne kadar zor olurattributes *Annotation*,Signature,Exception
 
 # Kotlin Coroutines
 -keepclassmembers class kotlinx.coroutines.** {

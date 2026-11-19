@@ -1,5 +1,6 @@
 package com.yusufteker.healthtrack.feature.auth.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,13 +9,16 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Password
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PersonOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -149,8 +153,24 @@ fun AuthScreen(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = if (state.isGuestUpgrade) Arrangement.SpaceBetween else Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (state.isGuestUpgrade) {
+                            IconButton(
+                                onClick = {
+                                    dismissKeyboard()
+                                    onIntent(AuthIntent.OnCancelGuestUpgradeClicked)
+                                },
+                                enabled = !state.isLoading
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = str("Geri", "Back"),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                         LanguageSelectorPill(
                             selectedLanguage = state.language,
                             onLanguageSelected = { onIntent(AuthIntent.OnLanguageChanged(it)) }
@@ -246,7 +266,62 @@ fun AuthScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (state.isGuestUpgrade && state.hasGuestDataToTransfer) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 14.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CloudUpload,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = str(
+                                            "Misafir verilerimi hesabıma aktar",
+                                            "Transfer my guest data to account"
+                                        ),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = str(
+                                            "Öğün, kilo, antrenman, su ve hedeflerin otomatik kaydedilir.",
+                                            "Your meals, weight, workouts, water & goals will be saved."
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = state.transferGuestData,
+                                    onCheckedChange = {
+                                        onIntent(AuthIntent.OnTransferGuestDataChanged(it))
+                                    },
+                                    enabled = !state.isLoading
+                                )
+                            }
+                        }
+                    }
 
                     // Error Banner
                     if (state.errorMessage != null) {
@@ -607,6 +682,73 @@ fun AuthScreen(
                                 Text(str("Kodu Tekrar Gönder", "Resend Code"))
                             }
                         }
+                    }
+
+                    if (!state.isGuestUpgrade) {
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = str("veya", "or"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                dismissKeyboard()
+                                onIntent(AuthIntent.OnContinueAsGuestClicked)
+                            },
+                            enabled = !state.isLoading,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .bounceClick(),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PersonOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = str("Misafir Olarak Devam Et", "Continue as Guest"),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = str(
+                                "Verilerin sadece bu cihazda saklanır. İstediğin zaman giriş yapıp hesabına aktarabilirsin.",
+                                "Your data stays on this device. You can sign in and transfer it anytime."
+                            ),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            textAlign = TextAlign.Center
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))

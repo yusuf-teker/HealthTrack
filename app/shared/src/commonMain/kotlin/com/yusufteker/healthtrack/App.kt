@@ -143,7 +143,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val widgetBridge = rememberWidgetBridge()
             val currentAppVersion = rememberAppVersion()
             val session by tokenStorage.sessionFlow.collectAsState()
-            val widgetSnapshot by remember(session.isLoggedIn, session.userId, isDark, currentThemeColor, currentLanguage) {
+            val widgetSnapshot by remember(session.hasActiveSession, session.userId, isDark, currentThemeColor, currentLanguage) {
                 widgetSnapshotBuilder.observeTodaySnapshot(session.userId)
             }.collectAsState(initial = widgetSnapshotBuilder.buildTodaySnapshot(session.userId))
             var isWidgetPromoDialogVisible by remember { mutableStateOf(false) }
@@ -152,8 +152,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 val pName = getPlatform().name
                 pName.contains("iOS", ignoreCase = true) || pName.contains("iPad", ignoreCase = true)
             }
-            val gamificationSummary by remember(session.isLoggedIn, session.userId) {
-                if (session.isLoggedIn && session.userId > 0) {
+            val gamificationSummary by remember(session.hasActiveSession, session.userId) {
+                if (session.hasActiveSession && session.userId != 0) {
                     gamificationManager.observeSummary(session.userId)
                 } else {
                     kotlinx.coroutines.flow.flowOf(GamificationSummary())
@@ -193,14 +193,15 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             var isPremiumScreenOpen by remember { mutableStateOf(false) }
             var premiumOfferType by remember { mutableStateOf<String?>(null) }
             var gamificationSectionOpen by remember { mutableStateOf<GamificationSection?>(null) }
-            var isInitialSetupVisible by remember(session.isLoggedIn, session.userId) {
+            var isGuestAuthOpen by remember(session.isAuthenticated) { mutableStateOf(false) }
+            var isInitialSetupVisible by remember(session.hasActiveSession, session.userId) {
                 mutableStateOf(
-                    session.isLoggedIn &&
+                    session.hasActiveSession &&
                         !tokenStorage.isProfileConfigured() &&
                         database.getWeights(session.userId).isEmpty()
                 )
             }
-            var isProfileScreenOpen by remember(session.isLoggedIn) {
+            var isProfileScreenOpen by remember(session.hasActiveSession) {
                 mutableStateOf(false)
             }
             var isNotifPermDialogVisible by remember { mutableStateOf(false) }
@@ -210,8 +211,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val dailyReminderNotifier = rememberDailyReminderNotifier()
             val weeklyReportNotifier = rememberWeeklyReportNotifier()
 
-            LaunchedEffect(session.isLoggedIn, session.userId) {
-                if (session.isLoggedIn) {
+            LaunchedEffect(session.hasActiveSession, session.userId) {
+                if (session.hasActiveSession) {
                     if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
                         dailyReminderNotifier.scheduleEveningWorkoutReminder(
                             hour = tokenStorage.getWorkoutReminderHour(),
@@ -271,8 +272,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             // Register latest push token whenever user signs in or token refreshes
-            LaunchedEffect(session.isLoggedIn, session.userId, observedPushToken) {
-                if (session.isLoggedIn && session.userId > 0) {
+            LaunchedEffect(session.isAuthenticated, session.userId, observedPushToken) {
+                if (session.isAuthenticated && session.userId > 0) {
                     val pushToken = observedPushToken ?: tokenStorage.getFcmToken()
                     if (!pushToken.isNullOrBlank()) {
                         val platformLabel = if (isIosPlatform) "HEALTHTRACK_IOS" else "HEALTHTRACK_ANDROID"
@@ -282,8 +283,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             // On launch/login, restore stored pushes delivered while closed (live pushes arrive via direct FCM)
-            LaunchedEffect(session.isLoggedIn, session.userId) {
-                if (session.isLoggedIn && session.userId > 0) {
+            LaunchedEffect(session.isAuthenticated, session.userId) {
+                if (session.isAuthenticated && session.userId > 0) {
                     friendActivityMonitor.checkForUpdates(session.userId)
                 } else {
                     friendActivityMonitor.clearAll()
@@ -303,11 +304,12 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
 
             // Handle deep links emitted from Home Screen Widgets (e.g. + Öğün, Spor, Tartım)
             val pendingDeepLink by WidgetDeepLinkBus.pendingTarget.collectAsState()
-            LaunchedEffect(pendingDeepLink, session.isLoggedIn, isOnboardingVisible) {
+            LaunchedEffect(pendingDeepLink, session.hasActiveSession, isOnboardingVisible) {
                 val target = pendingDeepLink ?: return@LaunchedEffect
-                if (!session.isLoggedIn || isOnboardingVisible) return@LaunchedEffect
+                if (!session.hasActiveSession || isOnboardingVisible) return@LaunchedEffect
                 isProfileScreenOpen = false
                 isPremiumScreenOpen = false
+                isGuestAuthOpen = false
                 gamificationSectionOpen = null
                 val targetTab = when (target.tabName) {
                     "WORKOUT" -> HealthTab.WORKOUT
@@ -322,7 +324,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             val evaluateWidgetReminderAndSync: () -> Unit = {
-                if (session.isLoggedIn && session.userId > 0) {
+                if (session.hasActiveSession && session.userId != 0) {
                     val today = getTodayIso()
                     val pendingWaterMl = widgetBridge.consumePendingWaterDeltaMl(today)
                     if (pendingWaterMl > 0) {
@@ -356,12 +358,14 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             val lifecycleOwner = LocalLifecycleOwner.current
-            DisposableEffect(lifecycleOwner, session.isLoggedIn, session.userId, isOnboardingVisible, isProfileScreenOpen, isInitialSetupVisible) {
+            DisposableEffect(lifecycleOwner, session.hasActiveSession, session.isAuthenticated, session.userId, isOnboardingVisible, isProfileScreenOpen, isInitialSetupVisible) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         evaluateWidgetReminderAndSync()
-                        if (session.isLoggedIn && session.userId > 0) {
-                            friendActivityMonitor.flushPendingPushes()
+                        if (session.hasActiveSession && session.userId != 0) {
+                            if (session.isAuthenticated) {
+                                friendActivityMonitor.flushPendingPushes()
+                            }
                             if (tokenStorage.isAutoDeviceSyncEnabled()) {
                                 val nowMs = currentTimeMillis()
                                 val minResumeIntervalMs = 5 * 60 * 1000L
@@ -369,7 +373,10 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                     deviceHealthBridge.syncSilentlyIfAuthorized(days = 7) { result ->
                                         result.onSuccess { snapshot ->
                                             coroutineScope.launch {
-                                                deviceHealthSyncManager.mergeSnapshot(snapshot, syncToCloud = true)
+                                                deviceHealthSyncManager.mergeSnapshot(
+                                                    snapshot,
+                                                    syncToCloud = session.isAuthenticated
+                                                )
                                             }
                                         }
                                     }
@@ -385,22 +392,24 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             LaunchedEffect(
-                session.isLoggedIn,
+                session.hasActiveSession,
                 session.userId,
                 isOnboardingVisible,
                 isInitialSetupVisible,
                 isProfileScreenOpen,
                 isPremiumScreenOpen,
+                isGuestAuthOpen,
                 gamificationSectionOpen,
                 updateStatus
             ) {
                 evaluateWidgetReminderAndSync()
-                val canShowNotifPrompt = session.isLoggedIn &&
-                    session.userId > 0 &&
+                val canShowNotifPrompt = session.hasActiveSession &&
+                    session.userId != 0 &&
                     !isOnboardingVisible &&
                     !isInitialSetupVisible &&
                     !isProfileScreenOpen &&
                     !isPremiumScreenOpen &&
+                    !isGuestAuthOpen &&
                     gamificationSectionOpen == null &&
                     updateStatus == UpdateStatus.UpToDate &&
                     !isWidgetPromoDialogVisible &&
@@ -415,18 +424,25 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
-            LaunchedEffect(session.isLoggedIn, session.userId) {
-                if (session.isLoggedIn && session.userId > 0) {
-                    Napier.d("SYNC: Oturum açık, uygulama açılışında otomatik sync tetikleniyor (userId=${session.userId})...")
-                    apiClient.fetchSubscriptionStatus().onSuccess { subStatus ->
-                        tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
+            LaunchedEffect(session.hasActiveSession, session.isAuthenticated, session.userId) {
+                if (session.hasActiveSession && session.userId != 0) {
+                    if (session.isAuthenticated) {
+                        Napier.d("SYNC: Oturum açık, uygulama açılışında otomatik sync tetikleniyor (userId=${session.userId})...")
+                        apiClient.fetchSubscriptionStatus().onSuccess { subStatus ->
+                            tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
+                        }
+                        syncEngine.sync()
+                    } else {
+                        Napier.d("GUEST: Misafir modu aktif (userId=${session.userId}), bulut sync atlanıyor.")
                     }
-                    syncEngine.sync()
                     if (tokenStorage.isAutoDeviceSyncEnabled()) {
                         deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
                             result.onSuccess { snapshot ->
                                 coroutineScope.launch {
-                                    val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                                    val summary = deviceHealthSyncManager.mergeSnapshot(
+                                        snapshot,
+                                        syncToCloud = session.isAuthenticated
+                                    )
                                     if (summary.totalChanges > 0) {
                                         snackbarHostState.showSnackbar(summary.toUserMessage(currentLanguage))
                                     }
@@ -438,13 +454,13 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         isInitialSetupVisible = false
                         isProfileScreenOpen = false
                     }
-                } else if (!session.isLoggedIn) {
+                } else if (!session.hasActiveSession) {
                     Napier.d("SCREEN: AuthScreen açıldı")
                 }
             }
 
-            LaunchedEffect(selectedTab, session.isLoggedIn) {
-                if (session.isLoggedIn) {
+            LaunchedEffect(selectedTab, session.hasActiveSession) {
+                if (session.hasActiveSession) {
                     Napier.d("SCREEN: ${selectedTab.name} (${selectedTab.title}) açıldı")
                 }
             }
@@ -459,7 +475,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 if (isOnboardingVisible) {
                     @Suppress("DEPRECATION")
                     @OptIn(ExperimentalComposeUiApi::class)
-                    BackHandler(enabled = session.isLoggedIn) {
+                    BackHandler(enabled = session.hasActiveSession) {
                         tokenStorage.setOnboardingSeen(true)
                         isOnboardingVisible = false
                     }
@@ -467,7 +483,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onFinish = {
                             tokenStorage.setOnboardingSeen(true)
                             isOnboardingVisible = false
-                            if (!tokenStorage.isPremium()) {
+                            if (session.isAuthenticated && !tokenStorage.isPremium()) {
                                 premiumOfferType = "welcome"
                                 isPremiumScreenOpen = true
                             }
@@ -476,10 +492,25 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             LocalizationManager.setLanguage(newLang)
                         }
                     )
-                } else if (!session.isLoggedIn) {
+                } else if (!session.hasActiveSession) {
                     AuthScreenRoot(
                         onLoginSuccess = {
-                            // User logged in
+                            // User logged in or started guest session
+                        },
+                        onShowToast = showToast
+                    )
+                } else if (isGuestAuthOpen && session.isGuest) {
+                    @Suppress("DEPRECATION")
+                    @OptIn(ExperimentalComposeUiApi::class)
+                    BackHandler(enabled = true) {
+                        isGuestAuthOpen = false
+                    }
+                    AuthScreenRoot(
+                        isGuestUpgrade = true,
+                        onBackFromGuestUpgrade = { isGuestAuthOpen = false },
+                        onLoginSuccess = {
+                            isGuestAuthOpen = false
+                            isProfileScreenOpen = false
                         },
                         onShowToast = showToast
                     )
@@ -528,6 +559,10 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             premiumOfferType = null
                             isPremiumScreenOpen = true
                         },
+                        onOpenGuestAuth = {
+                            isProfileScreenOpen = false
+                            isGuestAuthOpen = true
+                        },
                         onReplayOnboarding = {
                             isProfileScreenOpen = false
                             isOnboardingVisible = true
@@ -541,12 +576,15 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onLogout = {
                             isProfileScreenOpen = false
                             isPremiumScreenOpen = false
+                            isGuestAuthOpen = false
                             gamificationSectionOpen = null
                             gamificationManager.clearAllCelebrations()
                             friendActivityMonitor.clearAll()
                             coroutineScope.launch {
-                                tokenStorage.getFcmToken()?.let { token ->
-                                    runCatching { apiClient.unregisterFcmToken(token) }
+                                if (session.isAuthenticated) {
+                                    tokenStorage.getFcmToken()?.let { token ->
+                                        runCatching { apiClient.unregisterFcmToken(token) }
+                                    }
                                 }
                                 database.clearAll()
                                 tokenStorage.clearSession()
@@ -660,7 +698,13 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                 )
                                             )
                                             Text(
-                                                text = if (session.name.isNotBlank()) session.name else "@${session.username}",
+                                                text = if (session.isGuest) {
+                                                    str("Misafir Modu • Lokal", "Guest Mode • Local")
+                                                } else if (session.name.isNotBlank()) {
+                                                    session.name
+                                                } else {
+                                                    "@${session.username}"
+                                                },
                                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -676,16 +720,18 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                         onClick = { gamificationSectionOpen = GamificationSection.OVERVIEW },
                                         modifier = Modifier.padding(end = 2.dp)
                                     )
-                                    // Lider Tablosu (Genel & Arkadaşlar)
-                                    IconButton(
-                                        onClick = { gamificationSectionOpen = GamificationSection.LEADERBOARD },
-                                        modifier = Modifier.bounceClick()
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.EmojiEvents,
-                                            contentDescription = str("Liderlik Tablosu", "Leaderboard"),
-                                            tint = Color(0xFFFACC15)
-                                        )
+                                    // Lider Tablosu (Genel & Arkadaşlar) — Misafir modunda gizli
+                                    if (!session.isGuest) {
+                                        IconButton(
+                                            onClick = { gamificationSectionOpen = GamificationSection.LEADERBOARD },
+                                            modifier = Modifier.bounceClick()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.EmojiEvents,
+                                                contentDescription = str("Liderlik Tablosu", "Leaderboard"),
+                                                tint = Color(0xFFFACC15)
+                                            )
+                                        }
                                     }
                                     // Profil Butonu
                                     IconButton(
@@ -837,7 +883,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
                 }
 
-                if (!session.isLoggedIn || isPremiumScreenOpen || isProfileScreenOpen || gamificationSectionOpen != null) {
+                if (!session.hasActiveSession || isGuestAuthOpen || isPremiumScreenOpen || isProfileScreenOpen || gamificationSectionOpen != null) {
                     SnackbarHost(
                         hostState = snackbarHostState,
                         modifier = Modifier
@@ -848,17 +894,19 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     )
                 }
 
-                // Top In-App Friend Activity Push Popup (Launch-restored & live)
-                FriendActivityBannerHost(
-                    event = activeFriendBanner,
-                    onOpenLeaderboard = {
-                        isProfileScreenOpen = false
-                        isPremiumScreenOpen = false
-                        gamificationSectionOpen = GamificationSection.LEADERBOARD
-                    },
-                    onDismiss = { friendActivityMonitor.dismissCurrentBanner() },
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
+                // Top In-App Friend Activity Push Popup (Launch-restored & live) — hidden in Guest Mode
+                if (!session.isGuest) {
+                    FriendActivityBannerHost(
+                        event = activeFriendBanner,
+                        onOpenLeaderboard = {
+                            isProfileScreenOpen = false
+                            isPremiumScreenOpen = false
+                            gamificationSectionOpen = GamificationSection.LEADERBOARD
+                        },
+                        onDismiss = { friendActivityMonitor.dismissCurrentBanner() },
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
+                }
 
                 // Global Motivational Reward Toast (+XP & goal progress on every active entry)
                 MotivationalToastHost(

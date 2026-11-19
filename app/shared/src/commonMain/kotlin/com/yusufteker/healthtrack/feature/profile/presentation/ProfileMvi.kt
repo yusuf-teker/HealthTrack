@@ -16,6 +16,7 @@ import com.yusufteker.healthtrack.theme.AppThemeColor
 
 data class ProfileState(
     val userId: Int = 0,
+    val isGuest: Boolean = false,
     val name: String = "",
     val username: String = "",
     val profileImageUrl: String? = null,

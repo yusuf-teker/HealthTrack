@@ -49,7 +49,7 @@ class DeviceHealthSyncManager(
         snapshot: DeviceHealthSnapshot,
         syncToCloud: Boolean
     ): DeviceSyncSummary = mutex.withLock {
-        val userId = tokenStorage.getUserId().takeIf { it > 0 } ?: 1
+        val userId = tokenStorage.getUserId().takeIf { it != 0 } ?: 1
         val now = currentTimeMillis()
 
         var importedWeights = 0

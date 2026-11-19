@@ -118,7 +118,7 @@ internal object HealthTrackWidgetStore {
         val builder = koin?.getOrNull<WidgetSnapshotBuilder>() ?: WidgetSnapshotBuilder(db, tokenStorage, settings)
 
         val userId = tokenStorage.getUserId()
-        if (tokenStorage.isLoggedIn() && userId > 0) {
+        if (tokenStorage.hasActiveSession() && userId != 0) {
             val today = getTodayIso()
             val currentSnapshot = builder.buildTodaySnapshot(userId, today)
             db.addWater(

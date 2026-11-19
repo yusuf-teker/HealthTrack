@@ -140,9 +140,9 @@ class FoodViewModel(
         }
         viewModelScope.launch {
             tokenStorage.sessionFlow
-                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
-                    if (session.isLoggedIn && session.userId > 0) {
+                    if (session.hasActiveSession && session.userId != 0) {
                         cachedWeights = database.getWeights(session.userId)
                         observeDataForCurrentDate(session.userId, _state.value.selectedDate)
                         observeGoal(session.userId)
@@ -161,7 +161,7 @@ class FoodViewModel(
     private fun refreshAiQuota() {
         val hasCustomKey = !tokenStorage.getCustomGeminiApiKey().isNullOrBlank()
         _state.update { it.copy(hasCustomGeminiKey = hasCustomKey) }
-        if (hasCustomKey) return
+        if (hasCustomKey || !tokenStorage.isAuthenticated()) return
         viewModelScope.launch {
             apiClient.getAiQuota().onSuccess { quota ->
                 _state.update { it.copy(aiQuota = quota) }
@@ -198,7 +198,7 @@ class FoodViewModel(
                     )
                 }
                 val userId = tokenStorage.getUserId()
-                if (userId > 0) {
+                if (userId != 0) {
                     observeDataForCurrentDate(userId, intent.newDate)
                     observeWaterAndWorkouts(userId, intent.newDate)
                     observeDailyMealPlan(userId, intent.newDate)
@@ -388,7 +388,7 @@ class FoodViewModel(
 
     private fun generateDailyMealPlan(force: Boolean = false) {
         val userId = tokenStorage.getUserId()
-        if (userId <= 0) return
+        if (userId == 0) return
         val currentDate = _state.value.selectedDate
 
         if (!force) {
@@ -522,7 +522,7 @@ class FoodViewModel(
 
     private fun hideFrequentFood(foodName: String) {
         val userId = tokenStorage.getUserId()
-        if (userId <= 0) return
+        if (userId == 0) return
         val normalized = foodName.trim().lowercase()
         tokenStorage.hideFrequentFoodName(userId, normalized)
         _state.update { current ->
@@ -1283,7 +1283,7 @@ class FoodViewModel(
 
     private fun addWater(deltaMl: Int) {
         val userId = tokenStorage.getUserId()
-        if (userId <= 0) return
+        if (userId == 0) return
         val date = _state.value.selectedDate
         val target = _state.value.dynamicWaterTargetMl
         viewModelScope.launch {
@@ -1305,7 +1305,7 @@ class FoodViewModel(
 
     private fun resetWater() {
         val userId = tokenStorage.getUserId()
-        if (userId <= 0) return
+        if (userId == 0) return
         val date = _state.value.selectedDate
         viewModelScope.launch {
             database.resetWater(userId, date)

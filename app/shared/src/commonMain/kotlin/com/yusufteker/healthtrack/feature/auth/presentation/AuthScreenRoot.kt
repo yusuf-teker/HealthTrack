@@ -10,10 +10,16 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun AuthScreenRoot(
     viewModel: AuthViewModel = koinViewModel(),
+    isGuestUpgrade: Boolean = false,
+    onBackFromGuestUpgrade: () -> Unit = {},
     onLoginSuccess: () -> Unit = {},
     onShowToast: (String) -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
+
+    LaunchedEffect(isGuestUpgrade) {
+        viewModel.setGuestUpgradeMode(isGuestUpgrade)
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
@@ -26,6 +32,12 @@ fun AuthScreenRoot(
 
     AuthScreen(
         state = state,
-        onIntent = viewModel::onIntent
+        onIntent = { intent ->
+            if (intent is AuthIntent.OnCancelGuestUpgradeClicked) {
+                onBackFromGuestUpgrade()
+            } else {
+                viewModel.onIntent(intent)
+            }
+        }
     )
 }

@@ -49,9 +49,9 @@ class AnalyticsViewModel(
     init {
         viewModelScope.launch {
             tokenStorage.sessionFlow
-                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
-                    if (session.isLoggedIn && session.userId > 0) {
+                    if (session.hasActiveSession && session.userId != 0) {
                         _state.update {
                             it.copy(
                                 userName = session.name.ifBlank { session.username },
@@ -534,7 +534,7 @@ class AnalyticsViewModel(
 
     private fun generateReportForSelection() {
         val s = _state.value
-        val userId = tokenStorage.getUserId().takeIf { it > 0 } ?: 1
+        val userId = tokenStorage.getUserId().takeIf { it != 0 } ?: 1
         val fitnessGoal = tokenStorage.getUserFitnessGoal()
         val userWeight = tokenStorage.getUserWeight().takeIf { it > 0.0 } ?: 72.0
         val targetWeight = tokenStorage.getUserTargetWeight().takeIf { it > 0.0 } ?: 70.0

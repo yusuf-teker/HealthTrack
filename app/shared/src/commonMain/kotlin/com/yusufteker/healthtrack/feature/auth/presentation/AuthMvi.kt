@@ -6,6 +6,9 @@ import com.yusufteker.healthtrack.core.model.UserSession
 
 data class AuthState(
     val isRegisterMode: Boolean = false,
+    val isGuestUpgrade: Boolean = false,
+    val transferGuestData: Boolean = true,
+    val hasGuestDataToTransfer: Boolean = false,
     val identifier: String = "",
     val password: String = "",
     val registerName: String = "",
@@ -31,10 +34,13 @@ sealed interface AuthIntent {
     data class OnRegisterPasswordChanged(val value: String) : AuthIntent
     data class OnRegisterCodeChanged(val value: String) : AuthIntent
     data class OnLanguageChanged(val language: AppLanguage) : AuthIntent
+    data class OnTransferGuestDataChanged(val transfer: Boolean) : AuthIntent
     data object OnLoginClicked : AuthIntent
     data object OnSendRegisterCodeClicked : AuthIntent
     data object OnRegisterClicked : AuthIntent
     data object OnEditRegisterInfoClicked : AuthIntent
+    data object OnContinueAsGuestClicked : AuthIntent
+    data object OnCancelGuestUpgradeClicked : AuthIntent
     data object OnLogoutClicked : AuthIntent
     data object OnDismissError : AuthIntent
 }

@@ -69,16 +69,18 @@ class ProfileViewModel(
     private fun observeSession() {
         viewModelScope.launch {
             tokenStorage.sessionFlow
-                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
-                    if (session.isLoggedIn && session.userId > 0) {
+                    if (session.hasActiveSession && session.userId != 0) {
                         hasUserModifiedWeight = false
                         _state.value = createInitialState()
                         observeLatestWeight(session.userId)
                         observeNutritionGoal(session.userId)
                         observeStreak(session.userId)
-                        refreshAiQuota()
-                        refreshSocialData()
+                        if (session.isAuthenticated) {
+                            refreshAiQuota()
+                            refreshSocialData()
+                        }
                     } else {
                         weightObservationJob?.cancel()
                         goalObservationJob?.cancel()
@@ -104,7 +106,7 @@ class ProfileViewModel(
     }
 
     private fun refreshAiQuota() {
-        if (!tokenStorage.getCustomGeminiApiKey().isNullOrBlank()) return
+        if (!tokenStorage.getCustomGeminiApiKey().isNullOrBlank() || !tokenStorage.isAuthenticated()) return
         viewModelScope.launch {
             apiClient.getAiQuota().onSuccess { quota ->
                 _state.update { it.copy(aiQuota = quota) }
@@ -113,7 +115,7 @@ class ProfileViewModel(
     }
 
     private fun observeNutritionGoal(userId: Int) {
-        if (userId <= 0) return
+        if (userId == 0) return
         goalObservationJob?.cancel()
         goalObservationJob = viewModelScope.launch {
             database.observeNutritionGoal(userId).collect { goal ->
@@ -157,6 +159,7 @@ class ProfileViewModel(
 
         return ProfileState(
             userId = userId,
+            isGuest = tokenStorage.isGuest(),
             name = name,
             username = username,
             profileImageUrl = profileImageUrl,
@@ -183,7 +186,7 @@ class ProfileViewModel(
     }
 
     private fun observeLatestWeight(userId: Int) {
-        if (userId <= 0) return
+        if (userId == 0) return
 
         weightObservationJob?.cancel()
         weightObservationJob = viewModelScope.launch {
@@ -742,7 +745,7 @@ class ProfileViewModel(
     private suspend fun persistProfileChanges() {
         val s = _state.value
         val userId = s.userId
-        if (userId <= 0) return
+        if (userId == 0) return
 
         try {
             // Update persistent token storage
@@ -843,7 +846,7 @@ class ProfileViewModel(
     override fun onCleared() {
         super.onCleared()
         val s = _state.value
-        if (s.userId > 0 && tokenStorage.isLoggedIn() && tokenStorage.getUserId() == s.userId) {
+        if (s.userId != 0 && tokenStorage.hasActiveSession() && tokenStorage.getUserId() == s.userId) {
             tokenStorage.setUserWeight(s.weightKg)
             tokenStorage.setUserTargetWeight(s.targetWeightKg)
             tokenStorage.setUserHeight(s.heightCm)

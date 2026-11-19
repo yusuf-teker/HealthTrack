@@ -25,7 +25,7 @@ object HealthReminderLogic {
         database: HealthDatabase,
         tokenStorage: TokenStorage
     ): Boolean {
-        if (userId <= 0) return false
+        if (userId == 0) return false
 
         val freq = tokenStorage.getWeightReminderFrequency()
         if (freq == WeightReminderFrequency.OFF) return false
@@ -101,7 +101,7 @@ object HealthReminderLogic {
         database: HealthDatabase,
         tokenStorage: TokenStorage
     ): Boolean {
-        if (userId <= 0) return false
+        if (userId == 0) return false
         if (!tokenStorage.isFoodReminderEnabled()) return false
 
         // Do not notify twice on the same day

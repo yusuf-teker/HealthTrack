@@ -50,9 +50,9 @@ class WeightViewModel(
     init {
         viewModelScope.launch {
             tokenStorage.sessionFlow
-                .distinctUntilChangedBy { it.isLoggedIn to it.userId }
+                .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
-                    if (session.isLoggedIn && session.userId > 0) {
+                    if (session.hasActiveSession && session.userId != 0) {
                         observeWeights(session.userId)
                     }
                 }

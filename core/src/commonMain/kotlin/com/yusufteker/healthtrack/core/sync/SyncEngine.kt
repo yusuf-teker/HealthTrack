@@ -37,6 +37,10 @@ class SyncEngine(
 
     private suspend fun performSync(forceFullPull: Boolean): Boolean = syncMutex.withLock {
         val userId = tokenStorage.getUserId()
+        if (tokenStorage.isGuest()) {
+            _syncState.value = SyncState.Idle
+            return@withLock false
+        }
         if (userId <= 0 || tokenStorage.getAccessToken().isNullOrBlank()) {
             _syncState.value = SyncState.Error(trEn("Oturum açılmamış.", "Not signed in."))
             return@withLock false

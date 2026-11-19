@@ -51,6 +51,9 @@ class TokenStorage(private val settings: Settings = Settings()) {
     fun getRefreshToken(): String? = settings.getStringOrNull(KEY_REFRESH_TOKEN)
     fun getUserId(): Int = settings.getInt(KEY_USER_ID, 0)
     fun isLoggedIn(): Boolean = !getAccessToken().isNullOrBlank() && getUserId() > 0
+    fun isGuest(): Boolean = settings.getBoolean(KEY_IS_GUEST, false) && getUserId() == UserSession.GUEST_USER_ID
+    fun isAuthenticated(): Boolean = isLoggedIn() && !isGuest()
+    fun hasActiveSession(): Boolean = isLoggedIn() || isGuest()
     fun getUsername(): String = settings.getString(KEY_USERNAME, "")
     fun getName(): String = settings.getString(KEY_NAME, "")
     fun getLastSyncTimestamp(): Long = settings.getLong(KEY_LAST_SYNC_TS, 0L)
@@ -191,7 +194,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
      * Returns true at most once per calendar day when the user has not yet added a home-screen widget.
      */
     fun shouldShowDailyWidgetReminder(todayIso: String, isWidgetInstalled: Boolean): Boolean {
-        if (!isLoggedIn() || isWidgetInstalled || !isWidgetReminderEnabled()) return false
+        if (!hasActiveSession() || isWidgetInstalled || !isWidgetReminderEnabled()) return false
         return getLastWidgetReminderDate() != todayIso
     }
 
@@ -221,6 +224,37 @@ class TokenStorage(private val settings: Settings = Settings()) {
         )
     }
 
+    fun startGuestSession(guestName: String = "Misafir") {
+        val prevUserId = getUserId()
+        if (prevUserId != UserSession.GUEST_USER_ID) {
+            clearUserScopedPreferences()
+        }
+
+        settings.remove(KEY_ACCESS_TOKEN)
+        settings.remove(KEY_REFRESH_TOKEN)
+        settings.remove(KEY_IS_PREMIUM)
+        settings.remove(KEY_PREMIUM_UNTIL)
+        settings.putInt(KEY_USER_ID, UserSession.GUEST_USER_ID)
+        settings.putBoolean(KEY_IS_GUEST, true)
+        settings.putString(KEY_NAME, guestName)
+        settings.putString(KEY_USERNAME, "guest")
+        _isPremiumFlow.value = false
+        _premiumUntilFlow.value = null
+
+        _sessionFlow.value = UserSession(
+            userId = UserSession.GUEST_USER_ID,
+            name = guestName,
+            username = "guest",
+            accessToken = "",
+            refreshToken = "",
+            avatarId = settings.getStringOrNull(KEY_AVATAR_ID),
+            profileImageUrl = null,
+            isPremium = false,
+            isLoggedIn = false,
+            isGuest = true
+        )
+    }
+
     fun saveSession(
         userId: Int,
         name: String,
@@ -229,13 +263,25 @@ class TokenStorage(private val settings: Settings = Settings()) {
         refreshToken: String,
         avatarId: String? = null,
         profileImageUrl: String? = null,
-        isPremium: Boolean = false
+        isPremium: Boolean = false,
+        preserveGuestPreferences: Boolean = false
     ) {
         val prevUserId = getUserId()
-        if (prevUserId != userId) {
+        val upgradingFromGuest = prevUserId == UserSession.GUEST_USER_ID && preserveGuestPreferences
+        if (prevUserId != userId && !upgradingFromGuest) {
             clearUserScopedPreferences()
+        } else if (upgradingFromGuest) {
+            // Preserve local guest profile & device settings, migrate hidden frequent foods, reset sync cursor
+            val guestHidden = getHiddenFrequentFoodNames(UserSession.GUEST_USER_ID)
+            if (guestHidden.isNotEmpty()) {
+                val mergedHidden = getHiddenFrequentFoodNames(userId) + guestHidden
+                settings.putString("${KEY_HIDDEN_FREQUENT_FOODS}_$userId", mergedHidden.joinToString("||"))
+                settings.remove("${KEY_HIDDEN_FREQUENT_FOODS}_${UserSession.GUEST_USER_ID}")
+            }
+            settings.remove(KEY_LAST_SYNC_TS)
         }
 
+        settings.remove(KEY_IS_GUEST)
         settings.putInt(KEY_USER_ID, userId)
         settings.putString(KEY_NAME, name)
         settings.putString(KEY_USERNAME, username)
@@ -262,7 +308,8 @@ class TokenStorage(private val settings: Settings = Settings()) {
             avatarId = avatarId,
             profileImageUrl = profileImageUrl?.takeIf { it.isNotBlank() },
             isPremium = isPremium,
-            isLoggedIn = true
+            isLoggedIn = true,
+            isGuest = false
         )
     }
 
@@ -305,6 +352,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
 
     fun clearSession() {
         settings.remove(KEY_USER_ID)
+        settings.remove(KEY_IS_GUEST)
         settings.remove(KEY_NAME)
         settings.remove(KEY_USERNAME)
         settings.remove(KEY_ACCESS_TOKEN)
@@ -321,15 +369,16 @@ class TokenStorage(private val settings: Settings = Settings()) {
             username = "",
             accessToken = "",
             refreshToken = "",
-            isLoggedIn = false
+            isLoggedIn = false,
+            isGuest = false
         )
     }
 
     private fun loadSession(): UserSession {
         val token = getAccessToken()
         val userId = getUserId()
-        return if (!token.isNullOrBlank() && userId > 0) {
-            UserSession(
+        return when {
+            !token.isNullOrBlank() && userId > 0 -> UserSession(
                 userId = userId,
                 name = getName(),
                 username = getUsername(),
@@ -338,16 +387,29 @@ class TokenStorage(private val settings: Settings = Settings()) {
                 avatarId = settings.getStringOrNull(KEY_AVATAR_ID),
                 profileImageUrl = getProfileImageUrl(),
                 isPremium = isPremium(),
-                isLoggedIn = true
+                isLoggedIn = true,
+                isGuest = false
             )
-        } else {
-            UserSession(
+            settings.getBoolean(KEY_IS_GUEST, false) && userId == UserSession.GUEST_USER_ID -> UserSession(
+                userId = UserSession.GUEST_USER_ID,
+                name = getName().ifBlank { "Misafir" },
+                username = "guest",
+                accessToken = "",
+                refreshToken = "",
+                avatarId = settings.getStringOrNull(KEY_AVATAR_ID),
+                profileImageUrl = null,
+                isPremium = false,
+                isLoggedIn = false,
+                isGuest = true
+            )
+            else -> UserSession(
                 userId = 0,
                 name = "",
                 username = "",
                 accessToken = "",
                 refreshToken = "",
-                isLoggedIn = false
+                isLoggedIn = false,
+                isGuest = false
             )
         }
     }
@@ -356,6 +418,7 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_ACCESS_TOKEN = "ht_access_token"
         private const val KEY_REFRESH_TOKEN = "ht_refresh_token"
         private const val KEY_USER_ID = "ht_user_id"
+        private const val KEY_IS_GUEST = "ht_is_guest"
         private const val KEY_NAME = "ht_name"
         private const val KEY_USERNAME = "ht_username"
         private const val KEY_AVATAR_ID = "ht_avatar_id"
