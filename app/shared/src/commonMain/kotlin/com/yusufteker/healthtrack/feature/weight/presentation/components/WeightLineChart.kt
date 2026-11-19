@@ -22,8 +22,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yusufteker.healthtrack.core.model.WeightChartMetric
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
+import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.theme.HealthColors
 import com.yusufteker.healthtrack.theme.LocalIsDarkTheme
@@ -34,7 +36,8 @@ import com.yusufteker.healthtrack.ui.components.bounceClick
 import kotlin.math.abs
 
 /**
- * Stitch Luxury Interactive Weight Trajectory Line Chart with bioluminescent area glow and neon curve.
+ * Stitch Luxury Interactive Weight & Body Composition Trajectory Line Chart
+ * with bioluminescent area glow, neon curve, and Weight / Body Fat % / Muscle % metric switching.
  */
 @Composable
 fun WeightLineChart(
@@ -42,20 +45,58 @@ fun WeightLineChart(
     targetWeightKg: Double,
     selectedPeriod: WeightChartPeriod,
     onPeriodSelect: (WeightChartPeriod) -> Unit,
+    selectedMetric: WeightChartMetric = WeightChartMetric.WEIGHT,
+    onMetricSelect: (WeightChartMetric) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkTheme.current
     val lang = appLang()
-    var selectedIndex by remember(entries, selectedPeriod) { mutableStateOf<Int?>(null) }
+    var selectedIndex by remember(entries, selectedPeriod, selectedMetric) { mutableStateOf<Int?>(null) }
 
-    val latestEntry = entries.lastOrNull()
-    val activeEntry = if (selectedIndex != null && selectedIndex!! in entries.indices) entries[selectedIndex!!] else latestEntry
-    val activePrevEntry = if (selectedIndex != null && selectedIndex!! > 0) entries[selectedIndex!! - 1] else if (entries.size > 1) entries[entries.size - 2] else null
+    val chartPoints = remember(entries, selectedMetric) {
+        entries.mapNotNull { entry ->
+            val value = when (selectedMetric) {
+                WeightChartMetric.WEIGHT -> entry.weightKg
+                WeightChartMetric.BODY_FAT -> entry.bodyFatPercent
+                WeightChartMetric.MUSCLE -> entry.musclePercent
+            }
+            value?.let { entry to it }
+        }
+    }
 
-    val periodDelta = if (entries.size >= 2) entries.last().weightKg - entries.first().weightKg else null
+    val activePair = if (selectedIndex != null && selectedIndex!! in chartPoints.indices) {
+        chartPoints[selectedIndex!!]
+    } else {
+        chartPoints.lastOrNull()
+    }
+    val activePrevPair = if (selectedIndex != null && selectedIndex!! > 0) {
+        chartPoints[selectedIndex!! - 1]
+    } else if (chartPoints.size > 1) {
+        chartPoints[chartPoints.size - 2]
+    } else null
+
+    val periodDelta = if (chartPoints.size >= 2) {
+        chartPoints.last().second - chartPoints.first().second
+    } else null
     val deltaToDisplay = if (selectedIndex != null) {
-        if (activePrevEntry != null && activeEntry != null) activeEntry.weightKg - activePrevEntry.weightKg else null
+        if (activePrevPair != null && activePair != null) activePair.second - activePrevPair.second else null
     } else periodDelta
+
+    val primaryColor = when (selectedMetric) {
+        WeightChartMetric.WEIGHT -> HealthColors.Primary
+        WeightChartMetric.BODY_FAT -> HealthColors.NutrientCarbs
+        WeightChartMetric.MUSCLE -> HealthColors.NutrientProtein
+    }
+    val strokeGradient = when (selectedMetric) {
+        WeightChartMetric.WEIGHT -> listOf(HealthColors.PrimaryGlow, HealthColors.Primary, HealthColors.PrimaryVariant)
+        WeightChartMetric.BODY_FAT -> HealthColors.GradientCarbs
+        WeightChartMetric.MUSCLE -> HealthColors.GradientProtein
+    }
+    val chartTitle = when (selectedMetric) {
+        WeightChartMetric.WEIGHT -> str("Kilo Eğrisi", "Weight Curve")
+        WeightChartMetric.BODY_FAT -> str("Vücut Yağ Eğrisi", "Body Fat Curve")
+        WeightChartMetric.MUSCLE -> str("Kas Oranı Eğrisi", "Muscle % Curve")
+    }
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -66,7 +107,7 @@ fun WeightLineChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Chart Header & Timeframe Switcher Tabs
             Row(
@@ -76,7 +117,7 @@ fun WeightLineChart(
             ) {
                 Column {
                     Text(
-                        text = str("Kilo Eğrisi", "Weight Curve"),
+                        text = chartTitle,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -84,7 +125,7 @@ fun WeightLineChart(
                     Text(
                         text = if (selectedIndex != null) str("Noktaya dokunuldu", "Point selected") else str("Trend & İnterpolasyon", "Trend & Interpolation"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = if (selectedIndex != null) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selectedIndex != null) primaryColor else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -99,6 +140,8 @@ fun WeightLineChart(
                     PeriodPill(
                         label = str("Hafta", "Week"),
                         selected = selectedPeriod == WeightChartPeriod.WEEKLY,
+                        accentColor = primaryColor,
+                        useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.WEEKLY)
@@ -107,6 +150,8 @@ fun WeightLineChart(
                     PeriodPill(
                         label = str("Ay", "Month"),
                         selected = selectedPeriod == WeightChartPeriod.MONTHLY,
+                        accentColor = primaryColor,
+                        useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.MONTHLY)
@@ -115,6 +160,8 @@ fun WeightLineChart(
                     PeriodPill(
                         label = str("Yıl", "Year"),
                         selected = selectedPeriod == WeightChartPeriod.YEARLY,
+                        accentColor = primaryColor,
+                        useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.YEARLY)
@@ -123,6 +170,8 @@ fun WeightLineChart(
                     PeriodPill(
                         label = str("Tümü", "All"),
                         selected = selectedPeriod == WeightChartPeriod.ALL,
+                        accentColor = primaryColor,
+                        useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.ALL)
@@ -131,8 +180,57 @@ fun WeightLineChart(
                 }
             }
 
+            // Metric Selector Strip (Kilo | Yağ % | Kas %)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isDark) HealthColors.SurfaceContainerLowest else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                WeightChartMetric.entries.forEach { metric ->
+                    val isMetricSelected = metric == selectedMetric
+                    val metricColor = when (metric) {
+                        WeightChartMetric.WEIGHT -> HealthColors.Primary
+                        WeightChartMetric.BODY_FAT -> HealthColors.NutrientCarbs
+                        WeightChartMetric.MUSCLE -> HealthColors.NutrientProtein
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (isMetricSelected) metricColor.copy(alpha = 0.18f) else Color.Transparent)
+                            .clickable {
+                                selectedIndex = null
+                                onMetricSelect(metric)
+                            }
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = metric.localizedTitle(lang),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            fontWeight = if (isMetricSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isMetricSelected) metricColor else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             // Active Tooltip Callout Overlay matching Stitch
-            if (activeEntry != null) {
+            if (activePair != null) {
+                val activeEntry = activePair.first
+                val activeValue = BodyCompositionCalculator.round1(activePair.second)
+                val formattedValue = when (selectedMetric) {
+                    WeightChartMetric.WEIGHT -> "$activeValue kg"
+                    WeightChartMetric.BODY_FAT -> "%$activeValue"
+                    WeightChartMetric.MUSCLE -> {
+                        val kgPart = activeEntry.muscleMassKg?.let { " · $it kg" }.orEmpty()
+                        "%$activeValue$kgPart"
+                    }
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -150,7 +248,7 @@ fun WeightLineChart(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(HealthColors.Primary)
+                                .background(primaryColor)
                         )
                         Text(
                             text = if (selectedIndex != null) {
@@ -168,28 +266,36 @@ fun WeightLineChart(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "${activeEntry.weightKg} kg",
+                            text = formattedValue,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = HealthColors.Primary
+                            color = primaryColor
                         )
                         if (deltaToDisplay != null) {
-                            val roundedDelta = ((deltaToDisplay * 10).toInt()) / 10.0
+                            val roundedDelta = BodyCompositionCalculator.round1(deltaToDisplay)
                             val sign = if (roundedDelta > 0) "+" else ""
+                            val unitLabel = when (selectedMetric) {
+                                WeightChartMetric.WEIGHT -> " kg"
+                                WeightChartMetric.BODY_FAT, WeightChartMetric.MUSCLE -> "%"
+                            }
                             val suffix = if (selectedIndex != null) {
-                                str("önceki güne göre", "vs prev day")
+                                str("önceki", "vs prev")
                             } else when (selectedPeriod) {
                                 WeightChartPeriod.WEEKLY -> str("bu hafta", "this week")
                                 WeightChartPeriod.MONTHLY -> str("bu ay", "this month")
                                 WeightChartPeriod.YEARLY -> str("bu yıl", "this year")
                                 WeightChartPeriod.ALL -> str("toplam", "overall")
                             }
+                            val isFavorable = when (selectedMetric) {
+                                WeightChartMetric.WEIGHT, WeightChartMetric.BODY_FAT -> roundedDelta <= 0.0
+                                WeightChartMetric.MUSCLE -> roundedDelta >= 0.0
+                            }
                             Text(
-                                text = "($sign$roundedDelta kg $suffix)",
+                                text = "($sign$roundedDelta$unitLabel $suffix)",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (roundedDelta <= 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                color = if (isFavorable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
                             )
-                        } else if (selectedIndex == null && entries.size == 1) {
+                        } else if (selectedIndex == null && chartPoints.size == 1) {
                             Text(
                                 text = str("(Kayıtlı)", "(Logged)"),
                                 style = MaterialTheme.typography.labelSmall,
@@ -200,42 +306,64 @@ fun WeightLineChart(
                 }
             }
 
-            if (entries.isEmpty()) {
+            if (chartPoints.isEmpty()) {
+                val emptyText = when (selectedMetric) {
+                    WeightChartMetric.WEIGHT -> str(
+                        "Grafik için henüz yeterli kilo kaydı yok.",
+                        "Not enough weigh-ins for a chart yet."
+                    )
+                    WeightChartMetric.BODY_FAT -> str(
+                        "Henüz yağ oranı kaydı yok. Bluetooth tartı ile ölçün veya manuel ekleyin.",
+                        "No body fat readings yet. Measure via Bluetooth scale or enter manually."
+                    )
+                    WeightChartMetric.MUSCLE -> str(
+                        "Henüz kas oranı kaydı yok. Akıllı tartıdan okuyun veya manuel ekleyin.",
+                        "No muscle readings yet. Measure via smart scale or enter manually."
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp),
+                        .height(180.dp)
+                        .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = str("Grafik için henüz yeterli kilo kaydı yok.", "Not enough weigh-ins for a chart yet."),
+                        text = emptyText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
                 // Interactive SVG/Canvas Smooth Bezier Telemetry Chart
-                val primaryColor = HealthColors.Primary
                 val targetLineColor = MaterialTheme.colorScheme.tertiary
                 val gridColor = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
 
-                val weights = entries.map { it.weightKg }
-                val minWeight = (weights.minOrNull() ?: targetWeightKg).coerceAtMost(targetWeightKg) - 1.5
-                val maxWeight = (weights.maxOrNull() ?: targetWeightKg).coerceAtLeast(targetWeightKg) + 1.5
-                val weightRange = (maxWeight - minWeight).coerceAtLeast(1.0)
+                val values = chartPoints.map { it.second }
+                val minValue = if (selectedMetric == WeightChartMetric.WEIGHT) {
+                    (values.minOrNull() ?: targetWeightKg).coerceAtMost(targetWeightKg) - 1.5
+                } else {
+                    (values.minOrNull() ?: 10.0) - 1.5
+                }
+                val maxValue = if (selectedMetric == WeightChartMetric.WEIGHT) {
+                    (values.maxOrNull() ?: targetWeightKg).coerceAtLeast(targetWeightKg) + 1.5
+                } else {
+                    (values.maxOrNull() ?: 50.0) + 1.5
+                }
+                val valueRange = (maxValue - minValue).coerceAtLeast(1.0)
 
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(190.dp)
                         .padding(horizontal = 4.dp, vertical = 8.dp)
-                        .pointerInput(entries) {
+                        .pointerInput(chartPoints) {
                             detectTapGestures { offset ->
-                                if (entries.isNotEmpty()) {
+                                if (chartPoints.isNotEmpty()) {
                                     val canvasW = size.width.toFloat()
-                                    val stepX = if (entries.size > 1) canvasW / (entries.size - 1) else canvasW / 2f
-                                    val closestIndex = entries.indices.minByOrNull { i ->
-                                        val nodeX = if (entries.size > 1) i.toFloat() * stepX else canvasW / 2f
+                                    val stepX = if (chartPoints.size > 1) canvasW / (chartPoints.size - 1) else canvasW / 2f
+                                    val closestIndex = chartPoints.indices.minByOrNull { i ->
+                                        val nodeX = if (chartPoints.size > 1) i.toFloat() * stepX else canvasW / 2f
                                         abs(nodeX - offset.x)
                                     }
                                     if (closestIndex != null) {
@@ -248,15 +376,17 @@ fun WeightLineChart(
                     val width = size.width
                     val height = size.height
 
-                    // 1. Target Dashed Reference Line
-                    val targetY = height - (((targetWeightKg - minWeight) / weightRange).toFloat() * height)
-                    drawLine(
-                        color = targetLineColor.copy(alpha = 0.7f),
-                        start = Offset(0f, targetY),
-                        end = Offset(width, targetY),
-                        strokeWidth = 2.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
-                    )
+                    // 1. Target Dashed Reference Line (Weight metric only)
+                    if (selectedMetric == WeightChartMetric.WEIGHT) {
+                        val targetY = height - (((targetWeightKg - minValue) / valueRange).toFloat() * height)
+                        drawLine(
+                            color = targetLineColor.copy(alpha = 0.7f),
+                            start = Offset(0f, targetY),
+                            end = Offset(width, targetY),
+                            strokeWidth = 2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
+                        )
+                    }
 
                     // 2. Horizontal Grid Lines
                     for (i in 1..3) {
@@ -271,11 +401,11 @@ fun WeightLineChart(
 
                     // 3. Data Points Coordinates with linear spacing
                     val points = mutableListOf<Offset>()
-                    val stepX = if (entries.size > 1) width / (entries.size - 1) else width / 2f
+                    val stepX = if (chartPoints.size > 1) width / (chartPoints.size - 1) else width / 2f
 
-                    entries.forEachIndexed { index, item ->
-                        val x = if (entries.size > 1) index * stepX else width / 2f
-                        val y = height - (((item.weightKg - minWeight) / weightRange).toFloat() * height)
+                    chartPoints.forEachIndexed { index, (_, metricVal) ->
+                        val x = if (chartPoints.size > 1) index * stepX else width / 2f
+                        val y = height - (((metricVal - minValue) / valueRange).toFloat() * height)
                         points.add(Offset(x, y))
                     }
 
@@ -309,13 +439,7 @@ fun WeightLineChart(
                         }
                         drawPath(
                             path = strokePath,
-                            brush = Brush.horizontalGradient(
-                                listOf(
-                                    HealthColors.PrimaryGlow,
-                                    HealthColors.Primary,
-                                    HealthColors.PrimaryVariant
-                                )
-                            ),
+                            brush = Brush.horizontalGradient(strokeGradient),
                             style = Stroke(width = 3.5.dp.toPx())
                         )
 
@@ -365,28 +489,34 @@ fun WeightLineChart(
                                 .background(primaryColor)
                         )
                         Text(
-                            text = str("Kilo Takibi", "Weight Trend"),
+                            text = when (selectedMetric) {
+                                WeightChartMetric.WEIGHT -> str("Kilo Takibi", "Weight Trend")
+                                WeightChartMetric.BODY_FAT -> str("Vücut Yağ Oranı (%)", "Body Fat (%)")
+                                WeightChartMetric.MUSCLE -> str("Kas Oranı (%)", "Muscle Percentage (%)")
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(14.dp)
-                                .height(2.dp)
-                                .background(targetLineColor)
-                        )
-                        Text(
-                            text = str("Hedef ($targetWeightKg kg)", "Goal ($targetWeightKg kg)"),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = targetLineColor,
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (selectedMetric == WeightChartMetric.WEIGHT) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(14.dp)
+                                    .height(2.dp)
+                                    .background(targetLineColor)
+                            )
+                            Text(
+                                text = str("Hedef ($targetWeightKg kg)", "Goal ($targetWeightKg kg)"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = targetLineColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -398,12 +528,15 @@ fun WeightLineChart(
 private fun PeriodPill(
     label: String,
     selected: Boolean,
+    accentColor: Color = HealthColors.Primary,
+    useDarkSelectedText: Boolean = false,
     onClick: () -> Unit
 ) {
+    val selectedTextColor = if (useDarkSelectedText) HealthColors.OnBackgroundLight else HealthColors.OnPrimary
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (selected) HealthColors.Primary else Color.Transparent)
+            .background(if (selected) accentColor else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 4.dp)
             .bounceClick()
@@ -412,7 +545,7 @@ private fun PeriodPill(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) HealthColors.OnPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (selected) selectedTextColor else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

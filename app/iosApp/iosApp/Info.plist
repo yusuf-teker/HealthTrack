@@ -19,5 +19,7 @@
 		<string>whatsapp</string>
 		<string>x-apple-health</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Akıllı tartılardan (Xiaomi vb.) kilo, vücut yağ ve kas oranını doğrudan Bluetooth ile okumak için kullanılır.</string>
 </dict>
 </plist>

@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
+import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
+import com.yusufteker.healthtrack.core.model.DeviceWeightRecord
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
+import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.normalizeDateToIso
 import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import kotlinx.coroutines.Job
@@ -63,12 +67,25 @@ class WeightViewModel(
                     it.copy(selectedPeriod = intent.period, filteredEntries = filtered)
                 }
             }
+            is WeightIntent.OnMetricSelected -> _state.update { it.copy(selectedMetric = intent.metric) }
             is WeightIntent.OnInputDateChanged -> _state.update { it.copy(inputDate = intent.date) }
             is WeightIntent.OnInputWeightChanged -> _state.update { it.copy(inputWeight = intent.weight, errorMessage = null) }
+            is WeightIntent.OnInputBodyFatChanged -> _state.update { it.copy(inputBodyFat = intent.bodyFat, errorMessage = null) }
+            is WeightIntent.OnInputMuscleValueChanged -> _state.update { it.copy(inputMuscleValue = intent.muscleValue, errorMessage = null) }
+            is WeightIntent.OnToggleInputMuscleUnit -> _state.update { it.copy(inputMuscleIsPercent = !it.inputMuscleIsPercent, errorMessage = null) }
             is WeightIntent.OnInputNoteChanged -> _state.update { it.copy(inputNote = intent.note) }
             is WeightIntent.OnSetAddDialogOpen -> _state.update {
                 it.copy(isAddDialogOpen = intent.isOpen, errorMessage = if (intent.isOpen) null else it.errorMessage)
             }
+            is WeightIntent.OnSetBleScaleSheetOpen -> _state.update {
+                it.copy(
+                    isBleScaleSheetOpen = intent.isOpen,
+                    userHeightCm = tokenStorage.getUserHeight().takeIf { h -> h > 50.0 } ?: 175.0,
+                    userAge = tokenStorage.getUserAge().takeIf { a -> a > 0 } ?: 26,
+                    userIsMale = !tokenStorage.getUserGender().equals("FEMALE", ignoreCase = true)
+                )
+            }
+            is WeightIntent.OnSaveBleScaleReading -> saveBleScaleReading(intent.reading)
             is WeightIntent.OnSetEditingTarget -> _state.update { it.copy(isEditingTarget = intent.isEditing) }
             is WeightIntent.OnSaveTargetWeight -> saveTargetWeight(intent.newTargetWeight)
             is WeightIntent.OnSaveWeightClicked -> saveWeight()
@@ -140,13 +157,62 @@ class WeightViewModel(
         weightObservationJob?.cancel()
         weightObservationJob = viewModelScope.launch {
             database.observeWeights(userId).collect { entries ->
-                val sorted = entries.sortedBy { it.date }
+                val userHeightCm = tokenStorage.getUserHeight().takeIf { it > 50.0 } ?: 175.0
+                val userAge = tokenStorage.getUserAge().takeIf { it > 0 } ?: 26
+                val isMale = !tokenStorage.getUserGender().equals("FEMALE", ignoreCase = true)
+
+                val sorted = entries.sortedBy { it.date }.map { entry ->
+                    if (entry.bodyFatPercent == null || entry.musclePercent == null || entry.muscleMassKg == null) {
+                        val resolved = if (entry.bodyFatPercent != null) {
+                            BodyCompositionCalculator.resolveFromDevice(
+                                weightKg = entry.weightKg,
+                                bodyFatPercent = entry.bodyFatPercent,
+                                muscleMassKg = entry.muscleMassKg,
+                                musclePercent = entry.musclePercent,
+                                isMale = isMale
+                            )
+                        } else {
+                            BodyCompositionCalculator.parseLegacyBodyCompositionFromNote(
+                                note = entry.note,
+                                weightKg = entry.weightKg,
+                                isMale = isMale
+                            )
+                        }
+                        if (resolved != null) {
+                            entry.copy(
+                                bodyFatPercent = entry.bodyFatPercent ?: resolved.bodyFatPercent,
+                                muscleMassKg = entry.muscleMassKg ?: resolved.muscleMassKg,
+                                musclePercent = entry.musclePercent ?: resolved.musclePercent
+                            )
+                        } else {
+                            entry
+                        }
+                    } else {
+                        entry
+                    }
+                }
+
                 val userWeight = tokenStorage.getUserWeight().takeIf { it > 0.0 }
                 val initial = sorted.firstOrNull()?.weightKg ?: userWeight
                 val current = sorted.lastOrNull()?.weightKg ?: userWeight
                 val change = if (initial != null && current != null && sorted.isNotEmpty()) current - initial else null
                 val savedTarget = tokenStorage.getUserTargetWeight().takeIf { it > 0.0 } ?: 70.0
                 val target = sorted.lastOrNull { it.targetWeightKg != null }?.targetWeightKg ?: savedTarget
+
+                val fatEntries = sorted.filter { it.bodyFatPercent != null }
+                val currentFat = fatEntries.lastOrNull()?.bodyFatPercent
+                val firstFat = fatEntries.firstOrNull()?.bodyFatPercent
+                val fatChange = if (fatEntries.size >= 2 && firstFat != null && currentFat != null) {
+                    BodyCompositionCalculator.round1(currentFat - firstFat)
+                } else null
+
+                val muscleEntries = sorted.filter { it.musclePercent != null }
+                val currentMusclePct = muscleEntries.lastOrNull()?.musclePercent
+                val currentMuscleKg = muscleEntries.lastOrNull()?.muscleMassKg
+                val firstMusclePct = muscleEntries.firstOrNull()?.musclePercent
+                val musclePctChange = if (muscleEntries.size >= 2 && firstMusclePct != null && currentMusclePct != null) {
+                    BodyCompositionCalculator.round1(currentMusclePct - firstMusclePct)
+                } else null
 
                 // Keep tokenStorage user weight in sync with latest recorded entry
                 if (current != null && current > 0.0) {
@@ -161,7 +227,15 @@ class WeightViewModel(
                         initialWeightKg = initial,
                         currentWeightKg = current,
                         weightChangeKg = change,
-                        targetWeightKg = target
+                        targetWeightKg = target,
+                        currentBodyFatPercent = currentFat,
+                        bodyFatChangePercent = fatChange,
+                        currentMuscleMassKg = currentMuscleKg,
+                        currentMusclePercent = currentMusclePct,
+                        musclePercentChange = musclePctChange,
+                        userHeightCm = userHeightCm,
+                        userAge = userAge,
+                        userIsMale = isMale
                     )
                 }
             }
@@ -199,6 +273,63 @@ class WeightViewModel(
             return
         }
 
+        val rawBodyFat = _state.value.inputBodyFat.trim()
+        val parsedBodyFat = if (rawBodyFat.isEmpty()) {
+            null
+        } else {
+            val v = rawBodyFat.toLocaleDoubleOrNull()
+            if (v == null || v !in 3.0..75.0) {
+                _state.update {
+                    it.copy(
+                        errorMessage = trEn(
+                            "Lütfen %3 ile %75 arasında geçerli bir yağ oranı giriniz.",
+                            "Please enter a valid body fat percentage between 3 and 75.",
+                            lang
+                        )
+                    )
+                }
+                return
+            }
+            v
+        }
+
+        val rawMuscle = _state.value.inputMuscleValue.trim()
+        val isMusclePercent = _state.value.inputMuscleIsPercent
+        val parsedMuscle = if (rawMuscle.isEmpty()) {
+            null
+        } else {
+            val v = rawMuscle.toLocaleDoubleOrNull()
+            val isValid = if (v == null) false else if (isMusclePercent) v in 15.0..90.0 else v in 10.0..weight && v <= 120.0
+            if (!isValid) {
+                _state.update {
+                    it.copy(
+                        errorMessage = if (isMusclePercent) {
+                            trEn(
+                                "Lütfen %15 ile %90 arasında geçerli bir kas oranı giriniz.",
+                                "Please enter a valid muscle percentage between 15 and 90.",
+                                lang
+                            )
+                        } else {
+                            trEn(
+                                "Lütfen 10 kg ile kilonuz ($weight kg) arasında geçerli bir kas kütlesi giriniz.",
+                                "Please enter a valid muscle mass between 10 kg and your weight ($weight kg).",
+                                lang
+                            )
+                        }
+                    )
+                }
+                return
+            }
+            v
+        }
+
+        val manualComp = BodyCompositionCalculator.resolveFromManualInput(
+            weightKg = weight,
+            bodyFatPercent = parsedBodyFat,
+            muscleValue = parsedMuscle,
+            isMuscleUnitPercent = isMusclePercent
+        )
+
         viewModelScope.launch {
             val now = currentTime()
             // Check if entry for date already exists
@@ -211,6 +342,9 @@ class WeightViewModel(
                 date = date,
                 weightKg = weight,
                 targetWeightKg = target,
+                bodyFatPercent = manualComp.bodyFatPercent ?: existing?.bodyFatPercent,
+                muscleMassKg = manualComp.muscleMassKg ?: existing?.muscleMassKg,
+                musclePercent = manualComp.musclePercent ?: existing?.musclePercent,
                 note = note,
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
@@ -223,6 +357,8 @@ class WeightViewModel(
             _state.update {
                 it.copy(
                     inputWeight = "",
+                    inputBodyFat = "",
+                    inputMuscleValue = "",
                     inputNote = "",
                     isAddDialogOpen = false,
                     errorMessage = null,
@@ -231,6 +367,53 @@ class WeightViewModel(
             }
             _effects.send(WeightEffect.ShowToast(savedMsg))
             launch { syncEngine.sync() }
+        }
+    }
+
+    private fun saveBleScaleReading(reading: com.yusufteker.healthtrack.core.utils.BleScaleReading) {
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            val now = currentTime()
+            val todayIso = getTodayIso()
+            val snapshot = DeviceHealthSnapshot(
+                weights = listOf(
+                    DeviceWeightRecord(
+                        externalId = "ble_$now",
+                        date = todayIso,
+                        weightKg = reading.weightKg,
+                        bodyFatPercent = reading.bodyFatPercent,
+                        leanBodyMassKg = reading.leanBodyMassKg,
+                        boneMassKg = reading.boneMassKg,
+                        muscleMassKg = reading.muscleMassKg,
+                        musclePercent = reading.musclePercent,
+                        measuredAtMillis = now,
+                        sourcePackage = "ble.scale",
+                        sourceName = reading.scaleModel
+                    )
+                ),
+                platformName = "Bluetooth (${reading.scaleModel})"
+            )
+
+            val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+            val fatSuffix = reading.bodyFatPercent?.let { " • %$it ${trEn("Yağ", "Fat", lang)}" }.orEmpty()
+            val muscleSuffix = reading.musclePercent?.let { " • %$it ${trEn("Kas", "Muscle", lang)}" }.orEmpty()
+            val msg = if (summary.totalChanges > 0) {
+                trEn(
+                    "${reading.scaleModel} ölçümü kaydedildi: ${reading.weightKg} kg$fatSuffix$muscleSuffix",
+                    "${reading.scaleModel} reading saved: ${reading.weightKg} kg$fatSuffix$muscleSuffix",
+                    lang
+                )
+            } else {
+                summary.toUserMessage(lang)
+            }
+
+            _state.update {
+                it.copy(
+                    isBleScaleSheetOpen = false,
+                    infoMessage = msg
+                )
+            }
+            _effects.send(WeightEffect.ShowToast(msg))
         }
     }
 

@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -39,12 +40,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
+import com.yusufteker.healthtrack.core.model.WeightChartMetric
 import com.yusufteker.healthtrack.core.model.WeightEntry
+import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
+import com.yusufteker.healthtrack.core.utils.rememberBleScaleBridge
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import com.yusufteker.healthtrack.feature.weight.presentation.components.BleScaleMeasureSheet
 import com.yusufteker.healthtrack.feature.weight.presentation.components.EditTargetWeightDialog
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
 import com.yusufteker.healthtrack.theme.HealthColors
@@ -71,6 +76,7 @@ fun WeightScreen(
     modifier: Modifier = Modifier
 ) {
     val deviceHealthBridge = rememberDeviceHealthBridge()
+    val bleScaleBridge = rememberBleScaleBridge()
     var showDeviceGuideDialog by remember { mutableStateOf(false) }
     var entryPendingDelete by remember { mutableStateOf<WeightEntry?>(null) }
 
@@ -79,6 +85,17 @@ fun WeightScreen(
         deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
             onIntent(WeightIntent.OnScaleSnapshotReceived(result = result, isSilent = true))
         }
+    }
+
+    if (state.isBleScaleSheetOpen) {
+        BleScaleMeasureSheet(
+            bleScaleBridge = bleScaleBridge,
+            userHeightCm = state.userHeightCm,
+            userAge = state.userAge,
+            userIsMale = state.userIsMale,
+            onSaveReading = { reading -> onIntent(WeightIntent.OnSaveBleScaleReading(reading)) },
+            onDismiss = { onIntent(WeightIntent.OnSetBleScaleSheetOpen(false)) }
+        )
     }
 
     if (showDeviceGuideDialog) {
@@ -186,8 +203,11 @@ fun WeightScreen(
             CurrentBioMassHeroCard(
                 state = state,
                 showScaleSync = deviceHealthBridge.status != HealthPlatformStatus.NOT_SUPPORTED,
+                showBleScale = bleScaleBridge.isSupported,
                 onEditTarget = { onIntent(WeightIntent.OnSetEditingTarget(true)) },
                 onOpenAddWeight = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
+                onOpenBleScale = { onIntent(WeightIntent.OnSetBleScaleSheetOpen(true)) },
+                onSelectMetric = { onIntent(WeightIntent.OnMetricSelected(it)) },
                 onOpenReminder = { onIntent(WeightIntent.OnSetReminderDialogOpen(true)) },
                 onOpenGuide = { showDeviceGuideDialog = true }
             )
@@ -198,6 +218,8 @@ fun WeightScreen(
                 targetWeightKg = state.targetWeightKg,
                 selectedPeriod = state.selectedPeriod,
                 onPeriodSelect = { onIntent(WeightIntent.OnPeriodSelected(it)) },
+                selectedMetric = state.selectedMetric,
+                onMetricSelect = { onIntent(WeightIntent.OnMetricSelected(it)) },
                 modifier = Modifier.spotlightTarget(SpotlightTargetId.WEIGHT_CHART_CARD)
             )
 
@@ -294,10 +316,18 @@ private fun AddWeightDialog(
 ) {
     var showExtraFields by remember { mutableStateOf(false) }
     var weightInput by remember { mutableStateOf(state.inputWeight) }
+    var bodyFatInput by remember { mutableStateOf(state.inputBodyFat) }
+    var muscleInput by remember { mutableStateOf(state.inputMuscleValue) }
     var dateInput by remember { mutableStateOf(state.inputDate) }
     var noteInput by remember { mutableStateOf(state.inputNote) }
     LaunchedEffect(state.inputWeight) {
         if (weightInput != state.inputWeight) weightInput = state.inputWeight
+    }
+    LaunchedEffect(state.inputBodyFat) {
+        if (bodyFatInput != state.inputBodyFat) bodyFatInput = state.inputBodyFat
+    }
+    LaunchedEffect(state.inputMuscleValue) {
+        if (muscleInput != state.inputMuscleValue) muscleInput = state.inputMuscleValue
     }
     LaunchedEffect(state.inputDate) {
         if (dateInput != state.inputDate) dateInput = state.inputDate
@@ -491,6 +521,62 @@ private fun AddWeightDialog(
                     }
                 }
 
+                // Optional Body Composition Inputs (Body Fat % & Muscle % / kg)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = bodyFatInput,
+                        onValueChange = {
+                            bodyFatInput = it
+                            onIntent(WeightIntent.OnInputBodyFatChanged(it))
+                        },
+                        label = { Text(str("Yağ (%)", "Body Fat (%)"), fontSize = 12.sp) },
+                        placeholder = { Text("16.5") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = muscleInput,
+                        onValueChange = {
+                            muscleInput = it
+                            onIntent(WeightIntent.OnInputMuscleValueChanged(it))
+                        },
+                        label = {
+                            Text(
+                                if (state.inputMuscleIsPercent) str("Kas (%)", "Muscle (%)") else str("Kas (kg)", "Muscle (kg)"),
+                                fontSize = 12.sp
+                            )
+                        },
+                        placeholder = { Text(if (state.inputMuscleIsPercent) "77.0" else "57.5") },
+                        trailingIcon = {
+                            Surface(
+                                onClick = { onIntent(WeightIntent.OnToggleInputMuscleUnit) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = HealthColors.NutrientProtein.copy(alpha = 0.16f),
+                                modifier = Modifier.padding(end = 6.dp)
+                            ) {
+                                Text(
+                                    text = if (state.inputMuscleIsPercent) "%" else "kg",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.NutrientProtein,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { dismissKeyboard() }),
+                        modifier = Modifier.weight(1.25f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true
+                    )
+                }
+
                 // Optional Date and Note toggle
                 Surface(
                     onClick = { showExtraFields = !showExtraFields },
@@ -603,8 +689,11 @@ private fun AddWeightDialog(
 private fun CurrentBioMassHeroCard(
     state: WeightState,
     showScaleSync: Boolean,
+    showBleScale: Boolean,
     onEditTarget: () -> Unit,
     onOpenAddWeight: () -> Unit,
+    onOpenBleScale: () -> Unit,
+    onSelectMetric: (WeightChartMetric) -> Unit,
     onOpenReminder: () -> Unit,
     onOpenGuide: () -> Unit
 ) {
@@ -841,7 +930,134 @@ private fun CurrentBioMassHeroCard(
                 }
             }
 
-            // Compact Action Bar: [+ Kilo Ekle] & optional scale setup guide icon
+            // Compact Body Composition Strip (shown when body fat or muscle readings exist)
+            if (state.currentBodyFatPercent != null || state.currentMusclePercent != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isFatSelected = state.selectedMetric == WeightChartMetric.BODY_FAT
+                    Surface(
+                        onClick = { onSelectMetric(WeightChartMetric.BODY_FAT) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = HealthColors.NutrientCarbs.copy(alpha = if (isFatSelected) 0.16f else 0.08f),
+                        border = BorderStroke(
+                            1.dp,
+                            HealthColors.NutrientCarbs.copy(alpha = if (isFatSelected) 0.55f else 0.2f)
+                        ),
+                        modifier = Modifier.weight(1f).bounceClick()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = str("Vücut Yağ", "Body Fat"),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.NutrientCarbs
+                                )
+                                state.bodyFatChangePercent?.let { fatDelta ->
+                                    val isLoss = fatDelta <= 0.0
+                                    val sign = if (fatDelta > 0) "+" else ""
+                                    Text(
+                                        text = "$sign$fatDelta%",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isLoss) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = state.currentBodyFatPercent?.let { "%$it" } ?: "–",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (current != null && state.currentBodyFatPercent != null) {
+                                    val fatKg = BodyCompositionCalculator.round1(current * state.currentBodyFatPercent / 100.0)
+                                    Text(
+                                        text = "$fatKg kg",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 1.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    val isMuscleSelected = state.selectedMetric == WeightChartMetric.MUSCLE
+                    Surface(
+                        onClick = { onSelectMetric(WeightChartMetric.MUSCLE) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = HealthColors.NutrientProtein.copy(alpha = if (isMuscleSelected) 0.16f else 0.08f),
+                        border = BorderStroke(
+                            1.dp,
+                            HealthColors.NutrientProtein.copy(alpha = if (isMuscleSelected) 0.55f else 0.2f)
+                        ),
+                        modifier = Modifier.weight(1f).bounceClick()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = str("Kas Oranı", "Muscle"),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.NutrientProtein
+                                )
+                                state.musclePercentChange?.let { muscleDelta ->
+                                    val isGain = muscleDelta >= 0.0
+                                    val sign = if (muscleDelta > 0) "+" else ""
+                                    Text(
+                                        text = "$sign$muscleDelta%",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isGain) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = state.currentMusclePercent?.let { "%$it" } ?: "–",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                state.currentMuscleMassKg?.let { muscleKg ->
+                                    Text(
+                                        text = "$muscleKg kg",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 1.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Compact Action Bar: [+ Kilo Ekle], [Tartıl (BLE)], & optional scale setup guide icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -866,6 +1082,25 @@ private fun CurrentBioMassHeroCard(
                     Text(str("Kilo Ekle", "Add Weight"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
 
+                if (showBleScale) {
+                    FilledTonalButton(
+                        onClick = onOpenBleScale,
+                        modifier = Modifier
+                            .height(42.dp)
+                            .bounceClick(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = HealthColors.Primary.copy(alpha = 0.14f),
+                            contentColor = HealthColors.Primary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(str("Tartıl", "Scale"), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+
                 if (showScaleSync) {
                     IconButton(
                         onClick = onOpenGuide,
@@ -884,11 +1119,16 @@ private fun CurrentBioMassHeroCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LuxuryWeightHistoryItem(
     entry: WeightEntry,
     onDelete: () -> Unit
 ) {
+    val cleanNote = remember(entry.note) {
+        BodyCompositionCalculator.stripLegacyBodyCompFromNote(entry.note)
+    }
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -903,7 +1143,8 @@ private fun LuxuryWeightHistoryItem(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
             ) {
                 Box(
                     modifier = Modifier
@@ -921,14 +1162,57 @@ private fun LuxuryWeightHistoryItem(
                 }
 
                 val lang = appLang()
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
                         text = formatDisplayDateTr(entry.date, lang),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    entry.note?.takeIf { it.isNotBlank() }?.let { n ->
+                    if (entry.bodyFatPercent != null || entry.musclePercent != null || entry.muscleMassKg != null) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            entry.bodyFatPercent?.let { fat ->
+                                Surface(
+                                    color = HealthColors.NutrientCarbs.copy(alpha = 0.14f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = "${str("Yağ", "Fat")} %$fat",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = HealthColors.NutrientCarbs,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            if (entry.musclePercent != null || entry.muscleMassKg != null) {
+                                val muscleText = when {
+                                    entry.musclePercent != null && entry.muscleMassKg != null ->
+                                        "${str("Kas", "Muscle")} %${entry.musclePercent} · ${entry.muscleMassKg} kg"
+                                    entry.musclePercent != null ->
+                                        "${str("Kas", "Muscle")} %${entry.musclePercent}"
+                                    else ->
+                                        "${str("Kas", "Muscle")} ${entry.muscleMassKg} kg"
+                                }
+                                Surface(
+                                    color = HealthColors.NutrientProtein.copy(alpha = 0.14f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        text = muscleText,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = HealthColors.NutrientProtein,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    cleanNote?.let { n ->
                         Text(
                             text = n,
                             style = MaterialTheme.typography.bodySmall,

@@ -632,14 +632,14 @@ class FoodViewModel(
             if (isMixMode) {
                 "$cleanPrompt ($ocrSanityRule. This is a mix/meal recipe. Separate each ingredient as a distinct item. Set each item's formattedPortion clearly using the user's amount and unit, e.g., '150 ml', '2 shot', '1 scoop', '35 g', '1 pc'. Fill calories, protein, carbs, fat, fiber, and any vitamins/minerals/caffeine/l-carnitine micronutrients.)"
             } else {
-                "$cleanPrompt ($ocrSanityRule. This is a single product. Analyze as a single item, set formattedPortion clearly with user's unit and weight/ml, e.g., '1 Scoop (35g)' or '1 Scoop (30ml)'. Include complete calories, protein, carbs, fat, fiber, and all vitamins, minerals, amino acids, caffeine, l-carnitine, creatine in the micronutrients list.)"
+                "$cleanPrompt ($ocrSanityRule. This is a single product from a nutrition label/description. Analyze as a single item and infer the natural serving unit from the text for formattedPortion: e.g., if scoop/powder use '1 Scoop (35g)', if bottled drink/mineral water use '1 Bottle (200ml)', if portion/bar/pack use '1 Serving' or '1 Pack (45g)'. Include complete calories, protein, carbs, fat, fiber, and all vitamins, minerals, amino acids, caffeine, l-carnitine, creatine in the micronutrients list.)"
             }
         } else {
             val ocrSanityRule = "ÖNEMLİ KURAL: Taranan veya girilen metinde OCR kaynaklı nokta/virgül atlamaları olabilir ('3.3g' -> '33g', '6.1g' -> '61g' veya '610g', '0.5g' -> '50g'). 100g'da makroların toplamı 100g'ı asla geçemez ve toplam kalori (4*P + 4*K + 9*Y) ile uyumlu olmalıdır. Kaloriyle çelişen sayıları nokta kayması olarak düzeltip doğru ondalıklı değer yaz (örn: 3.3, 6.1)."
             if (isMixMode) {
                 "$cleanPrompt ($ocrSanityRule. Bu bir karışım/öğün tarifidir. Lütfen içindeki her bileşeni ayrı bir kalem olarak ayır. Her kalemin formattedPortion alanına kullanıcının belirttiği miktarı ve birimini net yaz: örn '150 ml', '2 shot', '1 ölçek', '35 g', '1 adet'. Kalori, protein, karbonhidrat, yağ, lif ve varsa vitamin/mineral/kafein/l-karnitin gibi mikro besinlerini doldur.)"
             } else {
-                "$cleanPrompt ($ocrSanityRule. Bu tek bir üründür. Lütfen tek bir kalem olarak analiz et, formattedPortion alanına kullanıcının belirttiği birimi ve gramaj/ml bilgisini net yaz: örn '1 Ölçek (35g)' veya '1 Ölçek (30ml)'. Kalori, protein, karbonhidrat, yağ, lif ve içindeki tüm vitamin, mineral, aminoasit, kafein, l-karnitin, kreatin gibi mikro besin/içerik değerlerini micronutrients listesine eksiksiz ekle.)"
+                "$cleanPrompt ($ocrSanityRule. Bu tek bir üründür (etiket OCR metni veya ürün açıklaması). Lütfen tek bir kalem olarak analiz et ve formattedPortion alanına ürünün türüne uygun doğal tüketim birimini yaz: örn ölçekli toz/takviye ise '1 Ölçek (35g)', şişe içecek/maden suyu ise '1 Şişe (200ml)', porsiyonluk yemek/ürün ise '1 Porsiyon', paketli ürün ise '1 Paket (45g)'. Kalori, protein, karbonhidrat, yağ, lif ve içindeki tüm vitamin, mineral, aminoasit, kafein, l-karnitin, kreatin gibi mikro besin/içerik değerlerini micronutrients listesine eksiksiz ekle.)"
             }
         }
 

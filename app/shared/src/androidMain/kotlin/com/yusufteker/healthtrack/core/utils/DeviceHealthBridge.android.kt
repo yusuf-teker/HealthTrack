@@ -34,12 +34,19 @@ private val REQUIRED_PERMISSIONS = setOf(
     HealthPermission.getReadPermission(WeightRecord::class),
     HealthPermission.getReadPermission(BodyFatRecord::class),
     HealthPermission.getReadPermission(LeanBodyMassRecord::class),
+    HealthPermission.getReadPermission(BoneMassRecord::class),
     HealthPermission.getReadPermission(ExerciseSessionRecord::class),
     HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
     HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
     HealthPermission.getReadPermission(DistanceRecord::class),
     HealthPermission.getReadPermission(StepsRecord::class),
     HealthPermission.getReadPermission(HeartRateRecord::class)
+)
+
+private val BODY_COMPOSITION_PERMISSIONS = setOf(
+    HealthPermission.getReadPermission(BodyFatRecord::class),
+    HealthPermission.getReadPermission(LeanBodyMassRecord::class),
+    HealthPermission.getReadPermission(BoneMassRecord::class)
 )
 
 private val CORE_READ_PERMISSIONS = setOf(
@@ -55,6 +62,7 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
 
     var pendingDays by remember { mutableStateOf(30) }
     var pendingCallback by remember { mutableStateOf<((Result<DeviceHealthSnapshot>) -> Unit)?>(null) }
+    var hasRequestedBodyCompPermissions by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
@@ -133,11 +141,15 @@ actual fun rememberDeviceHealthBridge(): DeviceHealthBridge {
                         val client = HealthConnectClient.getOrCreate(context)
                         val granted = client.permissionController.getGrantedPermissions()
                         val hasAllCore = granted.containsAll(CORE_READ_PERMISSIONS)
+                        val missingBodyComp = !granted.containsAll(BODY_COMPOSITION_PERMISSIONS)
 
-                        if (hasAllCore) {
+                        if (hasAllCore && (!missingBodyComp || hasRequestedBodyCompPermissions)) {
                             val result = readHealthConnectData(context, days, granted)
                             onResult(result)
                         } else {
+                            if (missingBodyComp) {
+                                hasRequestedBodyCompPermissions = true
+                            }
                             pendingDays = days
                             pendingCallback = onResult
                             permissionLauncher.launch(REQUIRED_PERMISSIONS)
@@ -270,12 +282,25 @@ private suspend fun readHealthConnectData(
             }.getOrDefault(emptyList())
         } else emptyList()
 
+        val boneMassRecords = if (grantedPermissions.contains(HealthPermission.getReadPermission(BoneMassRecord::class))) {
+            runCatching {
+                client.readRecords(
+                    ReadRecordsRequest(
+                        recordType = BoneMassRecord::class,
+                        timeRangeFilter = timeRange,
+                        ascendingOrder = false,
+                        pageSize = 1000
+                    )
+                ).records
+            }.getOrDefault(emptyList())
+        } else emptyList()
+
         val mappedWeights = weightRecords.map { record ->
             val recordMillis = record.time.toEpochMilli()
             val localDate = record.time.atZone(zoneId).toLocalDate().format(isoFormatter)
             val pkg = record.metadata.dataOrigin.packageName
 
-            // Match closest BodyFatRecord & LeanBodyMassRecord within ±15 minutes (900_000 ms)
+            // Match closest BodyFatRecord, LeanBodyMassRecord & BoneMassRecord within ±15 minutes (900_000 ms)
             val matchedBodyFat = bodyFatRecords
                 .filter { abs(it.time.toEpochMilli() - recordMillis) <= 900_000L }
                 .minByOrNull { abs(it.time.toEpochMilli() - recordMillis) }
@@ -286,12 +311,18 @@ private suspend fun readHealthConnectData(
                 .minByOrNull { abs(it.time.toEpochMilli() - recordMillis) }
                 ?.mass?.inKilograms
 
+            val matchedBoneMass = boneMassRecords
+                .filter { abs(it.time.toEpochMilli() - recordMillis) <= 900_000L }
+                .minByOrNull { abs(it.time.toEpochMilli() - recordMillis) }
+                ?.mass?.inKilograms
+
             DeviceWeightRecord(
                 externalId = record.metadata.id.ifBlank { "hc_w_$recordMillis" },
                 date = localDate,
                 weightKg = record.weight.inKilograms,
                 bodyFatPercent = matchedBodyFat,
                 leanBodyMassKg = matchedLeanMass,
+                boneMassKg = matchedBoneMass,
                 measuredAtMillis = recordMillis,
                 sourcePackage = pkg,
                 sourceName = resolveFriendlySourceName(pkg, isScale = true)

@@ -58,6 +58,9 @@ data class DeviceWeightRecord(
     val weightKg: Double,
     val bodyFatPercent: Double? = null,
     val leanBodyMassKg: Double? = null,
+    val boneMassKg: Double? = null,
+    val muscleMassKg: Double? = null,
+    val musclePercent: Double? = null,
     val measuredAtMillis: Long,
     val sourcePackage: String = "",
     val sourceName: String = trEn("Akıllı Tartı", "Smart Scale")

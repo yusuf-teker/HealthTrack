@@ -125,21 +125,20 @@ fun DeviceConnectionGuideDialog(
                     GuideStepCard(
                         stepNumber = "1",
                         title = str("Xiaomi Akıllı Tartı & Bileklik", "Xiaomi Smart Scale & Band"),
-                        badge = "Zepp Life / Mi Fitness",
+                        badge = "Doğrudan Bluetooth (BLE) / Zepp Life / Mi Fitness",
                         accentColor = HealthColors.Primary,
                         icon = Icons.Rounded.MonitorWeight,
                         steps = if (isAppleHealth) {
                             listOf(
-                                str("iPhone'unuzda Zepp Life veya Mi Fitness uygulamasını açın.", "Open the Zepp Life or Mi Fitness app on your iPhone."),
-                                str("Profil → Üçüncü Taraf Erişimi / Bağlı Uygulamalar → \"Apple Sağlık\" seçeneğini aktif edin.", "Go to Profile → Third-Party Access / Connected Apps → enable \"Apple Health\"."),
-                                str("Açılan Apple Sağlık ekranında Kilo, Vücut Yağ Oranı, Adım ve Egzersiz yazma izinlerini verin.", "Grant write access for Weight, Body Fat, Steps, and Workouts in the Apple Health prompt."),
+                                str("Doğrudan Bluetooth (Önerilen — Mi Scale 1 & 2): Kilo ekranındaki \"Tartıl\" butonuna basıp çıplak ayakla tartıya çıkın. Kilo, vücut yağ ve kas oranı aracı uygulama olmadan doğrudan kaydedilir.", "Direct Bluetooth (Recommended — Mi Scale 1 & 2): Tap the \"Scale\" button on the Weight screen and step onto the scale barefoot. Weight, body fat & muscle % capture directly with no intermediary app."),
+                                str("Apple Sağlık Köprüsü (Zepp Life / Mi Fitness): iPhone'da Profil → Bağlı Uygulamalar → \"Apple Sağlık\" seçeneğini aktif edip Kilo, Vücut Yağ Oranı ve Egzersiz yazma izinlerini açın.", "Apple Health Bridge (Zepp Life / Mi Fitness): Open Profile → Connected Apps → enable \"Apple Health\" and allow Weight, Body Fat & Workout write access."),
                                 str("Tartıya çıktığınızda veya saatiniz eşitlendiğinde veriler HealthTrack'e otomatik akar.", "Readings from your scale or watch sync into HealthTrack automatically via Apple Health.")
                             )
                         } else {
                             listOf(
-                                str("Zepp Life (Eski Mi Fit): Profil → Hesap Ekle → \"Google Fit\" bağlantısını açın. Ardından Play Store'dan \"Health Sync\" yükleyip Kaynak: Google Fit, Hedef: \"$platformName\" seçin (veya Google Fit Ayarlar → \"Fit'i $platformName ile senkronize et\" seçeneğini açın).", "Zepp Life: Profile → Add Accounts → connect \"Google Fit\". Then install \"Health Sync\" from Play Store, pick Source: Google Fit, Destination: \"$platformName\" (or enable \"Sync Fit with $platformName\" in Google Fit Settings)."),
+                                str("Doğrudan Bluetooth (Önerilen — Mi Scale 1 & 2): Zepp Life veya Google Fit köprüsü beklemeden Kilo ekranındaki \"Tartıl\" butonuna basıp çıplak ayakla tartıya çıkın. Kilo, yağ ve kas oranı anında okunur.", "Direct Bluetooth (Recommended — Mi Scale 1 & 2): Skip Zepp Life/Google Fit delays by tapping \"Scale\" on the Weight screen and stepping onto the scale barefoot. Weight, fat & muscle % are captured instantly."),
                                 str("Mi Fitness / Zepp (Yeni Nesil): Profil → Üçüncü Taraf Verileri → \"$platformName\" seçeneğini doğrudan aktif edin.", "Mi Fitness / Zepp: Profile → Third-Party Data → enable \"$platformName\" directly."),
-                                str("Kilo, Vücut Yağ Oranı, Adım ve Egzersiz izinlerini açın; tartıya çıktığınızda ölçümünüz otomatik olarak $platformName üzerinden HealthTrack'e akar.", "Enable Weight, Body Fat, Steps, and Workout sharing so readings sync automatically via $platformName.")
+                                str("Zepp Life (Eski Mi Fit): Profil → Hesap Ekle → \"Google Fit\" bağlantısını açın. Ardından Google Fit Ayarlar → \"Fit'i $platformName ile senkronize et\" (veya Health Sync) üzerinden aktarın.", "Zepp Life: Profile → Add Accounts → connect \"Google Fit\", then enable \"Sync Fit with $platformName\" in Google Fit Settings (or Health Sync).")
                             )
                         }
                     )

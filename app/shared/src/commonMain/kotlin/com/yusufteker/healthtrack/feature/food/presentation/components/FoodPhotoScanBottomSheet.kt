@@ -77,19 +77,12 @@ fun FoodPhotoScanBottomSheet(
                 cameraLauncher.cropAndScan(cropRect, rotation) { cropped ->
                     capturedPhoto = cropped
                     isCropDialogOpen = false
-                    val text = cropped.extractedText
+                    val text = cropped.extractedText?.trim()
                     if (!text.isNullOrBlank()) {
                         labelInputText = text
                         ocrFailedNoText = false
                     } else {
-                        if (labelInputText.isBlank()) {
-                            labelInputText = trEn(
-                                "Fotoğraftaki besin/ürün tablosu analizi",
-                                "Nutrition/product table analysis from photo",
-                                lang
-                            )
-                        }
-                        ocrFailedNoText = false
+                        ocrFailedNoText = true
                     }
                 }
             },
@@ -97,19 +90,12 @@ fun FoodPhotoScanBottomSheet(
                 cameraLauncher.cropAndScan(CropRect(0f, 0f, 1f, 1f), rotation) { fullPhoto ->
                     capturedPhoto = fullPhoto
                     isCropDialogOpen = false
-                    val text = fullPhoto.extractedText
+                    val text = fullPhoto.extractedText?.trim()
                     if (!text.isNullOrBlank()) {
                         labelInputText = text
                         ocrFailedNoText = false
                     } else {
-                        if (labelInputText.isBlank()) {
-                            labelInputText = trEn(
-                                "Fotoğraftaki besin/ürün tablosu analizi",
-                                "Nutrition/product table analysis from photo",
-                                lang
-                            )
-                        }
-                        ocrFailedNoText = false
+                        ocrFailedNoText = true
                     }
                 }
             },
@@ -297,6 +283,8 @@ fun FoodPhotoScanBottomSheet(
                             if (!photo.extractedText.isNullOrBlank()) {
                                 labelInputText = photo.extractedText
                                 ocrFailedNoText = false
+                            } else {
+                                ocrFailedNoText = true
                             }
                         }
                     },
@@ -334,6 +322,8 @@ fun FoodPhotoScanBottomSheet(
                             if (!photo.extractedText.isNullOrBlank()) {
                                 labelInputText = photo.extractedText
                                 ocrFailedNoText = false
+                            } else {
+                                ocrFailedNoText = true
                             }
                         }
                     },
@@ -605,13 +595,7 @@ fun FoodPhotoScanBottomSheet(
             // ── Primary Action Button: Extract & Calculate with AI ──
             Button(
                 onClick = {
-                    val promptBase = labelInputText.ifBlank {
-                        trEn(
-                            "Görseldeki ürün/besin değerleri ve kalori analizi",
-                            "Product/nutrition values and calorie analysis from image",
-                            lang
-                        )
-                    }
+                    val promptBase = labelInputText.trim()
                     val fullPrompt = if (selectedTarget == FoodScanTarget.DAILY_MEAL) {
                         trEn(
                             "$promptBase (Tüketilen porsiyon: $labelPortionInfo)",
@@ -621,9 +605,9 @@ fun FoodPhotoScanBottomSheet(
                     } else {
                         promptBase
                     }
-                    onAnalyze(fullPrompt, capturedPhoto?.base64, selectedTarget)
+                    onAnalyze(fullPrompt, null, selectedTarget)
                 },
-                enabled = (labelInputText.isNotBlank() || capturedPhoto?.base64 != null) && !isAnalyzing,
+                enabled = labelInputText.isNotBlank() && !isAnalyzing,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)

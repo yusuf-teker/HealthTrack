@@ -471,6 +471,9 @@ class HealthDatabase(
                 if (i != index && current[i].userId == weight.userId && current[i].date == weight.date && !current[i].isDeleted) {
                     val tombstone = current[i].copy(
                         isDeleted = true,
+                        bodyFatPercent = null,
+                        muscleMassKg = null,
+                        musclePercent = null,
                         note = null,
                         updatedAt = now,
                         syncStatus = SyncStatus.PENDING
@@ -493,6 +496,9 @@ class HealthDatabase(
         if (index >= 0) {
             val tombstone = current[index].copy(
                 isDeleted = true,
+                bodyFatPercent = null,
+                muscleMassKg = null,
+                musclePercent = null,
                 note = null,
                 syncStatus = SyncStatus.PENDING,
                 updatedAt = currentTimeMillis()
@@ -622,6 +628,9 @@ class HealthDatabase(
                     if (item.userId == userId && item.date == winner.date && !item.isDeleted && item.id != winner.id) {
                         val tombstone = item.copy(
                             isDeleted = true,
+                            bodyFatPercent = null,
+                            muscleMassKg = null,
+                            musclePercent = null,
                             note = null,
                             updatedAt = now,
                             syncStatus = SyncStatus.PENDING
@@ -849,6 +858,9 @@ class HealthDatabase(
                     if (remote.updatedAt > local.updatedAt) {
                         val tombstone = local.copy(
                             isDeleted = true,
+                            bodyFatPercent = null,
+                            muscleMassKg = null,
+                            musclePercent = null,
                             note = null,
                             updatedAt = now,
                             syncStatus = SyncStatus.PENDING
@@ -861,6 +873,9 @@ class HealthDatabase(
                     } else {
                         val tombstone = remote.copy(
                             isDeleted = true,
+                            bodyFatPercent = null,
+                            muscleMassKg = null,
+                            musclePercent = null,
                             note = null,
                             updatedAt = now,
                             syncStatus = SyncStatus.PENDING

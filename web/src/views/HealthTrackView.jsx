@@ -133,11 +133,14 @@ export default function HealthTrackView() {
     }
   });
 
-  // Latest weight
+  // Latest weight & body composition
   const sortedWeights = [...healthData.weights].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const latestWeight = sortedWeights[0]?.weightKg || null;
   const previousWeight = sortedWeights[1]?.weightKg || null;
   const weightChange = (latestWeight && previousWeight) ? (latestWeight - previousWeight).toFixed(1) : null;
+  const latestBodyFat = sortedWeights.find(w => w.bodyFatPercent != null)?.bodyFatPercent ?? null;
+  const latestMusclePercent = sortedWeights.find(w => w.musclePercent != null)?.musclePercent ?? null;
+  const latestMuscleMassKg = sortedWeights.find(w => w.muscleMassKg != null)?.muscleMassKg ?? null;
 
   // Total workouts burn
   const totalWorkoutBurn = healthData.workouts.reduce((acc, w) => acc + (w.caloriesBurned || 0), 0);
@@ -153,7 +156,12 @@ export default function HealthTrackView() {
       csv += `${t('Antrenman', 'Workout')},"${w.date}","${(w.rawText || '').replace(/"/g, '""')}",${w.caloriesBurned || 0} kcal (${w.durationMinutes || 0} ${t('dk', 'min')})\n`;
     });
     healthData.weights.forEach(wt => {
-      csv += `${t('Kilo', 'Weight')},"${wt.date}","${t('Tartı Kaydı', 'Weight Entry')}",${wt.weightKg} kg\n`;
+      const compParts = [];
+      if (wt.bodyFatPercent != null) compParts.push(`${t('Yağ', 'Body Fat')} %${wt.bodyFatPercent}`);
+      if (wt.musclePercent != null) compParts.push(`${t('Kas', 'Muscle')} %${wt.musclePercent}`);
+      if (wt.muscleMassKg != null) compParts.push(`${wt.muscleMassKg} kg`);
+      const detail = compParts.length > 0 ? `${t('Tartı Kaydı', 'Weight Entry')} (${compParts.join(' · ')})` : t('Tartı Kaydı', 'Weight Entry');
+      csv += `${t('Kilo', 'Weight')},"${wt.date}","${detail}",${wt.weightKg} kg\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -379,7 +387,7 @@ export default function HealthTrackView() {
             <span className="text-sm text-gray-400 font-medium">kg</span>
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             {weightChange !== null ? (
               <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
                 Number(weightChange) < 0 
@@ -391,6 +399,18 @@ export default function HealthTrackView() {
               </span>
             ) : (
               <span className="text-xs text-gray-500">{t('Kilo kaydı bekleniyor', 'Waiting for weight log')}</span>
+            )}
+            {latestBodyFat != null && (
+              <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-300 border border-orange-500/30">
+                {t('Yağ', 'Fat')} %{latestBodyFat}
+              </span>
+            )}
+            {(latestMusclePercent != null || latestMuscleMassKg != null) && (
+              <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                {t('Kas', 'Muscle')} {latestMusclePercent != null ? `%${latestMusclePercent}` : ''}
+                {latestMusclePercent != null && latestMuscleMassKg != null ? ' · ' : ''}
+                {latestMuscleMassKg != null ? `${latestMuscleMassKg} kg` : ''}
+              </span>
             )}
           </div>
 
@@ -678,6 +698,8 @@ export default function HealthTrackView() {
                   <tr>
                     <th className="pb-3 font-semibold">{t('Tarih', 'Date')}</th>
                     <th className="pb-3 font-semibold">{t('Ölçülen Kilo', 'Measured Weight')}</th>
+                    <th className="pb-3 font-semibold">{t('Yağ %', 'Body Fat')}</th>
+                    <th className="pb-3 font-semibold">{t('Kas', 'Muscle')}</th>
                     <th className="pb-3 font-semibold">{t('Hedef Kilo', 'Target Weight')}</th>
                     <th className="pb-3 font-semibold">{t('Fark', 'Diff')}</th>
                     <th className="pb-3 font-semibold">{t('Not / Açıklama', 'Note / Details')}</th>
@@ -686,11 +708,24 @@ export default function HealthTrackView() {
                 <tbody className="divide-y divide-white/5">
                   {sortedWeights.map((wt) => {
                     const diff = wt.targetWeightKg ? (wt.weightKg - wt.targetWeightKg).toFixed(1) : null;
+                    const muscleDisplay = wt.musclePercent != null && wt.muscleMassKg != null
+                      ? `%${wt.musclePercent} (${wt.muscleMassKg} kg)`
+                      : wt.musclePercent != null
+                        ? `%${wt.musclePercent}`
+                        : wt.muscleMassKg != null
+                          ? `${wt.muscleMassKg} kg`
+                          : '--';
                     return (
                       <tr key={wt.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3 text-gray-300 font-medium">{wt.date}</td>
                         <td className="py-3">
                           <span className="text-sm font-bold text-white font-mono">{wt.weightKg} kg</span>
+                        </td>
+                        <td className="py-3 text-orange-300 font-mono">
+                          {wt.bodyFatPercent != null ? `%${wt.bodyFatPercent}` : '--'}
+                        </td>
+                        <td className="py-3 text-purple-300 font-mono">
+                          {muscleDisplay}
                         </td>
                         <td className="py-3 text-gray-400 font-mono">
                           {wt.targetWeightKg ? `${wt.targetWeightKg} kg` : '--'}

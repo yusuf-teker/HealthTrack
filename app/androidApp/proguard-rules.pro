@@ -53,7 +53,19 @@
 -dontwarn androidx.compose.**
 -dontwarn org.jetbrains.compose.**
 
-# ML Kit Text Recognition
+# ML Kit Text Recognition & Component Discovery
+-keep class com.google.mlkit.** { *; }
+-keep interface com.google.mlkit.** { *; }
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+    <init>();
+}
+-keepclassmembers class * implements com.google.firebase.components.ComponentRegistrar {
+    <init>();
+}
+-keep class com.google.android.gms.internal.mlkit_vision_text_common.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_text_bundled_common.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_common.** { *; }
+-keep class com.google.android.gms.internal.mlkit_common.** { *; }
 -dontwarn com.google.mlkit.**
 
 # Health Connect

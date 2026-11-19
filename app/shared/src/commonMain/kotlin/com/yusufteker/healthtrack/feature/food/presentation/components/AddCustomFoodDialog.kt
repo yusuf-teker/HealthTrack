@@ -97,6 +97,7 @@ fun AddCustomFoodDialog(
     var isMixMode by remember { mutableStateOf(false) }
     var aiPromptText by remember { mutableStateOf("") }
     var aiSuccessMessage by remember { mutableStateOf<String?>(null) }
+    var ocrErrorMessage by remember { mutableStateOf<String?>(null) }
 
     var name by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
@@ -344,39 +345,56 @@ fun AddCustomFoodDialog(
     val mixTotalCarbs = draftIngredients.sumOf { it.carbsText.replace(',', '.').toDoubleOrNull() ?: 0.0 }
     val mixTotalFat = draftIngredients.sumOf { it.fatText.replace(',', '.').toDoubleOrNull() ?: 0.0 }
 
+    if (isCropDialogOpen && capturedPhoto?.imageBitmap != null) {
+        ImageCropDialog(
+            photo = capturedPhoto!!.imageBitmap!!,
+            isProcessing = cameraLauncher.isScanning,
+            onConfirmCrop = { cropRect: CropRect, rotation: Int ->
+                cameraLauncher.cropAndScan(cropRect, rotation) { cropped ->
+                    capturedPhoto = cropped
+                    isCropDialogOpen = false
+                    val text = cropped.extractedText?.trim()
+                    if (!text.isNullOrBlank()) {
+                        aiPromptText = text
+                        ocrErrorMessage = null
+                        aiSuccessMessage = null
+                        onAnalyzeWithAi?.invoke(text, isMixMode)
+                    } else {
+                        ocrErrorMessage = trEn(
+                            "Etiketten metin okunamadı. Lütfen besin değerleri tablosunu daha net kırpıp tekrar deneyin veya değerleri elle yazın.",
+                            "Could not read text from label. Please crop the nutrition table more clearly or type the values manually.",
+                            lang
+                        )
+                    }
+                }
+            },
+            onScanFull = { rotation: Int ->
+                cameraLauncher.cropAndScan(CropRect(0f, 0f, 1f, 1f), rotation) { fullPhoto ->
+                    capturedPhoto = fullPhoto
+                    isCropDialogOpen = false
+                    val text = fullPhoto.extractedText?.trim()
+                    if (!text.isNullOrBlank()) {
+                        aiPromptText = text
+                        ocrErrorMessage = null
+                        aiSuccessMessage = null
+                        onAnalyzeWithAi?.invoke(text, isMixMode)
+                    } else {
+                        ocrErrorMessage = trEn(
+                            "Fotoğraftan metin okunamadı. Lütfen sadece besin değerleri tablosunu kırpıp tekrar deneyin veya değerleri elle yazın.",
+                            "Could not read text from photo. Please crop only the nutrition table and retry, or type the values manually.",
+                            lang
+                        )
+                    }
+                }
+            },
+            onDismiss = { isCropDialogOpen = false }
+        )
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        if (isCropDialogOpen && capturedPhoto?.imageBitmap != null) {
-            ImageCropDialog(
-                photo = capturedPhoto!!.imageBitmap!!,
-                isProcessing = cameraLauncher.isScanning,
-                onConfirmCrop = { cropRect: CropRect, rotation: Int ->
-                    cameraLauncher.cropAndScan(cropRect, rotation) { cropped ->
-                        capturedPhoto = cropped
-                        isCropDialogOpen = false
-                        val text = cropped.extractedText
-                        val effectiveText = if (!text.isNullOrBlank()) text else trEn("Fotoğraftaki ürün ve besin değerleri", "Product & nutrition values from photo", lang)
-                        aiPromptText = effectiveText
-                        aiSuccessMessage = null
-                        onAnalyzeWithAi?.invoke(effectiveText, isMixMode)
-                    }
-                },
-                onScanFull = { rotation: Int ->
-                    cameraLauncher.cropAndScan(CropRect(0f, 0f, 1f, 1f), rotation) { fullPhoto ->
-                        capturedPhoto = fullPhoto
-                        isCropDialogOpen = false
-                        val text = fullPhoto.extractedText
-                        val effectiveText = if (!text.isNullOrBlank()) text else trEn("Fotoğraftaki ürün ve besin değerleri", "Product & nutrition values from photo", lang)
-                        aiPromptText = effectiveText
-                        aiSuccessMessage = null
-                        onAnalyzeWithAi?.invoke(effectiveText, isMixMode)
-                    }
-                },
-                onDismiss = { isCropDialogOpen = false }
-            )
-        }
 
         Box(
             modifier = Modifier
@@ -726,6 +744,7 @@ fun AddCustomFoodDialog(
                                             }
                                             IconButton(
                                                 onClick = {
+                                                    ocrErrorMessage = null
                                                     cameraLauncher.launchCamera { photo ->
                                                         capturedPhoto = photo
                                                         if (photo.imageBitmap != null) {
@@ -733,6 +752,7 @@ fun AddCustomFoodDialog(
                                                         }
                                                         if (!photo.extractedText.isNullOrBlank()) {
                                                             aiPromptText = photo.extractedText
+                                                            ocrErrorMessage = null
                                                         }
                                                     }
                                                 },
@@ -751,6 +771,7 @@ fun AddCustomFoodDialog(
                                             }
                                             IconButton(
                                                 onClick = {
+                                                    ocrErrorMessage = null
                                                     cameraLauncher.launchGallery { photo ->
                                                         capturedPhoto = photo
                                                         if (photo.imageBitmap != null) {
@@ -758,6 +779,7 @@ fun AddCustomFoodDialog(
                                                         }
                                                         if (!photo.extractedText.isNullOrBlank()) {
                                                             aiPromptText = photo.extractedText
+                                                            ocrErrorMessage = null
                                                         }
                                                     }
                                                 },
@@ -782,8 +804,17 @@ fun AddCustomFoodDialog(
                                     maxLines = 3
                                 )
 
+                                if (!ocrErrorMessage.isNullOrBlank()) {
+                                    Text(
+                                        text = ocrErrorMessage!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+
                                 Button(
                                     onClick = {
+                                        ocrErrorMessage = null
                                         aiSuccessMessage = null
                                         onAnalyzeWithAi(aiPromptText, isMixMode)
                                     },

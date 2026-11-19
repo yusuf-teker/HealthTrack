@@ -134,6 +134,9 @@ data class WeightSyncPayload(
     val date: String,
     val weightKg: Double,
     val targetWeightKg: Double? = null,
+    val bodyFatPercent: Double? = null,
+    val muscleMassKg: Double? = null,
+    val musclePercent: Double? = null,
     val note: String? = null,
     val updatedAt: Long,
     val isDeleted: Boolean = false

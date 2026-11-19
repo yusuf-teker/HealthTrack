@@ -16,19 +16,27 @@ import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import io.github.aakira.napier.Napier
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 
 class AndroidCameraPhotoLauncher(
     private val context: Context,
+    private val tempCameraFile: File,
     private val tempCameraUri: Uri,
     private val takePictureLauncher: androidx.activity.result.ActivityResultLauncher<Uri>,
     private val pickGalleryLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     private val setCallback: ((CapturedPhoto) -> Unit) -> Unit,
     private val setScanning: (Boolean) -> Unit,
     private val cropAndScanHandler: (CropRect, Int, (CapturedPhoto) -> Unit) -> Unit,
-    override val isScanning: Boolean
+    private val isScanningState: State<Boolean>
 ) : CameraPhotoLauncher {
+
+    override val isScanning: Boolean
+        get() = isScanningState.value
 
     override val isCameraAvailable: Boolean
         get() = try {
@@ -38,11 +46,20 @@ class AndroidCameraPhotoLauncher(
         }
 
     override fun launchCamera(onPhotoCaptured: (CapturedPhoto) -> Unit) {
+        if (tempCameraUri == Uri.EMPTY) {
+            Napier.e("launchCamera aborted: tempCameraUri is EMPTY", tag = "CameraPhotoLauncher")
+            setScanning(false)
+            return
+        }
         setCallback(onPhotoCaptured)
         setScanning(true)
         try {
+            if (tempCameraFile.exists()) {
+                tempCameraFile.delete()
+            }
             takePictureLauncher.launch(tempCameraUri)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Napier.e("launchCamera failed", e, tag = "CameraPhotoLauncher")
             setScanning(false)
         }
     }
@@ -161,9 +178,10 @@ private fun bitmapToBase64(bitmap: Bitmap, quality: Int = 85): String {
 @Composable
 actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
     val context = LocalContext.current
-    var onResultCallback by remember { mutableStateOf<((CapturedPhoto) -> Unit)?>(null) }
-    var isScanning by remember { mutableStateOf(false) }
-    var currentSourceBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val onResultCallbackState = remember { mutableStateOf<((CapturedPhoto) -> Unit)?>(null) }
+    val isScanningState = remember { mutableStateOf(false) }
+    val currentSourceBitmapState = remember { mutableStateOf<Bitmap?>(null) }
 
     val tempCameraFile = remember(context) {
         File(context.cacheDir, "camera_photo_capture.jpg")
@@ -176,23 +194,26 @@ actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
                 "${context.packageName}.fileprovider",
                 tempCameraFile
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Napier.e("FileProvider.getUriForFile failed", e, tag = "CameraPhotoLauncher")
             Uri.EMPTY
         }
     }
 
-    fun processBitmap(
+    suspend fun processBitmap(
         bitmap: Bitmap,
         runOcr: Boolean = true,
         isCropped: Boolean = false,
-        callback: ((CapturedPhoto) -> Unit)? = onResultCallback
+        callback: ((CapturedPhoto) -> Unit)? = onResultCallbackState.value
     ) {
-        val scaled = optimizeBitmapForOcr(bitmap, 1800)
-        val base64 = bitmapToBase64(scaled, 85)
-        val imageBitmap = scaled.asImageBitmap()
+        val (scaled, base64, imageBitmap) = withContext(Dispatchers.Default) {
+            val s = optimizeBitmapForOcr(bitmap, 1800)
+            val b64 = bitmapToBase64(s, 85)
+            Triple(s, b64, s.asImageBitmap())
+        }
 
         if (!runOcr) {
-            isScanning = false
+            isScanningState.value = false
             callback?.invoke(
                 CapturedPhoto(
                     imageBitmap = imageBitmap,
@@ -204,39 +225,53 @@ actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
             return
         }
 
-        val inputImage = InputImage.fromBitmap(scaled, 0)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        recognizer.process(inputImage)
-            .addOnSuccessListener { visionText ->
-                val formattedLines = visionText.textBlocks
-                    .flatMap { it.lines }
-                    .map { it.text.trim() }
-                    .filter { it.isNotBlank() }
-                    .joinToString("\n")
-                val rawText = formattedLines.ifBlank { visionText.text.trim() }
-                val cleanedText = cleanOcrText(rawText)
+        try {
+            val inputImage = InputImage.fromBitmap(scaled, 0)
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            recognizer.process(inputImage)
+                .addOnSuccessListener { visionText ->
+                    val formattedLines = visionText.textBlocks
+                        .flatMap { it.lines }
+                        .map { it.text.trim() }
+                        .filter { it.isNotBlank() }
+                        .joinToString("\n")
+                    val rawText = formattedLines.ifBlank { visionText.text.trim() }
+                    val cleanedText = cleanOcrText(rawText)
 
-                isScanning = false
-                callback?.invoke(
-                    CapturedPhoto(
-                        imageBitmap = imageBitmap,
-                        base64 = base64,
-                        extractedText = cleanedText.takeIf { it.isNotBlank() },
-                        isCropped = isCropped
+                    isScanningState.value = false
+                    callback?.invoke(
+                        CapturedPhoto(
+                            imageBitmap = imageBitmap,
+                            base64 = base64,
+                            extractedText = cleanedText.takeIf { it.isNotBlank() },
+                            isCropped = isCropped
+                        )
                     )
-                )
-            }
-            .addOnFailureListener {
-                isScanning = false
-                callback?.invoke(
-                    CapturedPhoto(
-                        imageBitmap = imageBitmap,
-                        base64 = base64,
-                        extractedText = null,
-                        isCropped = isCropped
+                }
+                .addOnFailureListener { e ->
+                    Napier.w("ML Kit OCR failed", e, tag = "CameraPhotoLauncher")
+                    isScanningState.value = false
+                    callback?.invoke(
+                        CapturedPhoto(
+                            imageBitmap = imageBitmap,
+                            base64 = base64,
+                            extractedText = null,
+                            isCropped = isCropped
+                        )
                     )
+                }
+        } catch (e: Throwable) {
+            Napier.e("ML Kit TextRecognition init/process threw synchronously", e, tag = "CameraPhotoLauncher")
+            isScanningState.value = false
+            callback?.invoke(
+                CapturedPhoto(
+                    imageBitmap = imageBitmap,
+                    base64 = base64,
+                    extractedText = null,
+                    isCropped = isCropped
                 )
-            }
+            )
+        }
     }
 
     fun handleCropAndScan(
@@ -244,39 +279,48 @@ actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
         rotationDegrees: Int,
         callback: (CapturedPhoto) -> Unit
     ) {
-        val source = currentSourceBitmap ?: return
-        isScanning = true
-        try {
-            var workingBitmap = source
-            if (rotationDegrees != 0) {
-                val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-                workingBitmap = Bitmap.createBitmap(
-                    workingBitmap,
-                    0,
-                    0,
-                    workingBitmap.width,
-                    workingBitmap.height,
-                    matrix,
-                    true
-                )
+        val source = currentSourceBitmapState.value
+        if (source == null) {
+            Napier.w("handleCropAndScan called with null source bitmap", tag = "CameraPhotoLauncher")
+            return
+        }
+        isScanningState.value = true
+        coroutineScope.launch {
+            try {
+                val cropped = withContext(Dispatchers.Default) {
+                    var workingBitmap = source
+                    if (rotationDegrees != 0) {
+                        val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+                        workingBitmap = Bitmap.createBitmap(
+                            workingBitmap,
+                            0,
+                            0,
+                            workingBitmap.width,
+                            workingBitmap.height,
+                            matrix,
+                            true
+                        )
+                    }
+
+                    val l = (cropRect.left.coerceIn(0f, 1f) * workingBitmap.width).toInt()
+                        .coerceIn(0, workingBitmap.width - 1)
+                    val t = (cropRect.top.coerceIn(0f, 1f) * workingBitmap.height).toInt()
+                        .coerceIn(0, workingBitmap.height - 1)
+                    val r = (cropRect.right.coerceIn(0f, 1f) * workingBitmap.width).toInt()
+                        .coerceIn(l + 1, workingBitmap.width)
+                    val b = (cropRect.bottom.coerceIn(0f, 1f) * workingBitmap.height).toInt()
+                        .coerceIn(t + 1, workingBitmap.height)
+
+                    val width = (r - l).coerceAtLeast(1)
+                    val height = (b - t).coerceAtLeast(1)
+
+                    Bitmap.createBitmap(workingBitmap, l, t, width, height)
+                }
+                processBitmap(cropped, runOcr = true, isCropped = true, callback = callback)
+            } catch (e: Exception) {
+                Napier.e("handleCropAndScan failed", e, tag = "CameraPhotoLauncher")
+                isScanningState.value = false
             }
-
-            val l = (cropRect.left.coerceIn(0f, 1f) * workingBitmap.width).toInt()
-                .coerceIn(0, workingBitmap.width - 1)
-            val t = (cropRect.top.coerceIn(0f, 1f) * workingBitmap.height).toInt()
-                .coerceIn(0, workingBitmap.height - 1)
-            val r = (cropRect.right.coerceIn(0f, 1f) * workingBitmap.width).toInt()
-                .coerceIn(l + 1, workingBitmap.width)
-            val b = (cropRect.bottom.coerceIn(0f, 1f) * workingBitmap.height).toInt()
-                .coerceIn(t + 1, workingBitmap.height)
-
-            val width = (r - l).coerceAtLeast(1)
-            val height = (b - t).coerceAtLeast(1)
-
-            val cropped = Bitmap.createBitmap(workingBitmap, l, t, width, height)
-            processBitmap(cropped, runOcr = true, isCropped = true, callback = callback)
-        } catch (_: Exception) {
-            isScanning = false
         }
     }
 
@@ -284,16 +328,25 @@ actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
-        if (success && tempCameraFile.exists()) {
-            try {
-                val fullBitmap = decodeSampledBitmapFromFile(tempCameraFile.absolutePath, 2048)
-                currentSourceBitmap = fullBitmap
-                processBitmap(fullBitmap, runOcr = true, isCropped = false)
-            } catch (_: Exception) {
-                isScanning = false
+        if (success && tempCameraFile.exists() && tempCameraFile.length() > 0L) {
+            coroutineScope.launch {
+                try {
+                    val fullBitmap = withContext(Dispatchers.IO) {
+                        decodeSampledBitmapFromFile(tempCameraFile.absolutePath, 2048)
+                    }
+                    currentSourceBitmapState.value = fullBitmap
+                    processBitmap(fullBitmap, runOcr = true, isCropped = false)
+                } catch (e: Exception) {
+                    Napier.e("takePicture decode/process failed", e, tag = "CameraPhotoLauncher")
+                    isScanningState.value = false
+                }
             }
         } else {
-            isScanning = false
+            Napier.w(
+                "takePicture cancelled or file missing (success=$success, exists=${tempCameraFile.exists()}, len=${tempCameraFile.length()})",
+                tag = "CameraPhotoLauncher"
+            )
+            isScanningState.value = false
         }
     }
 
@@ -301,34 +354,40 @@ actual fun rememberCameraPhotoLauncher(): CameraPhotoLauncher {
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val tempGalleryFile = File(context.cacheDir, "gallery_photo_capture.jpg")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    tempGalleryFile.outputStream().use { output ->
-                        input.copyTo(output)
+            coroutineScope.launch {
+                try {
+                    val fullBitmap = withContext(Dispatchers.IO) {
+                        val tempGalleryFile = File(context.cacheDir, "gallery_photo_capture.jpg")
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            tempGalleryFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        decodeSampledBitmapFromFile(tempGalleryFile.absolutePath, 2048)
                     }
+                    currentSourceBitmapState.value = fullBitmap
+                    processBitmap(fullBitmap, runOcr = true, isCropped = false)
+                } catch (e: Exception) {
+                    Napier.e("pickGallery decode/process failed", e, tag = "CameraPhotoLauncher")
+                    isScanningState.value = false
                 }
-                val fullBitmap = decodeSampledBitmapFromFile(tempGalleryFile.absolutePath, 2048)
-                currentSourceBitmap = fullBitmap
-                processBitmap(fullBitmap, runOcr = true, isCropped = false)
-            } catch (_: Exception) {
-                isScanning = false
             }
         } else {
-            isScanning = false
+            isScanningState.value = false
         }
     }
 
-    return remember(context, isScanning, tempCameraUri, currentSourceBitmap) {
+    return remember(context, tempCameraFile, tempCameraUri) {
         AndroidCameraPhotoLauncher(
             context = context,
+            tempCameraFile = tempCameraFile,
             tempCameraUri = tempCameraUri,
             takePictureLauncher = takePictureLauncher,
             pickGalleryLauncher = pickGalleryLauncher,
-            setCallback = { onResultCallback = it },
-            setScanning = { isScanning = it },
+            setCallback = { onResultCallbackState.value = it },
+            setScanning = { isScanningState.value = it },
             cropAndScanHandler = ::handleCropAndScan,
-            isScanning = isScanning
+            isScanningState = isScanningState
         )
     }
 }

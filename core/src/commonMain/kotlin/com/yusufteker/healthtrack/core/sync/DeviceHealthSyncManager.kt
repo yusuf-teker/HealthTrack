@@ -6,6 +6,7 @@ import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.*
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.firstOrNull
@@ -64,25 +65,43 @@ class DeviceHealthSyncManager(
 
         val applyDeviceData: suspend () -> Unit = {
         // ─────────────────────────────────────────────────────────────
-        // 1. MERGE SMART SCALE WEIGHTS & BODY FAT
+        // 1. MERGE SMART SCALE WEIGHTS & BODY COMPOSITION (FAT + MUSCLE)
         // ─────────────────────────────────────────────────────────────
         val allLocalWeights = database.getAllWeightsForSync(userId)
         val localWeightsByDate = allLocalWeights.groupBy { it.date }
         val defaultTargetWeight = tokenStorage.getUserTargetWeight().takeIf { it > 0.0 } ?: 70.0
+        val isMale = !tokenStorage.getUserGender().equals("FEMALE", ignoreCase = true)
 
-        // Group incoming scale records by YYYY-MM-DD and pick the latest measurement per day
+        // Group incoming scale records by YYYY-MM-DD, pick the latest measurement per day, and carry body comp
         val validDeviceWeightsByDate = snapshot.weights
             .filter { isoDateRegex.matches(it.date) && it.weightKg in 20.0..350.0 }
             .groupBy { it.date }
             .mapValues { (_, records) ->
                 val latest = records.maxByOrNull { it.measuredAtMillis } ?: records.first()
-                // If an earlier record within the same day had bodyFatPercent and the latest didn't, carry it over
+                val roundedWeight = roundOneDecimal(latest.weightKg)
                 val bodyFat = latest.bodyFatPercent ?: records.mapNotNull { it.bodyFatPercent }.lastOrNull()
                 val leanMass = latest.leanBodyMassKg ?: records.mapNotNull { it.leanBodyMassKg }.lastOrNull()
+                val boneMass = latest.boneMassKg ?: records.mapNotNull { it.boneMassKg }.lastOrNull()
+                val muscleMass = latest.muscleMassKg ?: records.mapNotNull { it.muscleMassKg }.lastOrNull()
+                val musclePct = latest.musclePercent ?: records.mapNotNull { it.musclePercent }.lastOrNull()
+
+                val resolved = BodyCompositionCalculator.resolveFromDevice(
+                    weightKg = roundedWeight,
+                    bodyFatPercent = bodyFat,
+                    leanBodyMassKg = leanMass,
+                    boneMassKg = boneMass,
+                    muscleMassKg = muscleMass,
+                    musclePercent = musclePct,
+                    isMale = isMale
+                )
+
                 latest.copy(
-                    weightKg = roundOneDecimal(latest.weightKg),
-                    bodyFatPercent = bodyFat?.let { roundOneDecimal(it) },
-                    leanBodyMassKg = leanMass?.let { roundOneDecimal(it) }
+                    weightKg = roundedWeight,
+                    bodyFatPercent = resolved.bodyFatPercent,
+                    leanBodyMassKg = resolved.leanBodyMassKg,
+                    boneMassKg = resolved.boneMassKg,
+                    muscleMassKg = resolved.muscleMassKg,
+                    musclePercent = resolved.musclePercent
                 )
             }
 
@@ -107,6 +126,9 @@ class DeviceHealthSyncManager(
                     date = date,
                     weightKg = deviceRecord.weightKg,
                     targetWeightKg = defaultTargetWeight,
+                    bodyFatPercent = deviceRecord.bodyFatPercent,
+                    muscleMassKg = deviceRecord.muscleMassKg,
+                    musclePercent = deviceRecord.musclePercent,
                     note = deviceNote,
                     createdAt = deviceRecord.measuredAtMillis.takeIf { it > 0L } ?: now,
                     updatedAt = maxOf(deviceRecord.measuredAtMillis, now),
@@ -116,31 +138,52 @@ class DeviceHealthSyncManager(
                 database.upsertWeight(entry)
                 importedWeights++
             } else {
-                val isSameWeight = abs(activeLocal.weightKg - deviceRecord.weightKg) < 0.05
-                val hasNewBodyFatInfo = deviceRecord.bodyFatPercent != null &&
-                    (activeLocal.note == null ||
-                        (!activeLocal.note.contains("Yağ", ignoreCase = true) &&
-                            !activeLocal.note.contains("Body Fat", ignoreCase = true)))
+                val legacyBodyComp = BodyCompositionCalculator.parseLegacyBodyCompositionFromNote(
+                    note = activeLocal.note,
+                    weightKg = activeLocal.weightKg,
+                    isMale = isMale
+                )
+                val currentFat = activeLocal.bodyFatPercent ?: legacyBodyComp?.bodyFatPercent
+                val currentMuscleKg = activeLocal.muscleMassKg ?: legacyBodyComp?.muscleMassKg
+                val currentMusclePct = activeLocal.musclePercent ?: legacyBodyComp?.musclePercent
 
-                if (isSameWeight && !hasNewBodyFatInfo) {
+                val isSameWeight = abs(activeLocal.weightKg - deviceRecord.weightKg) < 0.05
+                val targetFat = deviceRecord.bodyFatPercent ?: currentFat
+                val targetMuscleKg = deviceRecord.muscleMassKg ?: currentMuscleKg
+                val targetMusclePct = deviceRecord.musclePercent ?: currentMusclePct
+
+                val hasNewBodyCompInfo =
+                    (targetFat != null && (activeLocal.bodyFatPercent == null || abs(activeLocal.bodyFatPercent - targetFat) >= 0.05)) ||
+                    (targetMuscleKg != null && (activeLocal.muscleMassKg == null || abs(activeLocal.muscleMassKg - targetMuscleKg) >= 0.05)) ||
+                    (targetMusclePct != null && (activeLocal.musclePercent == null || abs(activeLocal.musclePercent - targetMusclePct) >= 0.05))
+
+                if (isSameWeight && !hasNewBodyCompInfo) {
                     // Already identical -> skip without dirtying syncStatus
                     skippedWeights++
                 } else if (deviceRecord.measuredAtMillis > activeLocal.updatedAt || isAutoGeneratedWeightNote(activeLocal.note)) {
                     // Scale reading is newer than local entry (or local entry was an auto-generated placeholder)
-                    val mergedNote = mergeWeightNotes(activeLocal.note, deviceNote)
+                    val cleanedExistingNote = BodyCompositionCalculator.stripLegacyBodyCompFromNote(activeLocal.note)
+                    val mergedNote = mergeWeightNotes(cleanedExistingNote, deviceNote)
                     val updatedEntry = activeLocal.copy(
                         weightKg = deviceRecord.weightKg,
                         targetWeightKg = activeLocal.targetWeightKg ?: defaultTargetWeight,
+                        bodyFatPercent = targetFat,
+                        muscleMassKg = targetMuscleKg,
+                        musclePercent = targetMusclePct,
                         note = mergedNote,
                         updatedAt = maxOf(deviceRecord.measuredAtMillis, now),
                         syncStatus = SyncStatus.PENDING
                     )
                     database.upsertWeight(updatedEntry)
                     updatedWeights++
-                } else if (hasNewBodyFatInfo) {
-                    // User entered weight manually later in the day, keep manual weightKg but enrich note with scale body fat
-                    val mergedNote = mergeWeightNotes(activeLocal.note, deviceNote)
+                } else if (hasNewBodyCompInfo) {
+                    // User entered weight manually later in the day: keep manual weightKg & note, enrich missing composition
+                    val cleanedExistingNote = BodyCompositionCalculator.stripLegacyBodyCompFromNote(activeLocal.note)
+                    val mergedNote = mergeWeightNotes(cleanedExistingNote, deviceNote)
                     val updatedEntry = activeLocal.copy(
+                        bodyFatPercent = activeLocal.bodyFatPercent ?: targetFat,
+                        muscleMassKg = activeLocal.muscleMassKg ?: targetMuscleKg,
+                        musclePercent = activeLocal.musclePercent ?: targetMusclePct,
                         note = mergedNote,
                         updatedAt = now,
                         syncStatus = SyncStatus.PENDING
@@ -376,18 +419,9 @@ class DeviceHealthSyncManager(
     }
 
     private fun buildScaleNote(
-        record: DeviceWeightRecord,
-        language: AppLanguage = LocalizationManager.currentLanguage
+        record: DeviceWeightRecord
     ): String {
-        val parts = mutableListOf<String>()
-        parts.add("⚖️ ${record.sourceName}")
-        record.bodyFatPercent?.let {
-            parts.add(trEn("%$it Yağ", "$it% Body Fat", language))
-        }
-        record.leanBodyMassKg?.let {
-            parts.add(trEn("${it}kg Yağsız Kütle", "${it}kg Lean Mass", language))
-        }
-        return parts.joinToString(" • ")
+        return "⚖️ ${record.sourceName}"
     }
 
     private fun isAutoGeneratedWeightNote(note: String?): Boolean {

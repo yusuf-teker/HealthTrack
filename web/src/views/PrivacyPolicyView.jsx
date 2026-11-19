@@ -30,7 +30,7 @@ export default function PrivacyPolicyView({ onBack }) {
               {t('Planora & HealthTrack Gizlilik Politikası', 'Planora & HealthTrack Privacy Policy')}
             </h1>
             <p className="text-xs text-gray-400 mt-2">
-              {t('Son Güncelleme: 13 Kasım 2026 • Geliştirici: Yusuf Teker', 'Last Updated: November 13, 2026 • Developer: Yusuf Teker')}
+              {t('Son Güncelleme: 19 Kasım 2026 • Geliştirici: Yusuf Teker', 'Last Updated: November 19, 2026 • Developer: Yusuf Teker')}
             </p>
           </div>
 
@@ -64,20 +64,26 @@ export default function PrivacyPolicyView({ onBack }) {
           <section className="space-y-3 text-sm text-gray-300 leading-relaxed">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <HeartPulse className="w-4 h-4 text-rose-400" />
-              {t('2. Health Connect ve Apple HealthKit Verileri', '2. Health Connect & Apple HealthKit Data')}
+              {t('2. Health Connect, Apple HealthKit ve Huawei Health Kit Verileri', '2. Health Connect, Apple HealthKit & Huawei Health Kit Data')}
             </h2>
             <p>
               {t(
-                'HealthTrack; açık rızanız doğrultusunda Android Health Connect veya iOS Apple HealthKit üzerinden kilo, vücut yağ oranı, kas kütlesi, adım sayısı, mesafe, egzersiz, yakılan kalori ve kalp atış hızı verilerini okuyabilir veya güncelleyebilir.',
-                'With your explicit consent, HealthTrack can read or update weight, body fat percentage, muscle mass, steps, distance, workouts, burned calories, and heart rate data via Android Health Connect or iOS Apple HealthKit.'
+                'HealthTrack; açık rızanız doğrultusunda Android Health Connect, iOS Apple HealthKit veya Huawei Health Service Kit (OAuth 2.0 REST API) üzerinden yalnızca salt-okunur (read-only) olarak adım sayısı, mesafe/irtifa, aktif ve toplam kalori, aktif saatler, egzersiz/aktivite kayıtları, kilo ve vücut yağ oranı, kalp atış hızı, stres ve uyku özet verilerinizi okuyabilir.',
+                'With your explicit consent, HealthTrack can read—strictly on a read-only basis—your steps, distance/ascent, active and total calories, active hours, workout/activity records, body weight and body fat, heart rate, stress, and sleep summaries via Android Health Connect, iOS Apple HealthKit, or Huawei Health Service Kit (OAuth 2.0 REST API).'
+              )}
+            </p>
+            <p className="text-gray-400">
+              {t(
+                'Huawei Health Service Kit bağlantısı yalnızca sizin HUAWEI ID OAuth 2.0 onayınızla kurulur. Dilediğiniz zaman uygulama içinden veya Huawei Hesap/Gizlilik ayarlarından erişim iznini iptal edebilir, hesabınızı ve senkronize edilmiş tüm verilerinizi kalıcı olarak silebilirsiniz.',
+                'Huawei Health Service Kit access is enabled only after your explicit HUAWEI ID OAuth 2.0 authorization. You may revoke consent or permanently delete your account and all synced health data at any time from within HealthTrack or your Huawei Account privacy settings.'
               )}
             </p>
             <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-emerald-200 space-y-1">
               <p className="font-bold text-emerald-400">{t('Sınırlı Kullanım Taahhüdü (Limited Use)', 'Limited Use Commitment')}</p>
               <p>
                 {t(
-                  'Health Connect ve Apple HealthKit üzerinden alınan hiçbir sağlık verisi üçüncü taraflara satılmaz, reklam/pazarlama amacıyla kullanılmaz veya veri simsarlarıyla paylaşılmaz. Veriler yalnızca uygulama içi sağlık ve beslenme analizlerinizi görüntülemeniz için kullanılır.',
-                  'No health data obtained from Health Connect or Apple HealthKit is ever sold to third parties, used for advertising/marketing, or shared with data brokers. Data is used solely to display your in-app health and nutrition analytics.'
+                  'Health Connect, Apple HealthKit ve Huawei Health Service Kit üzerinden alınan hiçbir sağlık ve aktivite verisi üçüncü taraflara satılmaz, reklam/pazarlama amacıyla kullanılmaz, veri simsarlarıyla paylaşılmaz ve tıbbi teşhis/tedavi amacıyla kullanılmaz. Veriler yalnızca kişisel fitness, beslenme ve yaşam tarzı takibinizi görüntülemeniz için kullanılır.',
+                  'No health or wellness data obtained from Health Connect, Apple HealthKit, or Huawei Health Service Kit is ever sold to third parties, used for advertising/marketing, shared with data brokers, or used for medical diagnosis or treatment. Data is used solely to display your personal fitness, nutrition, and lifestyle insights inside the app.'
                 )}
               </p>
             </div>

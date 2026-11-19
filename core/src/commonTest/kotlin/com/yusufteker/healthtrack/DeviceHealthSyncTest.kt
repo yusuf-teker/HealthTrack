@@ -70,9 +70,43 @@ class DeviceHealthSyncTest {
         assertEquals(1, savedWeights.size)
         val entry = savedWeights.first()
         assertEquals(74.4, entry.weightKg)
+        assertEquals(16.2, entry.bodyFatPercent)
+        assertNotNull(entry.muscleMassKg)
+        assertNotNull(entry.musclePercent)
+        assertTrue(entry.musclePercent > 50.0)
         assertEquals(74.4, tokenStorage.getUserWeight())
         assertNotNull(entry.note)
-        assertTrue(entry.note!!.contains("%16.2 Yağ"))
+        assertTrue(entry.note.contains("Zepp Life"))
+    }
+
+    @Test
+    fun `exact leanBodyMass minus boneMass derives exact muscle mass and percentage`() = runTest {
+        val (database, _, manager) = createTestFixture()
+
+        val snapshot = DeviceHealthSnapshot(
+            weights = listOf(
+                DeviceWeightRecord(
+                    externalId = "hc_exact_1",
+                    date = "2026-11-09",
+                    weightKg = 80.0,
+                    bodyFatPercent = 20.0,
+                    leanBodyMassKg = 64.0,
+                    boneMassKg = 3.2,
+                    measuredAtMillis = 1_700_050_000_000L,
+                    sourceName = "Health Connect Tartı"
+                )
+            ),
+            platformName = "Health Connect"
+        )
+
+        val summary = manager.mergeSnapshot(snapshot, syncToCloud = false)
+        assertEquals(1, summary.importedWeights)
+
+        val entry = database.getWeights(1).first()
+        assertEquals(80.0, entry.weightKg)
+        assertEquals(20.0, entry.bodyFatPercent)
+        assertEquals(60.8, entry.muscleMassKg)
+        assertEquals(76.0, entry.musclePercent)
     }
 
     @Test
@@ -111,10 +145,12 @@ class DeviceHealthSyncTest {
         manager.mergeSnapshot(snapshot, syncToCloud = false)
 
         val entry = database.getWeights(1).first()
-        // Manual weight 73.5 is preserved, while note is enriched with body fat
+        // Manual weight 73.5 is preserved, while structured body fat & muscle are enriched
         assertEquals(73.5, entry.weightKg)
         assertTrue(entry.note!!.contains("Aç karna"))
-        assertTrue(entry.note!!.contains("%15.8 Yağ"))
+        assertEquals(15.8, entry.bodyFatPercent)
+        assertNotNull(entry.muscleMassKg)
+        assertNotNull(entry.musclePercent)
     }
 
     @Test
