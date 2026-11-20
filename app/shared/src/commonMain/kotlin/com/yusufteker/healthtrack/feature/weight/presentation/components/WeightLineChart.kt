@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.WeightChartMetric
@@ -109,29 +110,37 @@ fun WeightLineChart(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Chart Header & Timeframe Switcher Tabs
-            Row(
+            // Chart Header & Timeframe Switcher Tabs (clean stacked layout so pills never wrap)
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = chartTitle,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = if (selectedIndex != null) str("Noktaya dokunuldu", "Point selected") else str("Trend & İnterpolasyon", "Trend & Interpolation"),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = if (selectedIndex != null) primaryColor else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selectedIndex != null) primaryColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
 
-                // Pill Nav Switcher
+                // Full-width Pill Nav Switcher (Hafta | Ay | Yıl | Tümü)
                 Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(999.dp))
                         .background(if (isDark) HealthColors.SurfaceContainerLowest else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .padding(3.dp),
@@ -142,6 +151,7 @@ fun WeightLineChart(
                         selected = selectedPeriod == WeightChartPeriod.WEEKLY,
                         accentColor = primaryColor,
                         useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.WEEKLY)
@@ -152,6 +162,7 @@ fun WeightLineChart(
                         selected = selectedPeriod == WeightChartPeriod.MONTHLY,
                         accentColor = primaryColor,
                         useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.MONTHLY)
@@ -162,6 +173,7 @@ fun WeightLineChart(
                         selected = selectedPeriod == WeightChartPeriod.YEARLY,
                         accentColor = primaryColor,
                         useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.YEARLY)
@@ -172,6 +184,7 @@ fun WeightLineChart(
                         selected = selectedPeriod == WeightChartPeriod.ALL,
                         accentColor = primaryColor,
                         useDarkSelectedText = selectedMetric != WeightChartMetric.WEIGHT,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             selectedIndex = null
                             onPeriodSelect(WeightChartPeriod.ALL)
@@ -530,22 +543,26 @@ private fun PeriodPill(
     selected: Boolean,
     accentColor: Color = HealthColors.Primary,
     useDarkSelectedText: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val selectedTextColor = if (useDarkSelectedText) HealthColors.OnBackgroundLight else HealthColors.OnPrimary
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(999.dp))
             .background(if (selected) accentColor else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-            .bounceClick()
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+            .bounceClick(),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) selectedTextColor else MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (selected) selectedTextColor else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

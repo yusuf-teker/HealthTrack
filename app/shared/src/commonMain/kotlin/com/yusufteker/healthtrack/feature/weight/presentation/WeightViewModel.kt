@@ -14,6 +14,7 @@ import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
+import com.yusufteker.healthtrack.core.utils.FullBodyCompositionAnalytics
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.normalizeDateToIso
@@ -35,6 +36,9 @@ class WeightViewModel(
 
     private val _state = MutableStateFlow(
         WeightState(
+            userHeightCm = tokenStorage.getUserHeight().takeIf { h -> h > 50.0 } ?: 175.0,
+            userAge = tokenStorage.getUserAge().takeIf { a -> a > 0 } ?: 26,
+            userIsMale = !tokenStorage.getUserGender().equals("FEMALE", ignoreCase = true),
             reminderFrequency = tokenStorage.getWeightReminderFrequency(),
             reminderHour = tokenStorage.getWeightReminderHour(),
             reminderMinute = tokenStorage.getWeightReminderMinute()
@@ -214,6 +218,20 @@ class WeightViewModel(
                     BodyCompositionCalculator.round1(currentMusclePct - firstMusclePct)
                 } else null
 
+                val currentImpedance = sorted.lastOrNull { it.impedanceOhm != null }?.impedanceOhm
+                val report = current?.let { w ->
+                    FullBodyCompositionAnalytics.calculate(
+                        weightKg = w,
+                        heightCm = userHeightCm,
+                        age = userAge,
+                        isMale = isMale,
+                        bodyFatPercent = currentFat,
+                        muscleMassKg = currentMuscleKg,
+                        musclePercent = currentMusclePct,
+                        impedanceOhm = currentImpedance
+                    )
+                }
+
                 // Keep tokenStorage user weight in sync with latest recorded entry
                 if (current != null && current > 0.0) {
                     tokenStorage.setUserWeight(current)
@@ -233,6 +251,7 @@ class WeightViewModel(
                         currentMuscleMassKg = currentMuscleKg,
                         currentMusclePercent = currentMusclePct,
                         musclePercentChange = musclePctChange,
+                        bodyCompositionReport = report,
                         userHeightCm = userHeightCm,
                         userAge = userAge,
                         userIsMale = isMale
@@ -386,6 +405,7 @@ class WeightViewModel(
                         boneMassKg = reading.boneMassKg,
                         muscleMassKg = reading.muscleMassKg,
                         musclePercent = reading.musclePercent,
+                        impedanceOhm = reading.impedanceOhm,
                         measuredAtMillis = now,
                         sourcePackage = "ble.scale",
                         sourceName = reading.scaleModel

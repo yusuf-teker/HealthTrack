@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yusufteker.healthtrack.core.model.AnalysisPeriodType
@@ -385,23 +386,39 @@ private fun AutoWeeklyReportReadyBanner(
                 OutlinedButton(
                     onClick = onViewInApp,
                     modifier = Modifier.weight(1f).bounceClick(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
                 ) {
-                    Text(str("Raporu İncele", "View Report"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(
+                        text = str("Raporu İncele", "View Report"),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 Button(
                     onClick = onSendWhatsApp,
                     modifier = Modifier.weight(1f).bounceClick(),
                     shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = WhatsAppGreen,
                         contentColor = Color.White
                     )
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(str("WhatsApp'a At", "Send to WhatsApp"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = str("WhatsApp'a At", "Send to WhatsApp"),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -420,8 +437,8 @@ private fun PeriodModeToggleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val isDaily = selectedPeriod == AnalysisPeriodType.DAILY
             val isWeekly = selectedPeriod == AnalysisPeriodType.WEEKLY
@@ -463,7 +480,7 @@ private fun PeriodTabPill(
         color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     ) {
         Row(
-            modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
+            modifier = Modifier.padding(vertical = 9.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -471,19 +488,32 @@ private fun PeriodTabPill(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp,
+                        lineHeight = 14.sp
+                    ),
+                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 9.5.sp,
+                        lineHeight = 12.sp
+                    ),
+                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

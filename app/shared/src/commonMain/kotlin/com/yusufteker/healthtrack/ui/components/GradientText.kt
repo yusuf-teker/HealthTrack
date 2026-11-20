@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.yusufteker.healthtrack.theme.HealthColors
 
 /**
@@ -24,7 +25,9 @@ fun GradientText(
     modifier: Modifier = Modifier,
     colors: List<Color> = HealthColors.GradientPrimary,
     style: TextStyle = TextStyle.Default,
-    textAlign: TextAlign? = null
+    textAlign: TextAlign? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
 ) {
     Text(
         text = text,
@@ -42,7 +45,9 @@ fun GradientText(
                 }
             },
         style = style,
-        textAlign = textAlign
+        textAlign = textAlign,
+        maxLines = maxLines,
+        overflow = overflow
     )
 }
 

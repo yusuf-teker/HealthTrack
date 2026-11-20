@@ -84,6 +84,7 @@ class DeviceHealthSyncManager(
                 val boneMass = latest.boneMassKg ?: records.mapNotNull { it.boneMassKg }.lastOrNull()
                 val muscleMass = latest.muscleMassKg ?: records.mapNotNull { it.muscleMassKg }.lastOrNull()
                 val musclePct = latest.musclePercent ?: records.mapNotNull { it.musclePercent }.lastOrNull()
+                val impedance = latest.impedanceOhm ?: records.mapNotNull { it.impedanceOhm }.lastOrNull()
 
                 val resolved = BodyCompositionCalculator.resolveFromDevice(
                     weightKg = roundedWeight,
@@ -101,7 +102,8 @@ class DeviceHealthSyncManager(
                     leanBodyMassKg = resolved.leanBodyMassKg,
                     boneMassKg = resolved.boneMassKg,
                     muscleMassKg = resolved.muscleMassKg,
-                    musclePercent = resolved.musclePercent
+                    musclePercent = resolved.musclePercent,
+                    impedanceOhm = impedance
                 )
             }
 
@@ -129,6 +131,7 @@ class DeviceHealthSyncManager(
                     bodyFatPercent = deviceRecord.bodyFatPercent,
                     muscleMassKg = deviceRecord.muscleMassKg,
                     musclePercent = deviceRecord.musclePercent,
+                    impedanceOhm = deviceRecord.impedanceOhm,
                     note = deviceNote,
                     createdAt = deviceRecord.measuredAtMillis.takeIf { it > 0L } ?: now,
                     updatedAt = maxOf(deviceRecord.measuredAtMillis, now),
@@ -151,11 +154,13 @@ class DeviceHealthSyncManager(
                 val targetFat = deviceRecord.bodyFatPercent ?: currentFat
                 val targetMuscleKg = deviceRecord.muscleMassKg ?: currentMuscleKg
                 val targetMusclePct = deviceRecord.musclePercent ?: currentMusclePct
+                val targetImpedance = deviceRecord.impedanceOhm ?: activeLocal.impedanceOhm
 
                 val hasNewBodyCompInfo =
                     (targetFat != null && (activeLocal.bodyFatPercent == null || abs(activeLocal.bodyFatPercent - targetFat) >= 0.05)) ||
                     (targetMuscleKg != null && (activeLocal.muscleMassKg == null || abs(activeLocal.muscleMassKg - targetMuscleKg) >= 0.05)) ||
-                    (targetMusclePct != null && (activeLocal.musclePercent == null || abs(activeLocal.musclePercent - targetMusclePct) >= 0.05))
+                    (targetMusclePct != null && (activeLocal.musclePercent == null || abs(activeLocal.musclePercent - targetMusclePct) >= 0.05)) ||
+                    (targetImpedance != null && activeLocal.impedanceOhm != targetImpedance)
 
                 if (isSameWeight && !hasNewBodyCompInfo) {
                     // Already identical -> skip without dirtying syncStatus
@@ -170,6 +175,7 @@ class DeviceHealthSyncManager(
                         bodyFatPercent = targetFat,
                         muscleMassKg = targetMuscleKg,
                         musclePercent = targetMusclePct,
+                        impedanceOhm = targetImpedance,
                         note = mergedNote,
                         updatedAt = maxOf(deviceRecord.measuredAtMillis, now),
                         syncStatus = SyncStatus.PENDING
@@ -184,6 +190,7 @@ class DeviceHealthSyncManager(
                         bodyFatPercent = activeLocal.bodyFatPercent ?: targetFat,
                         muscleMassKg = activeLocal.muscleMassKg ?: targetMuscleKg,
                         musclePercent = activeLocal.musclePercent ?: targetMusclePct,
+                        impedanceOhm = activeLocal.impedanceOhm ?: targetImpedance,
                         note = mergedNote,
                         updatedAt = now,
                         syncStatus = SyncStatus.PENDING

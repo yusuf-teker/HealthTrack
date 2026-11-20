@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import FirebaseCore
+import FirebaseMessaging
 import UserNotifications
 import WidgetKit
 import Shared
@@ -26,21 +27,43 @@ final class SwiftWidgetPlatformDelegate: NSObject, IosWidgetPlatformDelegate {
     }
 }
 
-final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
         UNUserNotificationCenter.current().delegate = self
+        Messaging.messaging().delegate = self
         DispatchQueue.main.async {
             application.registerForRemoteNotifications()
         }
         return true
     }
 
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        application.registerForRemoteNotifications()
+        Messaging.messaging().token { token, _ in
+            if let token = token, !token.isEmpty {
+                IosPushSwiftBridge.shared.onPushTokenUpdated(token: token)
+            }
+        }
+    }
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        IosPushSwiftBridge.shared.onPushTokenUpdated(token: token)
+        Messaging.messaging().apnsToken = deviceToken
+        Messaging.messaging().token { token, _ in
+            if let token = token, !token.isEmpty {
+                IosPushSwiftBridge.shared.onPushTokenUpdated(token: token)
+            }
+        }
+    }
+
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let fcmToken = fcmToken, !fcmToken.isEmpty else { return }
+        IosPushSwiftBridge.shared.onPushTokenUpdated(token: fcmToken)
     }
 
     func userNotificationCenter(
@@ -113,7 +136,9 @@ struct iOSApp: App {
     private let widgetDelegate = SwiftWidgetPlatformDelegate()
 
     init() {
-        FirebaseApp.configure()
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
         IosWidgetSwiftBridge.shared.register(delegate: widgetDelegate)
     }
 

@@ -13,8 +13,11 @@ import platform.Foundation.NSUserDefaults
  */
 object IosPushSwiftBridge {
 
+    private val rawApnsHexRegex = Regex("^[0-9a-fA-F]{64}$")
+
     fun onPushTokenUpdated(token: String) {
         val clean = token.trim().takeIf { it.isNotBlank() } ?: return
+        if (rawApnsHexRegex.matches(clean)) return
         NSUserDefaults.standardUserDefaults.setObject(clean, forKey = TokenStorage.KEY_FCM_TOKEN)
         NSUserDefaults.standardUserDefaults.synchronize()
         PushTokenBus.onNewToken(clean)

@@ -88,58 +88,68 @@ actual fun rememberBleScaleBridge(): BleScaleBridge {
     }
 
     @SuppressLint("MissingPermission")
-    fun beginScanning() {
+    fun beginScanning(passive: Boolean = false) {
         if (!bleSupported) {
-            stateFlow.value = BleScaleLiveState(
-                scanState = BleScaleScanState.NOT_SUPPORTED,
-                statusMessage = trEn(
-                    "Cihazınız Bluetooth Low Energy (BLE) özelliğini desteklemiyor.",
-                    "Your device does not support Bluetooth Low Energy (BLE)."
+            if (!passive) {
+                stateFlow.value = BleScaleLiveState(
+                    scanState = BleScaleScanState.NOT_SUPPORTED,
+                    statusMessage = trEn(
+                        "Cihazınız Bluetooth Low Energy (BLE) özelliğini desteklemiyor.",
+                        "Your device does not support Bluetooth Low Energy (BLE)."
+                    )
                 )
-            )
+            }
             return
         }
 
         val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
         val adapter: BluetoothAdapter? = bluetoothManager?.adapter
         if (adapter == null) {
-            stateFlow.value = BleScaleLiveState(
-                scanState = BleScaleScanState.NOT_SUPPORTED,
-                statusMessage = trEn("Bluetooth adaptörü bulunamadı.", "Bluetooth adapter not found.")
-            )
+            if (!passive) {
+                stateFlow.value = BleScaleLiveState(
+                    scanState = BleScaleScanState.NOT_SUPPORTED,
+                    statusMessage = trEn("Bluetooth adaptörü bulunamadı.", "Bluetooth adapter not found.")
+                )
+            }
             return
         }
         if (!adapter.isEnabled) {
-            stateFlow.value = BleScaleLiveState(
-                scanState = BleScaleScanState.BLUETOOTH_OFF,
-                statusMessage = trEn(
-                    "Lütfen Bluetooth'u açın ve tekrar deneyin.",
-                    "Please turn on Bluetooth and try again."
+            if (!passive) {
+                stateFlow.value = BleScaleLiveState(
+                    scanState = BleScaleScanState.BLUETOOTH_OFF,
+                    statusMessage = trEn(
+                        "Lütfen Bluetooth'u açın ve tekrar deneyin.",
+                        "Please turn on Bluetooth and try again."
+                    )
                 )
-            )
+            }
             return
         }
 
         val scanner = adapter.bluetoothLeScanner
         if (scanner == null) {
-            stateFlow.value = BleScaleLiveState(
-                scanState = BleScaleScanState.ERROR,
-                statusMessage = trEn(
-                    "Bluetooth tarayıcı başlatılamadı.",
-                    "Could not start Bluetooth scanner."
+            if (!passive) {
+                stateFlow.value = BleScaleLiveState(
+                    scanState = BleScaleScanState.ERROR,
+                    statusMessage = trEn(
+                        "Bluetooth tarayıcı başlatılamadı.",
+                        "Could not start Bluetooth scanner."
+                    )
                 )
-            )
+            }
             return
         }
 
         stopInternalScan()
-        stateFlow.value = BleScaleLiveState(
-            scanState = BleScaleScanState.SCANNING,
-            statusMessage = trEn(
-                "Tartı aranıyor... Lütfen çıplak ayakla tartıya çıkın.",
-                "Searching for scale... Step onto the scale barefoot."
+        if (!passive) {
+            stateFlow.value = BleScaleLiveState(
+                scanState = BleScaleScanState.SCANNING,
+                statusMessage = trEn(
+                    "Tartı aranıyor... Lütfen çıplak ayakla tartıya çıkın.",
+                    "Searching for scale... Step onto the scale barefoot."
+                )
             )
-        )
+        }
 
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -250,7 +260,7 @@ actual fun rememberBleScaleBridge(): BleScaleBridge {
         }
 
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setScanMode(if (passive) ScanSettings.SCAN_MODE_BALANCED else ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
 
         runCatching {
@@ -313,6 +323,13 @@ actual fun rememberBleScaleBridge(): BleScaleBridge {
                     )
                     permissionLauncher.launch(requiredPermissions)
                 }
+            }
+
+            override fun startPassiveScanIfPermitted(heightCm: Double, age: Int, isMale: Boolean) {
+                activeProfile = Triple(heightCm, age, isMale)
+                if (!bleSupported || !hasBlePermissions()) return
+                if (activeScanner != null && activeCallback != null) return
+                beginScanning(passive = true)
             }
 
             override fun stopScan() {

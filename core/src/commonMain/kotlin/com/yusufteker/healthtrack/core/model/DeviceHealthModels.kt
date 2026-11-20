@@ -61,6 +61,7 @@ data class DeviceWeightRecord(
     val boneMassKg: Double? = null,
     val muscleMassKg: Double? = null,
     val musclePercent: Double? = null,
+    val impedanceOhm: Int? = null,
     val measuredAtMillis: Long,
     val sourcePackage: String = "",
     val sourceName: String = trEn("Akıllı Tartı", "Smart Scale")

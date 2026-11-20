@@ -3,6 +3,10 @@ package com.yusufteker.healthtrack.feature.weight.presentation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +24,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Timer
@@ -50,6 +56,7 @@ import com.yusufteker.healthtrack.core.utils.toLocaleDoubleOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import com.yusufteker.healthtrack.feature.weight.presentation.components.BleScaleMeasureSheet
+import com.yusufteker.healthtrack.feature.weight.presentation.components.BodyCompositionDetailsCard
 import com.yusufteker.healthtrack.feature.weight.presentation.components.EditTargetWeightDialog
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
 import com.yusufteker.healthtrack.theme.HealthColors
@@ -212,6 +219,11 @@ fun WeightScreen(
                 onOpenGuide = { showDeviceGuideDialog = true }
             )
 
+            // ── Full Body Composition Analytics Card (BMI, Body Score, Body Age, Water, Visceral Fat, BMR, Bone, Protein) ──
+            state.bodyCompositionReport?.let { report ->
+                BodyCompositionDetailsCard(report = report)
+            }
+
             // ── Interactive Telemetry Line Chart ──
             WeightLineChart(
                 entries = state.filteredEntries,
@@ -223,70 +235,114 @@ fun WeightScreen(
                 modifier = Modifier.spotlightTarget(SpotlightTargetId.WEIGHT_CHART_CARD)
             )
 
-            // ── History List (Directly Visible Above the Fold) ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = str("Kilo Geçmişi", "Weight History"),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = str("${state.entries.size} Kayıt", "${state.entries.size} Entries"),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            // ── Collapsible History Section ──
+            var isHistoryExpanded by remember { mutableStateOf(false) }
 
-            if (state.entries.isEmpty()) {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = 2.dp
-                ) {
-                    Column(
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                elevation = 4.dp
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 28.dp, horizontal = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .clickable { isHistoryExpanded = !isHistoryExpanded }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = str("Henüz tartım kaydı bulunmuyor.", "No weigh-in entries yet."),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedButton(
-                            onClick = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
-                            shape = RoundedCornerShape(999.dp),
-                            modifier = Modifier.bounceClick()
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(str("İlk Kilonuzu Ekleyin", "Add Your First Weigh-in"), fontWeight = FontWeight.SemiBold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = str("Kilo Geçmişi", "Weight History"),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = str("${state.entries.size} Kayıt", "${state.entries.size} Entries"),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (!isHistoryExpanded && state.entries.isNotEmpty()) {
+                                val latest = state.entries.last()
+                                Text(
+                                    text = str(
+                                        "Son ölçüm: ${latest.weightKg} kg • ${formatDisplayDateTr(latest.date, appLang())}",
+                                        "Latest: ${latest.weightKg} kg • ${formatDisplayDateTr(latest.date, appLang())}"
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+                                )
+                            }
                         }
-                    }
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.entries.reversed().forEach { item ->
-                        LuxuryWeightHistoryItem(
-                            entry = item,
-                            onDelete = { entryPendingDelete = item }
+
+                        Icon(
+                            imageVector = if (isHistoryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (isHistoryExpanded) str("Daralt", "Collapse") else str("Genişlet", "Expand"),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+
+                    AnimatedVisibility(
+                        visible = isHistoryExpanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f))
+                            if (state.entries.isEmpty()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp, horizontal = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = str("Henüz tartım kaydı bulunmuyor.", "No weigh-in entries yet."),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    OutlinedButton(
+                                        onClick = { onIntent(WeightIntent.OnSetAddDialogOpen(true)) },
+                                        shape = RoundedCornerShape(999.dp),
+                                        modifier = Modifier.bounceClick()
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(str("İlk Kilonuzu Ekleyin", "Add Your First Weigh-in"), fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            } else {
+                                state.entries.reversed().forEach { item ->
+                                    LuxuryWeightHistoryItem(
+                                        entry = item,
+                                        onDelete = { entryPendingDelete = item }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

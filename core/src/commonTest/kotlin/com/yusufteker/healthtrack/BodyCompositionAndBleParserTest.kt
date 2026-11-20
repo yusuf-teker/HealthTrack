@@ -1,6 +1,7 @@
 package com.yusufteker.healthtrack
 
 import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
+import com.yusufteker.healthtrack.core.utils.FullBodyCompositionAnalytics
 import com.yusufteker.healthtrack.core.utils.SmartScaleBleParser
 import com.yusufteker.healthtrack.core.utils.XiaomiScaleBleParser
 import kotlin.test.Test
@@ -291,6 +292,29 @@ class BodyCompositionAndBleParserTest {
         assertEquals(84.1, fitdaysReading.weightKg)
         assertTrue(fitdaysReading.isStabilized)
         assertEquals("Renpho Smart Scale", fitdaysReading.scaleModel)
+    }
+
+    @Test
+    fun `computes full Zepp Life compatible body composition metrics`() {
+        val report = FullBodyCompositionAnalytics.calculate(
+            weightKg = 78.0,
+            heightCm = 178.0,
+            age = 28,
+            isMale = true,
+            impedanceOhm = 500
+        )
+        assertNotNull(report)
+        assertTrue(report.bmi in 24.0..25.0)
+        assertTrue(report.bodyScore in 50..100)
+        assertTrue(report.bodyAge in 15..80)
+        assertTrue(report.visceralFat in 1..50)
+        assertTrue(report.bmrKcal in 1200..2500)
+        assertNotNull(report.bodyFatPercent)
+        assertNotNull(report.muscleMassKg)
+        assertNotNull(report.waterPercent)
+        assertNotNull(report.boneMassKg)
+        assertNotNull(report.proteinPercent)
+        assertEquals(68.6, report.idealWeightKg)
     }
 
     @Test

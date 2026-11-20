@@ -16,6 +16,8 @@ import platform.CoreBluetooth.CBAdvertisementDataServiceDataKey
 import platform.CoreBluetooth.CBCentralManager
 import platform.CoreBluetooth.CBCentralManagerDelegateProtocol
 import platform.CoreBluetooth.CBCentralManagerScanOptionAllowDuplicatesKey
+import platform.CoreBluetooth.CBManager
+import platform.CoreBluetooth.CBManagerAuthorizationAllowedAlways
 import platform.CoreBluetooth.CBManagerStatePoweredOff
 import platform.CoreBluetooth.CBManagerStatePoweredOn
 import platform.CoreBluetooth.CBManagerStateResetting
@@ -242,6 +244,20 @@ private class IosBleScaleController : BleScaleBridge {
             CBCentralManagerScanOptionAllowDuplicatesKey to true
         )
         manager.scanForPeripheralsWithServices(serviceUUIDs = null, options = options)
+    }
+
+    override fun startPassiveScanIfPermitted(heightCm: Double, age: Int, isMale: Boolean) {
+        if (CBManager.authorization != CBManagerAuthorizationAllowedAlways) return
+        this.heightCm = heightCm
+        this.age = age
+        this.isMale = isMale
+        this.wantsToScan = true
+        val existing = centralManager
+        if (existing == null) {
+            centralManager = CBCentralManager(delegate = delegate, queue = null)
+        } else if (existing.state == CBManagerStatePoweredOn) {
+            startCoreBluetoothScan(existing)
+        }
     }
 
     override fun stopScan() {

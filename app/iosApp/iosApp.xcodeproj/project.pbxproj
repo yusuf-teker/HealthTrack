@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1C81D6F669B7BB6D2FFCCEB3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */; };
+		379D4C6DBBA934A8EF44CDDE /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = AC813CE66F97994D9BE8A812 /* FirebaseMessaging */; };
 		445C052442747365B7CB2124 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 617043448F4869026C2F0BB4 /* FirebaseAuth */; };
 		5AFAABB830AAF9050046C9B1 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5AFAABB730AAF9050046C9B1 /* GoogleService-Info.plist */; };
 		A1B2C3D4E5F6000100000001 /* HealthTrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -49,14 +50,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A1B2C3D4E5F6000100000003 /* Exceptions for "HealthTrackWidget" folder in "HealthTrackWidgetExtension" target */ = {
+		A1B2C3D4E5F6000100000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = A1B2C3D4E5F600010000000B /* HealthTrackWidgetExtension */;
 		};
-		CA99A60142764238C0F870B9 /* Exceptions for "iosApp" folder in "iosApp" target */ = {
+		CA99A60142764238C0F870B9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -69,7 +70,7 @@
 		04F73BCF9E6927C0618CC63B /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				CA99A60142764238C0F870B9 /* Exceptions for "iosApp" folder in "iosApp" target */,
+				CA99A60142764238C0F870B9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -82,7 +83,7 @@
 		A1B2C3D4E5F6000100000004 /* HealthTrackWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A1B2C3D4E5F6000100000003 /* Exceptions for "HealthTrackWidget" folder in "HealthTrackWidgetExtension" target */,
+				A1B2C3D4E5F6000100000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 			path = HealthTrackWidget;
 			sourceTree = "<group>";
@@ -106,6 +107,7 @@
 				1C81D6F669B7BB6D2FFCCEB3 /* FirebaseAnalytics in Frameworks */,
 				445C052442747365B7CB2124 /* FirebaseAuth in Frameworks */,
 				B7C4F6137AC8345E71E92063 /* FirebaseFirestore in Frameworks */,
+				379D4C6DBBA934A8EF44CDDE /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -168,6 +170,7 @@
 				1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */,
 				617043448F4869026C2F0BB4 /* FirebaseAuth */,
 				84FCD721953CC33D9035BCCD /* FirebaseFirestore */,
+				AC813CE66F97994D9BE8A812 /* FirebaseMessaging */,
 			);
 			productName = iosApp;
 			productReference = D98B053C208B133390F29BFC /* HealthTrack.app */;
@@ -617,6 +620,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		AC813CE66F97994D9BE8A812 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C4F1707FE80007C7DCEAE3C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

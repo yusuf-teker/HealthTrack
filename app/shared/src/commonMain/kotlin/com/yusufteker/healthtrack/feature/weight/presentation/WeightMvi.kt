@@ -5,6 +5,7 @@ import com.yusufteker.healthtrack.core.model.WeightChartMetric
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.utils.BleScaleReading
+import com.yusufteker.healthtrack.core.utils.FullBodyCompositionReport
 import com.yusufteker.healthtrack.core.utils.formatShortDateTr
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 
@@ -22,6 +23,7 @@ data class WeightState(
     val currentMuscleMassKg: Double? = null,
     val currentMusclePercent: Double? = null,
     val musclePercentChange: Double? = null,
+    val bodyCompositionReport: FullBodyCompositionReport? = null,
     val inputDate: String = formatShortDateTr(getTodayIso()),
     val inputWeight: String = "",
     val inputBodyFat: String = "",

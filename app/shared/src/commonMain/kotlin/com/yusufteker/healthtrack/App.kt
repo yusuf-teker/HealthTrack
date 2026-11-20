@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -26,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.russhwolf.settings.Settings
@@ -36,6 +38,8 @@ import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
+import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
+import com.yusufteker.healthtrack.core.model.DeviceWeightRecord
 import com.yusufteker.healthtrack.core.model.GamificationSummary
 import com.yusufteker.healthtrack.core.model.PushTokenBus
 import com.yusufteker.healthtrack.core.model.UpdateStatus
@@ -48,11 +52,13 @@ import com.yusufteker.healthtrack.core.sync.FriendActivityMonitor
 import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.sync.WidgetSnapshotBuilder
+import com.yusufteker.healthtrack.core.utils.BleScaleScanState
 import com.yusufteker.healthtrack.core.utils.ExternalApp
 import com.yusufteker.healthtrack.core.utils.WidgetDeepLinkBus
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.rememberAppVersion
+import com.yusufteker.healthtrack.core.utils.rememberBleScaleBridge
 import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.core.utils.rememberExternalAppLauncher
@@ -140,7 +146,12 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val checkAppVersionUseCase: CheckAppVersionUseCase = koinInject()
             val widgetSnapshotBuilder: WidgetSnapshotBuilder = koinInject()
             val deviceHealthBridge = rememberDeviceHealthBridge()
+            val passiveBleScaleBridge = rememberBleScaleBridge()
+            val passiveBleState by passiveBleScaleBridge.state.collectAsState()
             val widgetBridge = rememberWidgetBridge()
+            var lastAutoScaleSaveKey by remember { mutableStateOf<String?>(null) }
+            var lastAutoScaleSaveMs by remember { mutableStateOf(0L) }
+            var autoScaleSuccessMessage by remember { mutableStateOf<String?>(null) }
             val currentAppVersion = rememberAppVersion()
             val session by tokenStorage.sessionFlow.collectAsState()
             val widgetSnapshot by remember(session.hasActiveSession, session.userId, isDark, currentThemeColor, currentLanguage) {
@@ -271,14 +282,48 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 friendActivityMonitor.observeLivePushBus()
             }
 
+            var lastRegisteredFcmKey by remember { mutableStateOf<String?>(null) }
+            val rawApnsHexRegex = remember { Regex("^[0-9a-fA-F]{64}$") }
+
+            suspend fun syncFcmTokenIfNeeded(force: Boolean = false) {
+                val currentSession = tokenStorage.sessionFlow.value
+                if (!currentSession.isAuthenticated || currentSession.userId <= 0) {
+                    lastRegisteredFcmKey = null
+                    return
+                }
+                val candidate = (PushTokenBus.tokenFlow.value ?: tokenStorage.getFcmToken())?.trim()
+                if (candidate.isNullOrBlank() || (isIosPlatform && rawApnsHexRegex.matches(candidate))) {
+                    if (isIosPlatform && tokenStorage.getFcmToken()?.let { rawApnsHexRegex.matches(it) } == true) {
+                        tokenStorage.setFcmToken(null)
+                    }
+                    return
+                }
+                val key = "${currentSession.userId}:$candidate"
+                if (!force && key == lastRegisteredFcmKey) return
+
+                val platformLabel = if (isIosPlatform) "HEALTHTRACK_IOS" else "HEALTHTRACK_ANDROID"
+                apiClient.registerFcmToken(candidate, platformLabel)
+                    .onSuccess {
+                        lastRegisteredFcmKey = key
+                        Napier.d(
+                            "FCM token registered for userId=${currentSession.userId} ($platformLabel)",
+                            tag = "FCM"
+                        )
+                    }
+                    .onFailure { err ->
+                        Napier.w(
+                            "FCM token register failed, will retry on resume: ${err.message}",
+                            tag = "FCM"
+                        )
+                    }
+            }
+
             // Register latest push token whenever user signs in or token refreshes
             LaunchedEffect(session.isAuthenticated, session.userId, observedPushToken) {
                 if (session.isAuthenticated && session.userId > 0) {
-                    val pushToken = observedPushToken ?: tokenStorage.getFcmToken()
-                    if (!pushToken.isNullOrBlank()) {
-                        val platformLabel = if (isIosPlatform) "HEALTHTRACK_IOS" else "HEALTHTRACK_ANDROID"
-                        apiClient.registerFcmToken(pushToken, platformLabel)
-                    }
+                    syncFcmTokenIfNeeded()
+                } else {
+                    lastRegisteredFcmKey = null
                 }
             }
 
@@ -358,13 +403,96 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
 
             val lifecycleOwner = LocalLifecycleOwner.current
+            // Automatic passive foreground BLE smart scale listener (zero prompt, stops on ON_PAUSE)
+            val startPassiveScaleIfReady: () -> Unit = {
+                if (session.hasActiveSession && session.userId != 0 && passiveBleScaleBridge.isSupported) {
+                    val h = tokenStorage.getUserHeight().takeIf { it > 50.0 } ?: 175.0
+                    val a = tokenStorage.getUserAge().takeIf { it > 0 } ?: 26
+                    val isMale = !tokenStorage.getUserGender().equals("FEMALE", ignoreCase = true)
+                    passiveBleScaleBridge.startPassiveScanIfPermitted(h, a, isMale)
+                }
+            }
+
+            LaunchedEffect(session.hasActiveSession, session.userId) {
+                if (session.hasActiveSession && session.userId != 0) {
+                    startPassiveScaleIfReady()
+                } else {
+                    passiveBleScaleBridge.stopScan()
+                }
+            }
+
+            // Auto-save stabilized passive BLE scale readings with deduplication & success confirmation
+            val passiveStabilized = passiveBleState.liveReading?.takeIf {
+                session.hasActiveSession &&
+                    passiveBleState.scanState == BleScaleScanState.STABILIZED &&
+                    it.isStabilized &&
+                    !it.isWeightRemoved
+            }
+            LaunchedEffect(
+                passiveStabilized?.weightKg,
+                passiveStabilized?.bodyFatPercent,
+                passiveStabilized?.impedanceOhm
+            ) {
+                val reading = passiveStabilized ?: return@LaunchedEffect
+                // Wait briefly for BIA impedance on scale 2, or 3.5s fallback for weight-only
+                kotlinx.coroutines.delay(if (reading.bodyFatPercent != null) 450L else 3500L)
+
+                val nowMs = currentTimeMillis()
+                val sig = "${reading.weightKg}_${reading.bodyFatPercent != null}"
+                if (sig == lastAutoScaleSaveKey && nowMs - lastAutoScaleSaveMs < 45_000L) {
+                    return@LaunchedEffect
+                }
+                lastAutoScaleSaveKey = sig
+                lastAutoScaleSaveMs = nowMs
+
+                val todayIso = getTodayIso()
+                val snapshot = DeviceHealthSnapshot(
+                    weights = listOf(
+                        DeviceWeightRecord(
+                            externalId = "ble_auto_$nowMs",
+                            date = todayIso,
+                            weightKg = reading.weightKg,
+                            bodyFatPercent = reading.bodyFatPercent,
+                            leanBodyMassKg = reading.leanBodyMassKg,
+                            boneMassKg = reading.boneMassKg,
+                            muscleMassKg = reading.muscleMassKg,
+                            musclePercent = reading.musclePercent,
+                            impedanceOhm = reading.impedanceOhm,
+                            measuredAtMillis = nowMs,
+                            sourcePackage = "ble.scale.auto",
+                            sourceName = reading.scaleModel
+                        )
+                    ),
+                    platformName = "Bluetooth (${reading.scaleModel})"
+                )
+                deviceHealthSyncManager.mergeSnapshot(snapshot, syncToCloud = session.isAuthenticated)
+                tokenStorage.setUserWeight(reading.weightKg)
+
+                val fatPart = reading.bodyFatPercent?.let { " • %$it ${trEn("Yağ", "Fat", currentLanguage)}" }.orEmpty()
+                val musclePart = reading.muscleMassKg?.let { " • $it kg ${trEn("Kas", "Muscle", currentLanguage)}" }.orEmpty()
+                val msg = trEn(
+                    "Tartı ölçümü başarıyla kaydedildi: ${reading.weightKg} kg$fatPart$musclePart",
+                    "Scale reading saved automatically: ${reading.weightKg} kg$fatPart$musclePart",
+                    currentLanguage
+                )
+                autoScaleSuccessMessage = msg
+                kotlinx.coroutines.delay(4500L)
+                if (autoScaleSuccessMessage == msg) {
+                    autoScaleSuccessMessage = null
+                }
+            }
+
             DisposableEffect(lifecycleOwner, session.hasActiveSession, session.isAuthenticated, session.userId, isOnboardingVisible, isProfileScreenOpen, isInitialSetupVisible) {
                 val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_RESUME) {
+                    if (event == Lifecycle.Event.ON_PAUSE) {
+                        passiveBleScaleBridge.stopScan()
+                    } else if (event == Lifecycle.Event.ON_RESUME) {
+                        startPassiveScaleIfReady()
                         evaluateWidgetReminderAndSync()
                         if (session.hasActiveSession && session.userId != 0) {
                             if (session.isAuthenticated) {
                                 friendActivityMonitor.flushPendingPushes()
+                                coroutineScope.launch { syncFcmTokenIfNeeded() }
                             }
                             if (tokenStorage.isAutoDeviceSyncEnabled()) {
                                 val nowMs = currentTimeMillis()
@@ -581,6 +709,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             gamificationManager.clearAllCelebrations()
                             friendActivityMonitor.clearAll()
                             coroutineScope.launch {
+                                lastRegisteredFcmKey = null
                                 if (session.isAuthenticated) {
                                     tokenStorage.getFcmToken()?.let { token ->
                                         runCatching { apiClient.unregisterFcmToken(token) }
@@ -689,26 +818,21 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                             }
                                         }
 
-                                        Column {
-                                            GradientText(
-                                                text = "HealthTrack",
-                                                colors = HealthColors.GradientPrimary,
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            )
-                                            Text(
-                                                text = if (session.isGuest) {
-                                                    str("Misafir Modu • Lokal", "Guest Mode • Local")
-                                                } else if (session.name.isNotBlank()) {
-                                                    session.name
-                                                } else {
-                                                    "@${session.username}"
-                                                },
-                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
+                                        Text(
+                                            text = if (session.isGuest) {
+                                                str("Misafir", "Guest")
+                                            } else if (session.name.isNotBlank()) {
+                                                session.name
+                                            } else {
+                                                "@${session.username}"
+                                            },
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                 },
                                 actions = {
@@ -906,6 +1030,81 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onDismiss = { friendActivityMonitor.dismissCurrentBanner() },
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
+                }
+
+                // Global Live Auto-Detected BLE Scale Banner (Measuring + Saved Confirmation)
+                val showLiveScaleBanner = session.hasActiveSession && (
+                    autoScaleSuccessMessage != null ||
+                        (passiveBleState.liveReading != null &&
+                            !passiveBleState.liveReading!!.isWeightRemoved &&
+                            (passiveBleState.scanState == BleScaleScanState.MEASURING ||
+                                passiveBleState.scanState == BleScaleScanState.STABILIZED))
+                    )
+                AnimatedVisibility(
+                    visible = showLiveScaleBanner,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    val savedMsg = autoScaleSuccessMessage
+                    val live = passiveBleState.liveReading
+                    val isSuccess = savedMsg != null
+                    val accent = if (isSuccess) Color(0xFF10B981) else HealthColors.Primary
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (isDark) Color(0xF0121A2A) else Color(0xF5FFFFFF),
+                        border = BorderStroke(1.2.dp, accent.copy(alpha = 0.55f)),
+                        shadowElevation = 10.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { autoScaleSuccessMessage = null }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Bluetooth,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isSuccess) {
+                                        trEn("Ölçüm Başarıyla Kaydedildi ✓", "Measurement Saved Successfully ✓", currentLanguage)
+                                    } else {
+                                        val w = live?.weightKg?.toString() ?: ""
+                                        if (passiveBleState.scanState == BleScaleScanState.STABILIZED) {
+                                            trEn("Tartı algılandı: $w kg • Analiz ediliyor...", "Scale detected: $w kg • Analyzing...", currentLanguage)
+                                        } else {
+                                            trEn("Tartı algılandı: $w kg • Sabit durun...", "Scale detected: $w kg • Stand still...", currentLanguage)
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (savedMsg != null) {
+                                    Text(
+                                        text = savedMsg,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Global Motivational Reward Toast (+XP & goal progress on every active entry)

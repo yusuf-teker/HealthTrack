@@ -15,7 +15,9 @@ import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.utils.BleScaleLiveState
 import com.yusufteker.healthtrack.core.utils.BleScaleReading
 import com.yusufteker.healthtrack.core.utils.BleScaleScanState
+import com.yusufteker.healthtrack.core.utils.FullBodyCompositionAnalytics
 import com.yusufteker.healthtrack.feature.weight.presentation.components.BleScaleMeasureDialogContent
+import com.yusufteker.healthtrack.feature.weight.presentation.components.BodyCompositionDetailsCard
 import com.yusufteker.healthtrack.feature.weight.presentation.components.WeightLineChart
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 
@@ -246,5 +248,53 @@ fun WeightScreenEnglishPreview() {
             state = populatedWeightState.copy(inputNote = "Feeling great"),
             onIntent = {}
         )
+    }
+}
+
+@Preview
+@Composable
+fun BodyCompositionDetailsDarkPreview() {
+    val sampleReport = FullBodyCompositionAnalytics.calculate(
+        weightKg = 78.4,
+        heightCm = 178.0,
+        age = 28,
+        isMale = true,
+        impedanceOhm = 505
+    )!!
+    HealthTrackTheme(darkTheme = true) {
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp)
+        ) {
+            BodyCompositionDetailsCard(
+                report = sampleReport,
+                initiallyExpanded = true
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun BodyCompositionDetailsLightPreview() {
+    val sampleReport = FullBodyCompositionAnalytics.calculate(
+        weightKg = 78.4,
+        heightCm = 178.0,
+        age = 28,
+        isMale = true,
+        impedanceOhm = 505
+    )!!
+    HealthTrackTheme(darkTheme = false) {
+        Box(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp)
+        ) {
+            BodyCompositionDetailsCard(
+                report = sampleReport,
+                initiallyExpanded = true
+            )
+        }
     }
 }

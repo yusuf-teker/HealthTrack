@@ -44,6 +44,12 @@ interface BleScaleBridge {
      */
     fun startScan(heightCm: Double, age: Int, isMale: Boolean)
 
+    /**
+     * Starts a silent foreground scan ONLY when Bluetooth is already enabled and permissions are
+     * already granted (never triggers OS permission prompts or error states).
+     */
+    fun startPassiveScanIfPermitted(heightCm: Double, age: Int, isMale: Boolean) {}
+
     /** Stops active BLE scanning and resets transient errors if appropriate. */
     fun stopScan()
 }

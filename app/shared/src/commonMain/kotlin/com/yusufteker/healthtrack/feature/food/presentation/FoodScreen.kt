@@ -232,17 +232,17 @@ fun FoodScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
-                                modifier = Modifier.size(30.dp).clip(CircleShape)
+                                modifier = Modifier.size(28.dp).clip(CircleShape)
                                     .background(HealthColors.Primary.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -250,25 +250,30 @@ fun FoodScreen(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
                                     tint = HealthColors.Primary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                             Text(
                                 text = str("Öğün Ekle", "Add Meal"),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
                                 color = HealthColors.Secondary.copy(alpha = 0.15f),
                                 modifier = Modifier
+                                    .weight(1f)
                                     .clip(RoundedCornerShape(999.dp))
                                     .clickable {
                                         initialStudioItem = null
@@ -278,8 +283,10 @@ fun FoodScreen(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 7.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Inventory2,
@@ -287,11 +294,15 @@ fun FoodScreen(
                                         tint = HealthColors.Secondary,
                                         modifier = Modifier.size(14.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = str("Envanterim", "My Inventory"),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = HealthColors.Secondary
+                                        color = HealthColors.Secondary,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -300,14 +311,17 @@ fun FoodScreen(
                                 shape = RoundedCornerShape(999.dp),
                                 color = HealthColors.Primary.copy(alpha = 0.15f),
                                 modifier = Modifier
+                                    .weight(1f)
                                     .clip(RoundedCornerShape(999.dp))
                                     .clickable { showManualAddSheet = true }
                                     .bounceClick()
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 7.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.RestaurantMenu,
@@ -315,11 +329,15 @@ fun FoodScreen(
                                         tint = HealthColors.Primary,
                                         modifier = Modifier.size(14.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = str("Hazır / Manuel", "Presets / Manual"),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = HealthColors.Primary
+                                        color = HealthColors.Primary,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }

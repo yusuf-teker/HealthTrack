@@ -17,11 +17,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -37,6 +41,7 @@ import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 
 /**
  * Interactive modal sheet/dialog that manages a live Bluetooth LE smart scale weigh-in session
@@ -52,13 +57,41 @@ fun BleScaleMeasureSheet(
     onDismiss: () -> Unit
 ) {
     val bleState by bleScaleBridge.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
+    var hasAutoSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(userHeightCm, userAge, userIsMale) {
+        hasAutoSaved = false
         bleScaleBridge.startScan(
             heightCm = userHeightCm,
             age = userAge,
             isMale = userIsMale
         )
+    }
+
+    // Auto-save once scale measurement is finalized:
+    // - Full BIA reading (weight + fat/muscle): short 900ms confirmation beat then auto-save
+    // - Weight-only stabilized reading: wait 4s for impedance before auto-saving weight
+    val stabilizedReading = bleState.liveReading?.takeIf {
+        bleState.scanState == BleScaleScanState.STABILIZED && it.isStabilized
+    }
+    LaunchedEffect(stabilizedReading?.weightKg, stabilizedReading?.bodyFatPercent, stabilizedReading?.impedanceOhm) {
+        val reading = stabilizedReading ?: return@LaunchedEffect
+        if (hasAutoSaved) return@LaunchedEffect
+        if (reading.bodyFatPercent != null) {
+            delay(900L)
+            if (!hasAutoSaved) {
+                hasAutoSaved = true
+                bleScaleBridge.stopScan()
+                onSaveReading(reading)
+            }
+        } else {
+            delay(4000L)
+            if (!hasAutoSaved) {
+                hasAutoSaved = true
+                bleScaleBridge.stopScan()
+                onSaveReading(reading)
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -73,6 +106,7 @@ fun BleScaleMeasureSheet(
         userAge = userAge,
         userIsMale = userIsMale,
         onRetryScan = {
+            hasAutoSaved = false
             bleScaleBridge.startScan(
                 heightCm = userHeightCm,
                 age = userAge,
@@ -80,8 +114,11 @@ fun BleScaleMeasureSheet(
             )
         },
         onSaveReading = { reading ->
-            bleScaleBridge.stopScan()
-            onSaveReading(reading)
+            if (!hasAutoSaved) {
+                hasAutoSaved = true
+                bleScaleBridge.stopScan()
+                onSaveReading(reading)
+            }
         },
         onDismiss = {
             bleScaleBridge.stopScan()
@@ -374,36 +411,57 @@ fun BleScaleMeasureDialogContent(
                     if (isErrorState && bleState.scanState != BleScaleScanState.NOT_SUPPORTED) {
                         OutlinedButton(
                             onClick = onRetryScan,
-                            modifier = Modifier.weight(1f).height(48.dp).bounceClick(),
-                            shape = RoundedCornerShape(14.dp)
+                            modifier = Modifier.weight(0.95f).height(48.dp).bounceClick(),
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(str("Tekrar Dene", "Retry"), fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = str("Tekrar Dene", "Retry"),
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     } else {
                         OutlinedButton(
                             onClick = onDismiss,
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(14.dp)
+                            modifier = Modifier.weight(0.85f).height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                         ) {
-                            Text(str("Vazgeç", "Cancel"))
+                            Text(
+                                text = str("Vazgeç", "Cancel"),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
 
                     Button(
                         onClick = { if (reading != null) onSaveReading(reading) },
                         enabled = canSave,
-                        modifier = Modifier.weight(1.3f).height(48.dp).bounceClick(),
+                        modifier = Modifier.weight(1.45f).height(48.dp).bounceClick(),
                         shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = HealthColors.Primary,
                             contentColor = HealthColors.OnPrimary
                         )
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(str("Ölçümü Kaydet", "Save Measurement"), fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = str("Ölçümü Kaydet", "Save Measurement"),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }

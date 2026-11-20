@@ -40,6 +40,7 @@ data class WeightEntry(
     val bodyFatPercent: Double? = null,
     val muscleMassKg: Double? = null,
     val musclePercent: Double? = null,
+    val impedanceOhm: Int? = null,
     val note: String? = null,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,

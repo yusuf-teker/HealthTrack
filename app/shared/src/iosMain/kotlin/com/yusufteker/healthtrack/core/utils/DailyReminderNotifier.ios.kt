@@ -18,6 +18,8 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import platform.Foundation.NSDateComponents
+import platform.UIKit.UIApplication
+import platform.UIKit.registerForRemoteNotifications
 import platform.UserNotifications.UNAuthorizationOptionAlert
 import platform.UserNotifications.UNAuthorizationOptionBadge
 import platform.UserNotifications.UNAuthorizationOptionSound
@@ -48,6 +50,9 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                     settings?.authorizationStatus == UNAuthorizationStatusProvisional
                 dispatch_async(dispatch_get_main_queue()) {
                     authorized = granted
+                    if (granted) {
+                        UIApplication.sharedApplication.registerForRemoteNotifications()
+                    }
                 }
             }
     }
@@ -64,6 +69,9 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 ) { granted, _ ->
                     dispatch_async(dispatch_get_main_queue()) {
                         authorized = granted
+                        if (granted) {
+                            UIApplication.sharedApplication.registerForRemoteNotifications()
+                        }
                         onResult(granted)
                     }
                 }

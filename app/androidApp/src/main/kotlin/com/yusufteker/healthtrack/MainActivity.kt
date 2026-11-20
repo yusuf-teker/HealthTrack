@@ -40,15 +40,7 @@ class MainActivity : ComponentActivity() {
         (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.let {
             HealthTrackFirebaseMessagingService.ensurePushChannel(it)
         }
-        try {
-            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                if (!token.isNullOrBlank()) {
-                    HealthTrackFirebaseMessagingService.saveFcmToken(this, token)
-                }
-            }
-        } catch (_: Throwable) {
-            // FirebaseMessaging may be uninitialized in isolated preview/test environments
-        }
+        refreshFcmToken()
 
         setContent {
             App(initialTab = initialTab)
@@ -73,6 +65,23 @@ class MainActivity : ComponentActivity() {
                 }
                 .setNegativeButton(trEn("Kapat", "Close", lang), null)
                 .show()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshFcmToken()
+    }
+
+    private fun refreshFcmToken() {
+        try {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                if (!token.isNullOrBlank()) {
+                    HealthTrackFirebaseMessagingService.saveFcmToken(this, token)
+                }
+            }
+        } catch (_: Throwable) {
+            // FirebaseMessaging may be uninitialized in isolated preview/test environments
         }
     }
 
