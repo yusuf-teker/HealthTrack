@@ -296,7 +296,7 @@ fun FoodScreen(
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
-                                        text = str("Envanterim", "My Inventory"),
+                                        text = str("Envanter", "Inventory"),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = HealthColors.Secondary,
@@ -1087,7 +1087,7 @@ private fun ManualAddBottomSheet(
                                 }
                                 Column {
                                     Text(
-                                        text = str("Envanterim", "My Inventory"),
+                                        text = str("Envanter", "Inventory"),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
