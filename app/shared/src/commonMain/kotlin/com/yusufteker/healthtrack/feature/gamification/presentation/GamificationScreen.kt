@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MilitaryTech
@@ -52,6 +53,7 @@ import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.WaterDrop
@@ -59,6 +61,8 @@ import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1174,8 +1178,9 @@ private fun LeaderboardSection(
     isDark: Boolean
 ) {
     val lang = appLang()
+    var showPeriodMenu by remember { mutableStateOf(false) }
 
-    // Clean Non-Wrapped Filter Header (Scope Segmented Bar + Period Toggle + Category Pills)
+    // Compact 2-Row Filter Header: (Row 1: Scope Segmented Toggle + Period Dropdown Pill, Row 2: Categories + 1-line Metric Helper)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -1188,114 +1193,152 @@ private fun LeaderboardSection(
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Row 1: Equal-Width Scope Segmented Bar (Genel | Arkadaşlar (N))
-            Surface(
+            // Row 1: Compact Scope Toggle (Genel | Arkadaşlar) + Clickable Period Dropdown (Bugün ▾ / Bu Hafta ▾)
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(13.dp),
-                color = if (isDark) Color(0xFF0A101D) else Color(0xFFE6ECF3)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(13.dp),
+                    color = if (isDark) Color(0xFF0A101D) else Color(0xFFE6ECF3)
                 ) {
-                    LeaderboardScope.entries.forEach { scopeItem ->
-                        val selected = state.scope == scopeItem
-                        val icon = if (scopeItem == LeaderboardScope.GLOBAL) Icons.Rounded.Public else Icons.Rounded.Group
-                        val label = if (scopeItem == LeaderboardScope.FRIENDS && state.leaderboard != null) {
-                            "${scopeItem.localizedTitle(lang)} (${state.leaderboard.friendsCount})"
-                        } else {
-                            scopeItem.localizedTitle(lang)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (selected) HealthColors.PrimaryGlow.copy(alpha = if (isDark) 0.20f else 0.16f)
-                                    else Color.Transparent
-                                )
-                                .then(
-                                    if (selected) {
-                                        Modifier.border(
-                                            width = 1.dp,
-                                            color = HealthColors.PrimaryGlow.copy(alpha = 0.55f),
-                                            shape = RoundedCornerShape(10.dp)
-                                        )
-                                    } else Modifier
-                                )
-                                .clickable { onIntent(GamificationIntent.OnScopeSelected(scopeItem)) }
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        LeaderboardScope.entries.forEach { scopeItem ->
+                            val selected = state.scope == scopeItem
+                            val icon = if (scopeItem == LeaderboardScope.GLOBAL) Icons.Rounded.Public else Icons.Rounded.Group
+                            val label = if (scopeItem == LeaderboardScope.FRIENDS && state.leaderboard != null) {
+                                "${scopeItem.localizedTitle(lang)} (${state.leaderboard.friendsCount})"
+                            } else {
+                                scopeItem.localizedTitle(lang)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(
+                                        if (selected) HealthColors.PrimaryGlow.copy(alpha = if (isDark) 0.20f else 0.16f)
+                                        else Color.Transparent
+                                    )
+                                    .then(
+                                        if (selected) {
+                                            Modifier.border(
+                                                width = 1.dp,
+                                                color = HealthColors.PrimaryGlow.copy(alpha = 0.55f),
+                                                shape = RoundedCornerShape(10.dp)
+                                            )
+                                        } else Modifier
+                                    )
+                                    .clickable { onIntent(GamificationIntent.OnScopeSelected(scopeItem)) }
+                                    .padding(horizontal = 6.dp, vertical = 7.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = if (selected) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
-                                    ),
-                                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = if (selected) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
+                                        ),
+                                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Row 2: Equal-Width Period Segmented Bar (Bugün | Bu Hafta) — guaranteed single-line
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(999.dp),
-                color = if (isDark) Color(0xFF172138) else Color(0xFFE4EBF3)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    LeaderboardPeriod.entries.forEach { periodItem ->
-                        val selected = state.period == periodItem
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
-                                )
-                                .clickable { onIntent(GamificationIntent.OnPeriodSelected(periodItem)) }
-                                .padding(horizontal = 12.dp, vertical = 7.dp),
-                            contentAlignment = Alignment.Center
+                Box {
+                    Surface(
+                        shape = RoundedCornerShape(13.dp),
+                        color = if (isDark) Color(0xFF172138) else Color(0xFFE4EBF3),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = HealthColors.PrimaryGlow.copy(alpha = 0.40f)
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(13.dp))
+                            .clickable { showPeriodMenu = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Schedule,
+                                contentDescription = null,
+                                tint = HealthColors.PrimaryGlow,
+                                modifier = Modifier.size(14.dp)
+                            )
                             Text(
-                                text = periodItem.localizedTitle(lang),
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
-                                ),
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = state.period.localizedTitle(lang),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
+                                softWrap = false
+                            )
+                            Icon(
+                                imageVector = Icons.Rounded.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showPeriodMenu,
+                        onDismissRequest = { showPeriodMenu = false }
+                    ) {
+                        LeaderboardPeriod.entries.forEach { periodItem ->
+                            val isSelected = state.period == periodItem
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = periodItem.localizedTitle(lang),
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) HealthColors.PrimaryGlow else MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                trailingIcon = if (isSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Rounded.CheckCircle,
+                                            contentDescription = null,
+                                            tint = HealthColors.PrimaryGlow,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null,
+                                onClick = {
+                                    showPeriodMenu = false
+                                    onIntent(GamificationIntent.OnPeriodSelected(periodItem))
+                                }
                             )
                         }
                     }
                 }
             }
 
-            // Row 3: Category Horizontal Scrollable Chips
+            // Row 2: Category Horizontal Scrollable Chips (1. Spor, 2. Beslenme, 3. Disiplin)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1304,10 +1347,9 @@ private fun LeaderboardSection(
             ) {
                 LeaderboardCategory.entries.forEach { cat ->
                     val icon = when (cat) {
-                        LeaderboardCategory.DISCIPLINE_XP -> Icons.Rounded.Shield
                         LeaderboardCategory.CALORIES_BURNED -> Icons.Rounded.LocalFireDepartment
                         LeaderboardCategory.HEALTHY_EATING -> Icons.Rounded.Restaurant
-                        LeaderboardCategory.WORKOUT_MINUTES -> Icons.Rounded.Timer
+                        LeaderboardCategory.DISCIPLINE_XP -> Icons.Rounded.Shield
                     }
                     FilterChipPill(
                         label = cat.localizedTitle(lang),
@@ -1317,6 +1359,16 @@ private fun LeaderboardSection(
                     )
                 }
             }
+
+            // Concise 1-line helper explaining what the selected metric measures
+            Text(
+                text = state.category.localizedDescription(lang),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 2.dp)
+            )
         }
     }
 

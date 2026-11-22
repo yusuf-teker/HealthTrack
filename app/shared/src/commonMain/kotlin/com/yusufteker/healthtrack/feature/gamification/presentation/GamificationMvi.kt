@@ -25,7 +25,7 @@ data class GamificationState(
     // Leaderboard
     val period: LeaderboardPeriod = LeaderboardPeriod.WEEKLY,
     val scope: LeaderboardScope = LeaderboardScope.GLOBAL,
-    val category: LeaderboardCategory = LeaderboardCategory.DISCIPLINE_XP,
+    val category: LeaderboardCategory = LeaderboardCategory.CALORIES_BURNED,
     val selectedDateIso: String = getTodayIso(),
     val leaderboard: LeaderboardResponseDto? = null,
     val isLoadingLeaderboard: Boolean = false,

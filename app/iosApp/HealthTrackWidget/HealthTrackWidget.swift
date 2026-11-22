@@ -83,7 +83,16 @@ enum WidgetSharedStore {
         UserDefaults(suiteName: appGroupId) ?? .standard
     }
 
-    static func loadSnapshot() -> WidgetTelemetrySnapshot {
+    static func isoDateString(for date: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    static func loadSnapshot(for date: Date = Date()) -> WidgetTelemetrySnapshot {
         let store = defaults
         guard let jsonString = store.string(forKey: snapshotKey),
               let data = jsonString.data(using: .utf8),
@@ -92,6 +101,38 @@ enum WidgetSharedStore {
         }
         if !decoded.isLoggedIn {
             return .sample
+        }
+        let targetIso = isoDateString(for: date)
+        if !decoded.dateIso.isEmpty && decoded.dateIso != targetIso {
+            let pendingWater = (store.string(forKey: pendingWaterDateKey) == targetIso)
+                ? max(0, store.integer(forKey: pendingWaterDeltaKey))
+                : 0
+            return WidgetTelemetrySnapshot(
+                userId: decoded.userId,
+                dateIso: targetIso,
+                isLoggedIn: decoded.isLoggedIn,
+                consumedCalories: 0,
+                targetCalories: decoded.targetCalories,
+                burnedCalories: 0,
+                proteinG: 0,
+                proteinTargetG: decoded.proteinTargetG,
+                carbsG: 0,
+                carbsTargetG: decoded.carbsTargetG,
+                fatG: 0,
+                fatTargetG: decoded.fatTargetG,
+                waterMl: pendingWater,
+                waterTargetMl: decoded.waterTargetMl,
+                steps: 0,
+                stepTarget: decoded.stepTarget,
+                latestWeightKg: decoded.latestWeightKg,
+                targetWeightKg: decoded.targetWeightKg,
+                streakDays: decoded.streakDays,
+                isActiveToday: false,
+                themeAccentId: decoded.themeAccentId,
+                isDarkTheme: decoded.isDarkTheme,
+                languageCode: decoded.languageCode,
+                updatedAtMs: decoded.updatedAtMs
+            )
         }
         return decoded
     }
@@ -105,16 +146,18 @@ enum WidgetSharedStore {
     }
 
     static func addWater(amountMl: Int) {
-        var snapshot = loadSnapshot()
+        let now = Date()
+        let todayIso = isoDateString(for: now)
+        var snapshot = loadSnapshot(for: now)
+        snapshot.dateIso = todayIso
         snapshot.waterMl = max(snapshot.waterMl + amountMl, 0)
         saveSnapshot(snapshot)
 
         let store = defaults
-        let existingDelta = store.integer(forKey: pendingWaterDeltaKey)
+        let sameDayPending = store.string(forKey: pendingWaterDateKey) == todayIso
+        let existingDelta = sameDayPending ? store.integer(forKey: pendingWaterDeltaKey) : 0
         store.set(existingDelta + amountMl, forKey: pendingWaterDeltaKey)
-        if !snapshot.dateIso.isEmpty {
-            store.set(snapshot.dateIso, forKey: pendingWaterDateKey)
-        }
+        store.set(todayIso, forKey: pendingWaterDateKey)
         store.synchronize()
     }
 }
@@ -156,15 +199,24 @@ struct HealthTrackWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (HealthTrackWidgetEntry) -> Void) {
-        let snap = context.isPreview ? WidgetTelemetrySnapshot.sample : WidgetSharedStore.loadSnapshot()
-        completion(HealthTrackWidgetEntry(date: Date(), snapshot: snap))
+        let now = Date()
+        let snap = context.isPreview ? WidgetTelemetrySnapshot.sample : WidgetSharedStore.loadSnapshot(for: now)
+        completion(HealthTrackWidgetEntry(date: now, snapshot: snap))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HealthTrackWidgetEntry>) -> Void) {
-        let snap = WidgetSharedStore.loadSnapshot()
-        let entry = HealthTrackWidgetEntry(date: Date(), snapshot: snap)
-        let nextRefresh = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
-        completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+        let now = Date()
+        let calendar = Calendar.current
+        let thirtyMins = calendar.date(byAdding: .minute, value: 30, to: now) ?? now.addingTimeInterval(1800)
+        let startOfToday = calendar.startOfDay(for: now)
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday) ?? now.addingTimeInterval(86400)
+        let nextMidnight = startOfTomorrow.addingTimeInterval(2)
+
+        let entries = [
+            HealthTrackWidgetEntry(date: now, snapshot: WidgetSharedStore.loadSnapshot(for: now)),
+            HealthTrackWidgetEntry(date: nextMidnight, snapshot: WidgetSharedStore.loadSnapshot(for: nextMidnight))
+        ]
+        completion(Timeline(entries: entries, policy: .after(min(thirtyMins, nextMidnight))))
     }
 }
 

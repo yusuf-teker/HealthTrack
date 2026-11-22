@@ -52,14 +52,18 @@ object MealHealthEvaluator {
     )
 
     private val processedKeywordGroups: List<List<String>> = listOf(
-        listOf("kola", "cola", "gazoz", "soda"),
-        listOf("cips", "chips"),
-        listOf("kızartma", "kizartma", "fries", "fried"),
-        listOf("pasta", "cake", "donut", "baklava", "şerbet", "serbet"),
-        listOf("şekerleme", "sekerleme", "candy", "jelibon"),
-        listOf("gofret", "wafer", "bisküvi", "biskuvi", "cookie"),
-        listOf("fast food", "hamburger", "pizza"),
-        listOf("sosis", "salam")
+        listOf("çikolata", "cikolata", "chocolate", "nutella", "kakaolu fındık", "snickers", "twix", "mars", "brownie", "ekler", "profiterol", "sufle", "waffle", "pankek"),
+        listOf("popcorn", "patlamış mısır", "patlamis misir", "mısır cipsi", "doritos", "ruffles", "lays", "cheetos", "pringles", "kraker", "cracker", "çubuk kraker"),
+        listOf("kola", "cola", "gazoz", "soda", "fanta", "sprite", "ice tea", "meyve suyu", "enerji içeceği", "redbull", "monster", "milkshake", "frappe"),
+        listOf("cips", "chips", "nachos"),
+        listOf("kızartma", "kizartma", "fries", "fried", "nugget", "şinitzel", "sinitzel", "soğan halkası"),
+        listOf("pasta", "cake", "donut", "baklava", "şerbet", "serbet", "künefe", "kunefe", "tulumba", "lokma", "kadayıf", "helva", "reçel", "recel"),
+        listOf("şekerleme", "sekerleme", "candy", "jelibon", "lokum", "marshmallow", "bonibon", "lolipop"),
+        listOf("gofret", "wafer", "bisküvi", "biskuvi", "cookie", "oreo", "biskrem", "halley", "kek", "muffin", "kurabiye"),
+        listOf("dondurma", "ice cream", "magnum", "cornetto"),
+        listOf("fast food", "hamburger", "burger", "pizza", "hot dog", "kumpir", "kokoreç", "kokorec"),
+        listOf("poğaça", "pogaca", "açma", "acma", "börek", "borek", "kruvasan", "croissant", "milföy"),
+        listOf("sosis", "salam", "sucuk", "pastırma")
     )
 
     fun evaluate(
@@ -82,9 +86,12 @@ object MealHealthEvaluator {
 
         val cals = (totalCalories.takeIf { it > 0 } ?: items.sumOf { it.calories }).coerceAtLeast(1)
         val totalProtein = items.sumOf { it.proteinG }
+        val totalCarbs = items.sumOf { it.carbsG }
         val totalFiber = items.sumOf { it.fiberG }
         val totalFat = items.sumOf { it.fatG }
         val proteinCalRatio = (totalProtein * 4.0) / cals.toDouble()
+        val carbCalRatio = (totalCarbs * 4.0) / cals.toDouble()
+        val fatCalRatio = (totalFat * 9.0) / cals.toDouble()
         val microCount = items
             .flatMap { it.micronutrients }
             .map { it.name.trim().lowercase() }
@@ -108,37 +115,59 @@ object MealHealthEvaluator {
         }
 
         val computedScore = run {
-            var score = 68
+            var score = 54
 
             score += when {
-                proteinCalRatio >= 0.25 || (totalProtein >= 25.0 && proteinCalRatio >= 0.16) -> 16
-                proteinCalRatio >= 0.18 || (totalProtein >= 15.0 && proteinCalRatio >= 0.12) -> 12
-                totalProtein >= 8.0 || proteinCalRatio >= 0.12 -> 7
-                totalProtein >= 4.0 -> 3
+                proteinCalRatio >= 0.25 -> 18
+                proteinCalRatio >= 0.18 -> 12
+                proteinCalRatio >= 0.12 -> 6
                 else -> 0
+            }
+            if (totalProtein >= 25.0) {
+                score += 6
             }
 
             score += when {
-                totalFiber >= 7.0 -> 10
+                totalFiber >= 8.0 -> 12
                 totalFiber >= 4.0 -> 7
-                totalFiber >= 2.0 -> 4
+                totalFiber >= 2.0 -> 3
                 else -> 0
             }
 
-            score += (microCount * 2).coerceAtMost(6)
-            score += (positiveGroupHits * 4).coerceAtMost(12)
-            score -= (processedGroupHits * 12).coerceAtMost(28)
-
-            val fatCalRatio = (totalFat * 9.0) / cals.toDouble()
-            if (fatCalRatio > 0.62 && cals > 450) {
-                score -= 6
+            score -= when {
+                fatCalRatio > 0.55 -> 14
+                fatCalRatio > 0.45 -> 8
+                else -> 0
             }
 
-            score.coerceIn(25, 98)
+            if (carbCalRatio > 0.70 && totalFiber < 3.0) {
+                score -= 12
+            } else if (carbCalRatio > 0.60 && totalFiber < 2.0 && proteinCalRatio < 0.10) {
+                score -= 8
+            }
+
+            if (proteinCalRatio < 0.08 && totalFiber < 2.0 && positiveGroupHits == 0 && cals > 120) {
+                score -= 8
+            }
+
+            score += when {
+                microCount >= 3 -> 6
+                microCount >= 1 -> 2
+                else -> 0
+            }
+            score += (positiveGroupHits * 6).coerceAtMost(18)
+            score -= (processedGroupHits * 16).coerceAtMost(44)
+
+            if (processedGroupHits > 0 && positiveGroupHits == 0) {
+                score -= 8
+                score = minOf(score, if (processedGroupHits >= 2) 32 else 42)
+            }
+
+            score.coerceIn(12, 98)
         }
 
         val finalScore = if (explicitScore != null && explicitScore in 1..100) {
-            explicitScore
+            if (processedGroupHits > 0) minOf(explicitScore, computedScore) else explicitScore
         } else {
             computedScore
         }
@@ -149,15 +178,17 @@ object MealHealthEvaluator {
             else -> MealHealthTier.FLEXIBLE
         }
 
-        val badgeTitleTr = when (tier) {
-            MealHealthTier.EXCELLENT -> "Sağlıklı Öğün 🌟"
-            MealHealthTier.BALANCED -> "Dengeli Öğün 👍"
-            MealHealthTier.FLEXIBLE -> "Esnek Öğün 😋"
+        val badgeTitleTr = when {
+            finalScore >= 80 -> "Sağlıklı Öğün 🌟"
+            finalScore >= 60 -> "Dengeli Öğün 👍"
+            finalScore < 45 -> "Düşük Besin Değeri ⚠️"
+            else -> "Esnek Öğün 😋"
         }
-        val badgeTitleEn = when (tier) {
-            MealHealthTier.EXCELLENT -> "Healthy Meal 🌟"
-            MealHealthTier.BALANCED -> "Balanced Meal 👍"
-            MealHealthTier.FLEXIBLE -> "Flexible Meal 😋"
+        val badgeTitleEn = when {
+            finalScore >= 80 -> "Healthy Meal 🌟"
+            finalScore >= 60 -> "Balanced Meal 👍"
+            finalScore < 45 -> "Low Nutritional Value ⚠️"
+            else -> "Flexible Meal 😋"
         }
 
         val (defaultQuoteTr, defaultQuoteEn) = when {
@@ -179,6 +210,9 @@ object MealHealthEvaluator {
             finalScore >= 60 ->
                 "Güzel bir denge! Yanına biraz yeşillik veya ekstra protein eklersen puanı 80+ yapabilirsin." to
                     "Nice balance! Adding some greens or extra protein can easily push this above 80."
+            finalScore < 45 ->
+                "Şeker veya işlenmiş gıda oranı yüksek. Bir sonraki öğünde protein, lif ve su ile dengele." to
+                    "High in sugar or processed ingredients. Balance your next meal with protein, fiber, and water."
             else ->
                 "Afiyet olsun! Keyif öğünleri de yaşamın parçası — bir sonraki öğünde lif ve proteinle dengeleyebilirsin." to
                     "Enjoy your meal! Treat meals are part of life — balance the next one with protein and fiber."

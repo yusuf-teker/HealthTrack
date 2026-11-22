@@ -76,6 +76,8 @@ import com.yusufteker.healthtrack.feature.premium.presentation.PremiumScreenRoot
 import com.yusufteker.healthtrack.feature.profile.presentation.InitialProfileSetupScreenRoot
 import com.yusufteker.healthtrack.feature.profile.presentation.ProfileScreenRoot
 import com.yusufteker.healthtrack.feature.weight.presentation.WeightScreenRoot
+import com.yusufteker.healthtrack.feature.weight.presentation.components.BleScaleMeasureDialogContent
+import com.yusufteker.healthtrack.feature.weight.presentation.components.BleScaleSheetCoordinator
 import com.yusufteker.healthtrack.feature.workout.presentation.WorkoutScreenRoot
 import com.yusufteker.healthtrack.theme.AppThemeColor
 import com.yusufteker.healthtrack.theme.HealthColors
@@ -149,8 +151,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val passiveBleScaleBridge = rememberBleScaleBridge()
             val passiveBleState by passiveBleScaleBridge.state.collectAsState()
             val widgetBridge = rememberWidgetBridge()
-            var lastAutoScaleSaveKey by remember { mutableStateOf<String?>(null) }
-            var lastAutoScaleSaveMs by remember { mutableStateOf(0L) }
+            var isAutoBlePopupOpen by remember { mutableStateOf(false) }
+            var lastAutoBleDismissOrSaveMs by remember { mutableStateOf(0L) }
             var autoScaleSuccessMessage by remember { mutableStateOf<String?>(null) }
             val currentAppVersion = rememberAppVersion()
             val session by tokenStorage.sessionFlow.collectAsState()
@@ -421,64 +423,27 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
-            // Auto-save stabilized passive BLE scale readings with deduplication & success confirmation
-            val passiveStabilized = passiveBleState.liveReading?.takeIf {
+            // Open the full interactive BLE Scale popup when the user steps on the scale on any screen
+            val passiveReadingDetected = passiveBleState.liveReading?.takeIf {
                 session.hasActiveSession &&
-                    passiveBleState.scanState == BleScaleScanState.STABILIZED &&
-                    it.isStabilized &&
-                    !it.isWeightRemoved
+                    !isOnboardingVisible &&
+                    !isInitialSetupVisible &&
+                    !BleScaleSheetCoordinator.isManualSheetOpen &&
+                    !it.isWeightRemoved &&
+                    (passiveBleState.scanState == BleScaleScanState.MEASURING ||
+                        passiveBleState.scanState == BleScaleScanState.STABILIZED)
             }
             LaunchedEffect(
-                passiveStabilized?.weightKg,
-                passiveStabilized?.bodyFatPercent,
-                passiveStabilized?.impedanceOhm
+                passiveReadingDetected?.weightKg,
+                passiveBleState.scanState,
+                isOnboardingVisible,
+                isInitialSetupVisible
             ) {
-                val reading = passiveStabilized ?: return@LaunchedEffect
-                // Wait briefly for BIA impedance on scale 2, or 3.5s fallback for weight-only
-                kotlinx.coroutines.delay(if (reading.bodyFatPercent != null) 450L else 3500L)
-
-                val nowMs = currentTimeMillis()
-                val sig = "${reading.weightKg}_${reading.bodyFatPercent != null}"
-                if (sig == lastAutoScaleSaveKey && nowMs - lastAutoScaleSaveMs < 45_000L) {
-                    return@LaunchedEffect
-                }
-                lastAutoScaleSaveKey = sig
-                lastAutoScaleSaveMs = nowMs
-
-                val todayIso = getTodayIso()
-                val snapshot = DeviceHealthSnapshot(
-                    weights = listOf(
-                        DeviceWeightRecord(
-                            externalId = "ble_auto_$nowMs",
-                            date = todayIso,
-                            weightKg = reading.weightKg,
-                            bodyFatPercent = reading.bodyFatPercent,
-                            leanBodyMassKg = reading.leanBodyMassKg,
-                            boneMassKg = reading.boneMassKg,
-                            muscleMassKg = reading.muscleMassKg,
-                            musclePercent = reading.musclePercent,
-                            impedanceOhm = reading.impedanceOhm,
-                            measuredAtMillis = nowMs,
-                            sourcePackage = "ble.scale.auto",
-                            sourceName = reading.scaleModel
-                        )
-                    ),
-                    platformName = "Bluetooth (${reading.scaleModel})"
-                )
-                deviceHealthSyncManager.mergeSnapshot(snapshot, syncToCloud = session.isAuthenticated)
-                tokenStorage.setUserWeight(reading.weightKg)
-
-                val fatPart = reading.bodyFatPercent?.let { " • %$it ${trEn("Yağ", "Fat", currentLanguage)}" }.orEmpty()
-                val musclePart = reading.muscleMassKg?.let { " • $it kg ${trEn("Kas", "Muscle", currentLanguage)}" }.orEmpty()
-                val msg = trEn(
-                    "Tartı ölçümü başarıyla kaydedildi: ${reading.weightKg} kg$fatPart$musclePart",
-                    "Scale reading saved automatically: ${reading.weightKg} kg$fatPart$musclePart",
-                    currentLanguage
-                )
-                autoScaleSuccessMessage = msg
-                kotlinx.coroutines.delay(4500L)
-                if (autoScaleSuccessMessage == msg) {
-                    autoScaleSuccessMessage = null
+                if (passiveReadingDetected != null && !isAutoBlePopupOpen) {
+                    val nowMs = currentTimeMillis()
+                    if (nowMs - lastAutoBleDismissOrSaveMs > 12_000L) {
+                        isAutoBlePopupOpen = true
+                    }
                 }
             }
 
@@ -1032,14 +997,86 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     )
                 }
 
-                // Global Live Auto-Detected BLE Scale Banner (Measuring + Saved Confirmation)
-                val showLiveScaleBanner = session.hasActiveSession && (
-                    autoScaleSuccessMessage != null ||
-                        (passiveBleState.liveReading != null &&
-                            !passiveBleState.liveReading!!.isWeightRemoved &&
-                            (passiveBleState.scanState == BleScaleScanState.MEASURING ||
-                                passiveBleState.scanState == BleScaleScanState.STABILIZED))
+                // Global Auto-Detected BLE Scale Popup (same Vazgeç / Ölçümü Kaydet dialog across all screens)
+                if (isAutoBlePopupOpen && !BleScaleSheetCoordinator.isManualSheetOpen) {
+                    val userHeight = tokenStorage.getUserHeight().takeIf { it > 50.0 } ?: 175.0
+                    val userAgeVal = tokenStorage.getUserAge().takeIf { it > 0 } ?: 26
+                    val userIsMaleVal = !tokenStorage.getUserGender().equals("FEMALE", ignoreCase = true)
+
+                    BleScaleMeasureDialogContent(
+                        bleState = passiveBleState,
+                        userHeightCm = userHeight,
+                        userAge = userAgeVal,
+                        userIsMale = userIsMaleVal,
+                        onRetryScan = { startPassiveScaleIfReady() },
+                        onSaveReading = { reading ->
+                            isAutoBlePopupOpen = false
+                            lastAutoBleDismissOrSaveMs = currentTimeMillis()
+                            passiveBleScaleBridge.stopScan()
+
+                            coroutineScope.launch {
+                                val nowMs = currentTimeMillis()
+                                val todayIso = getTodayIso()
+                                val snapshot = DeviceHealthSnapshot(
+                                    weights = listOf(
+                                        DeviceWeightRecord(
+                                            externalId = "ble_auto_$nowMs",
+                                            date = todayIso,
+                                            weightKg = reading.weightKg,
+                                            bodyFatPercent = reading.bodyFatPercent,
+                                            leanBodyMassKg = reading.leanBodyMassKg,
+                                            boneMassKg = reading.boneMassKg,
+                                            muscleMassKg = reading.muscleMassKg,
+                                            musclePercent = reading.musclePercent,
+                                            impedanceOhm = reading.impedanceOhm,
+                                            measuredAtMillis = nowMs,
+                                            sourcePackage = "ble.scale.auto",
+                                            sourceName = reading.scaleModel
+                                        )
+                                    ),
+                                    platformName = "Bluetooth (${reading.scaleModel})"
+                                )
+                                deviceHealthSyncManager.mergeSnapshot(
+                                    snapshot,
+                                    syncToCloud = session.isAuthenticated
+                                )
+                                tokenStorage.setUserWeight(reading.weightKg)
+
+                                val fatPart = reading.bodyFatPercent?.let {
+                                    " • %$it ${trEn("Yağ", "Fat", currentLanguage)}"
+                                }.orEmpty()
+                                val musclePart = reading.muscleMassKg?.let {
+                                    " • $it kg ${trEn("Kas", "Muscle", currentLanguage)}"
+                                }.orEmpty()
+                                val msg = trEn(
+                                    "Tartı ölçümü başarıyla kaydedildi: ${reading.weightKg} kg$fatPart$musclePart",
+                                    "Scale reading saved: ${reading.weightKg} kg$fatPart$musclePart",
+                                    currentLanguage
+                                )
+                                autoScaleSuccessMessage = msg
+                                showToast(msg)
+                                kotlinx.coroutines.delay(4500L)
+                                if (autoScaleSuccessMessage == msg) {
+                                    autoScaleSuccessMessage = null
+                                }
+                                kotlinx.coroutines.delay(5500L)
+                                startPassiveScaleIfReady()
+                            }
+                        },
+                        onDismiss = {
+                            isAutoBlePopupOpen = false
+                            lastAutoBleDismissOrSaveMs = currentTimeMillis()
+                            passiveBleScaleBridge.stopScan()
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(12_000L)
+                                startPassiveScaleIfReady()
+                            }
+                        }
                     )
+                }
+
+                // Global BLE Scale Saved Confirmation Banner
+                val showLiveScaleBanner = session.hasActiveSession && autoScaleSuccessMessage != null
                 AnimatedVisibility(
                     visible = showLiveScaleBanner,
                     enter = expandVertically() + fadeIn(),
@@ -1050,9 +1087,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     val savedMsg = autoScaleSuccessMessage
-                    val live = passiveBleState.liveReading
-                    val isSuccess = savedMsg != null
-                    val accent = if (isSuccess) Color(0xFF10B981) else HealthColors.Primary
+                    val accent = Color(0xFF10B981)
                     Surface(
                         shape = RoundedCornerShape(18.dp),
                         color = if (isDark) Color(0xF0121A2A) else Color(0xF5FFFFFF),
@@ -1070,23 +1105,14 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(
-                                imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Bluetooth,
+                                imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
                                 tint = accent,
                                 modifier = Modifier.size(22.dp)
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (isSuccess) {
-                                        trEn("Ölçüm Başarıyla Kaydedildi ✓", "Measurement Saved Successfully ✓", currentLanguage)
-                                    } else {
-                                        val w = live?.weightKg?.toString() ?: ""
-                                        if (passiveBleState.scanState == BleScaleScanState.STABILIZED) {
-                                            trEn("Tartı algılandı: $w kg • Analiz ediliyor...", "Scale detected: $w kg • Analyzing...", currentLanguage)
-                                        } else {
-                                            trEn("Tartı algılandı: $w kg • Sabit durun...", "Scale detected: $w kg • Stand still...", currentLanguage)
-                                        }
-                                    },
+                                    text = trEn("Ölçüm Başarıyla Kaydedildi ✓", "Measurement Saved Successfully ✓", currentLanguage),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,

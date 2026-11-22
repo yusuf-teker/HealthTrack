@@ -750,5 +750,50 @@ class GamificationEngineTest {
         assertEquals(1, afterFirstMeal.currentStreakDays)
         assertTrue(afterFirstMeal.isActiveToday)
     }
+
+    @Test
+    fun mealHealthEvaluator_chocolateAndPopcorn_scoresLowEvenWithOptimisticExplicitScore() {
+        val snackItems = listOf(
+            FoodItem(
+                id = "s1",
+                name = "Çikolata",
+                formattedPortion = "1 Paket (50g)",
+                calories = 270,
+                proteinG = 3.0,
+                carbsG = 30.0,
+                fatG = 15.0,
+                fiberG = 1.5
+            ),
+            FoodItem(
+                id = "s2",
+                name = "Popcorn",
+                formattedPortion = "1 Kase",
+                calories = 200,
+                proteinG = 3.0,
+                carbsG = 24.0,
+                fatG = 10.0,
+                fiberG = 3.0
+            )
+        )
+
+        val localEval = MealHealthEvaluator.evaluate(
+            items = snackItems,
+            totalCalories = 470,
+            summary = "Çikolata ve popcorn"
+        )
+        assertTrue(localEval.score < 40, "Expected chocolate & popcorn score < 40, got ${localEval.score}")
+        assertFalse(localEval.isHealthyCelebrationWorthy)
+
+        val optimisticAiEval = MealHealthEvaluator.evaluate(
+            items = snackItems,
+            totalCalories = 470,
+            summary = "Çikolata ve popcorn",
+            explicitScore = 67
+        )
+        assertTrue(
+            optimisticAiEval.score < 40,
+            "Expected optimistic AI explicitScore=67 on junk snacks to be capped < 40, got ${optimisticAiEval.score}"
+        )
+    }
 }
 

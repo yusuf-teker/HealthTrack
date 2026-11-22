@@ -25,13 +25,31 @@ enum class LeaderboardScope(val id: String, val titleTr: String, val titleEn: St
 
 @Serializable
 enum class LeaderboardCategory(val id: String, val titleTr: String, val titleEn: String) {
-    DISCIPLINE_XP("DISCIPLINE_XP", "Disiplin", "Discipline"),
-    CALORIES_BURNED("CALORIES_BURNED", "Kalori", "Calories"),
+    CALORIES_BURNED("CALORIES_BURNED", "Spor", "Workout"),
     HEALTHY_EATING("HEALTHY_EATING", "Beslenme", "Nutrition"),
-    WORKOUT_MINUTES("WORKOUT_MINUTES", "Spor Süresi", "Workout Time");
+    DISCIPLINE_XP("DISCIPLINE_XP", "Disiplin", "Discipline");
 
     fun localizedTitle(language: AppLanguage = LocalizationManager.currentLanguage): String =
         trEn(titleTr, titleEn, language)
+
+    fun localizedDescription(language: AppLanguage = LocalizationManager.currentLanguage): String =
+        when (this) {
+            CALORIES_BURNED -> trEn(
+                "Antrenman ve aktivitelerde yakılan aktif kalori (kcal) sıralaması",
+                "Ranked by active calories (kcal) burned in workouts",
+                language
+            )
+            HEALTHY_EATING -> trEn(
+                "Öğünlerin besin kalitesi ve makro dengesine göre sağlık puanı",
+                "Ranked by meal nutrition quality & macro balance score",
+                language
+            )
+            DISCIPLINE_XP -> trEn(
+                "Düzenli kayıt girme, günlük hedef tutturma ve seri (XP) puanı",
+                "Ranked by daily logging consistency, goal completion & streak XP",
+                language
+            )
+        }
 }
 
 @Serializable

@@ -17,9 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +38,14 @@ import com.yusufteker.healthtrack.theme.str
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+
+/**
+ * Tracks whether the manual [BleScaleMeasureSheet] from WeightScreen is currently visible
+ * so the global auto-detected BLE popup in App.kt does not open on top of it.
+ */
+object BleScaleSheetCoordinator {
+    var isManualSheetOpen: Boolean = false
+}
 
 /**
  * Interactive modal sheet/dialog that manages a live Bluetooth LE smart scale weigh-in session
@@ -57,10 +61,8 @@ fun BleScaleMeasureSheet(
     onDismiss: () -> Unit
 ) {
     val bleState by bleScaleBridge.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
-    var hasAutoSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(userHeightCm, userAge, userIsMale) {
-        hasAutoSaved = false
         bleScaleBridge.startScan(
             heightCm = userHeightCm,
             age = userAge,
@@ -68,34 +70,10 @@ fun BleScaleMeasureSheet(
         )
     }
 
-    // Auto-save once scale measurement is finalized:
-    // - Full BIA reading (weight + fat/muscle): short 900ms confirmation beat then auto-save
-    // - Weight-only stabilized reading: wait 4s for impedance before auto-saving weight
-    val stabilizedReading = bleState.liveReading?.takeIf {
-        bleState.scanState == BleScaleScanState.STABILIZED && it.isStabilized
-    }
-    LaunchedEffect(stabilizedReading?.weightKg, stabilizedReading?.bodyFatPercent, stabilizedReading?.impedanceOhm) {
-        val reading = stabilizedReading ?: return@LaunchedEffect
-        if (hasAutoSaved) return@LaunchedEffect
-        if (reading.bodyFatPercent != null) {
-            delay(900L)
-            if (!hasAutoSaved) {
-                hasAutoSaved = true
-                bleScaleBridge.stopScan()
-                onSaveReading(reading)
-            }
-        } else {
-            delay(4000L)
-            if (!hasAutoSaved) {
-                hasAutoSaved = true
-                bleScaleBridge.stopScan()
-                onSaveReading(reading)
-            }
-        }
-    }
-
     DisposableEffect(Unit) {
+        BleScaleSheetCoordinator.isManualSheetOpen = true
         onDispose {
+            BleScaleSheetCoordinator.isManualSheetOpen = false
             bleScaleBridge.stopScan()
         }
     }
@@ -106,7 +84,6 @@ fun BleScaleMeasureSheet(
         userAge = userAge,
         userIsMale = userIsMale,
         onRetryScan = {
-            hasAutoSaved = false
             bleScaleBridge.startScan(
                 heightCm = userHeightCm,
                 age = userAge,
@@ -114,11 +91,8 @@ fun BleScaleMeasureSheet(
             )
         },
         onSaveReading = { reading ->
-            if (!hasAutoSaved) {
-                hasAutoSaved = true
-                bleScaleBridge.stopScan()
-                onSaveReading(reading)
-            }
+            bleScaleBridge.stopScan()
+            onSaveReading(reading)
         },
         onDismiss = {
             bleScaleBridge.stopScan()
