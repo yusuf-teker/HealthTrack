@@ -184,5 +184,27 @@ class FriendActivityMonitorTest {
         assertTrue(storage.isFriendWorkoutTrackingEnabled(99))
         assertTrue(storage.getMutedWorkoutFriendIds().isEmpty())
     }
+
+    @Test
+    fun detectFriendActivityChangesNotifiesOnFirstOpenOfDayWhenBaselineIsEmpty() {
+        val current = listOf(
+            LeaderboardEntryDto(rank = 1, userId = 10, name = "Ece Kaya", username = "ece", score = 120, caloriesBurned = 340, workoutMinutes = 35, healthyEatingScore = 80, streakDays = 3),
+            LeaderboardEntryDto(rank = 2, userId = 11, name = "Ali", username = "ali", score = 50, caloriesBurned = 0, workoutMinutes = 0, healthyEatingScore = 90, streakDays = 1)
+        )
+
+        val events = FriendActivityMonitor.detectFriendActivityChanges(
+            previous = emptyList(),
+            current = current,
+            dateIso = "2026-11-23",
+            nowMs = 10_000L
+        )
+
+        assertEquals(1, events.size)
+        assertEquals(10, events[0].actorUserId)
+        assertEquals(FriendActivityType.WORKOUT, events[0].type)
+        assertTrue(events[0].titleTr.contains("Ece"))
+        assertTrue(events[0].titleTr.contains("35 dk"))
+        assertTrue(events[0].messageTr.contains("+340 kcal"))
+    }
 }
 

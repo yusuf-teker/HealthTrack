@@ -13,6 +13,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.yusufteker.healthtrack.app.shared.R
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.HealthAiReport
@@ -22,22 +25,36 @@ import java.util.Calendar
 @Composable
 actual fun rememberWeeklyReportNotifier(): WeeklyReportNotifier {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var authorized by remember(context) { mutableStateOf(HealthReminderNotifications.hasPermission(context)) }
     var pendingCallback by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                authorized = HealthReminderNotifications.hasPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        pendingCallback?.invoke(granted)
+        authorized = granted || HealthReminderNotifications.hasPermission(context)
+        pendingCallback?.invoke(authorized)
         pendingCallback = null
     }
 
     return remember(context, permissionLauncher) {
         object : WeeklyReportNotifier {
             override val hasPermission: Boolean
-                get() = HealthReminderNotifications.hasPermission(context)
+                get() = authorized
 
             override fun requestPermission(onResult: (Boolean) -> Unit) {
-                if (hasPermission) {
+                if (HealthReminderNotifications.hasPermission(context)) {
+                    authorized = true
                     onResult(true)
                     return
                 }
@@ -45,6 +62,7 @@ actual fun rememberWeeklyReportNotifier(): WeeklyReportNotifier {
                     pendingCallback = onResult
                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
+                    authorized = true
                     onResult(true)
                 }
             }

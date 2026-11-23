@@ -114,10 +114,9 @@ class WorkoutViewModel(
                     val lang = LocalizationManager.currentLanguage
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
-                        val msg = summary.toUserMessage(lang)
-                        if (!intent.isSilent || summary.totalChanges > 0) {
+                        if (!intent.isSilent) {
+                            val msg = summary.toUserMessage(lang)
                             _state.update { it.copy(isSyncingWatch = false, infoMessage = msg) }
-                            _effects.send(WorkoutEffect.ShowToast(msg))
                         } else {
                             _state.update { it.copy(isSyncingWatch = false) }
                         }
@@ -432,7 +431,9 @@ class WorkoutViewModel(
                     selectedSport = null
                 )
             }
-            _effects.send(WorkoutEffect.ShowToast(trEn("Egzersiz kaydedildi.", "Workout saved.")))
+            if (date != com.yusufteker.healthtrack.core.utils.getTodayIso()) {
+                _effects.send(WorkoutEffect.ShowToast(trEn("Egzersiz kaydedildi.", "Workout saved.")))
+            }
             launch { syncEngine.sync() }
         }
     }
@@ -453,18 +454,14 @@ class WorkoutViewModel(
             return
         }
         viewModelScope.launch {
-            val lang = LocalizationManager.currentLanguage
             apiClient.syncHuaweiHealth(days = 7).onSuccess { dto ->
                 tokenStorage.setHuaweiConnected(dto.connected)
                 if (dto.connected && !dto.needsReauth) {
-                    val summary = deviceHealthSyncManager.mergeSnapshot(
+                    deviceHealthSyncManager.mergeSnapshot(
                         dto.toDeviceHealthSnapshot(),
                         syncToCloud = true
                     )
                     tokenStorage.setLastHuaweiSyncMs(currentTime())
-                    if (summary.totalChanges > 0) {
-                        _effects.send(WorkoutEffect.ShowToast(summary.toUserMessage(lang)))
-                    }
                 }
             }
         }

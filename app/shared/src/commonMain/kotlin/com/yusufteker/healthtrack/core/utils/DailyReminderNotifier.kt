@@ -24,6 +24,16 @@ interface DailyReminderNotifier {
     fun sendNotification(payload: ScheduledReminderPayload)
 
     /**
+     * Posts an immediate system notification banner for a friend's workout or follow request.
+     */
+    fun sendFriendActivityNotification(
+        id: String,
+        title: String,
+        body: String,
+        targetTab: String = "LEADERBOARD"
+    ) {}
+
+    /**
      * Schedules the evening workout reminder (default: 18:00).
      */
     fun scheduleEveningWorkoutReminder(hour: Int = 18, minute: Int = 0)

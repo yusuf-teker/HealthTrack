@@ -1302,7 +1302,7 @@ class FoodViewModel(
             val updated = database.addWater(userId, date, deltaMl, target)
             _state.update { it.copy(waterEntry = updated) }
             updateSmartMealsAndSynergy()
-            if (deltaMl > 0) {
+            if (deltaMl > 0 && date != getTodayIso()) {
                 _effects.send(
                     FoodEffect.ShowToast(
                         trEn(

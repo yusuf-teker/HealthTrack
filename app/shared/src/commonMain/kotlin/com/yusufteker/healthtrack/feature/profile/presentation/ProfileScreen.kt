@@ -311,6 +311,7 @@ fun ProfileScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(IntrinsicSize.Max)
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -329,28 +330,34 @@ fun ProfileScreen(
                             } else null,
                             modifier = Modifier
                                 .weight(1f)
+                                .fillMaxHeight()
                                 .bounceClick()
                         ) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Icon(
                                     imageVector = tab.icon,
                                     contentDescription = null,
                                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(5.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = str(tab.titleTr, tab.titleEn),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 11.sp
+                                        fontSize = 11.sp,
+                                        lineHeight = 13.sp
                                     ),
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

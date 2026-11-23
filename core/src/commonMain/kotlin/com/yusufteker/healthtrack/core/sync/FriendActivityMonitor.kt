@@ -18,6 +18,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Coordinates Friend Activity Notifications for both:
@@ -31,6 +33,8 @@ class FriendActivityMonitor(
     private val _queue = MutableStateFlow<List<FriendNotificationEvent>>(emptyList())
     private val _currentBanner = MutableStateFlow<FriendNotificationEvent?>(null)
     val currentBanner: StateFlow<FriendNotificationEvent?> = _currentBanner.asStateFlow()
+    private val checkMutex = Mutex()
+    private var lastCheckMs: Long = 0L
 
     /**
      * Collects live push events emitted by Android FCM / iOS Notification bridges while the app is open.
@@ -53,34 +57,50 @@ class FriendActivityMonitor(
 
     /**
      * Flushes push notifications persisted by Firebase/APNs while the app was closed/backgrounded.
+     * Returns the supported events that were enqueued for display.
      */
-    fun flushPendingPushes() {
+    fun flushPendingPushes(): List<FriendNotificationEvent> {
         val storedPushes = tokenStorage.getPendingFriendNotifications()
-        if (storedPushes.isNotEmpty()) {
-            tokenStorage.clearPendingFriendNotifications()
-            storedPushes
-                .filter(::isSupportedNotification)
-                .filter { it.type != FriendActivityType.WORKOUT || tokenStorage.isFriendWorkoutTrackingEnabled(it.actorUserId) }
-                .forEach { enqueueForImmediateDisplay(it) }
-        }
+        if (storedPushes.isEmpty()) return emptyList()
+        tokenStorage.clearPendingFriendNotifications()
+        val eligible = storedPushes
+            .filter(::isSupportedNotification)
+            .filter { it.type != FriendActivityType.WORKOUT || tokenStorage.isFriendWorkoutTrackingEnabled(it.actorUserId) }
+        eligible.forEach { enqueueForImmediateDisplay(it) }
+        return eligible
     }
 
     /**
      * Restores any push notifications that arrived while the app was closed/logged out,
      * and checks live friend daily activity deltas + follow requests from the backend.
+     * Returns newly detected backend events (so callers can also fire a native system top notification).
      */
-    suspend fun checkForUpdates(userId: Int, todayIso: String = getTodayIso()) {
-        if (userId <= 0 || !tokenStorage.isLoggedIn()) return
+    suspend fun checkForUpdates(
+        userId: Int,
+        todayIso: String = getTodayIso(),
+        force: Boolean = false,
+        minIntervalMs: Long = 10_000L
+    ): List<FriendNotificationEvent> = checkMutex.withLock {
+        if (userId <= 0 || !tokenStorage.isLoggedIn()) return@withLock emptyList()
 
         // 1. Flush any push events persisted while app was closed / in background
-        flushPendingPushes()
+        val flushedPushes = flushPendingPushes()
+        val flushedWorkoutActorIds = flushedPushes
+            .filter { it.type == FriendActivityType.WORKOUT && it.actorUserId > 0 }
+            .map { it.actorUserId }
+            .toSet()
+
+        val nowMs = currentTimeMillis()
+        if (!force && lastCheckMs > 0L && nowMs - lastCheckMs < minIntervalMs) {
+            return@withLock emptyList()
+        }
+        lastCheckMs = nowMs
 
         // Sync muted workout friend ids from backend
         apiClient.getMutedWorkoutFriendIds().onSuccess { mutedList ->
             tokenStorage.syncMutedWorkoutFriendIds(mutedList, userId)
         }
 
-        val nowMs = currentTimeMillis()
         val generatedEvents = mutableListOf<FriendNotificationEvent>()
 
         // 2. Check new incoming follow requests
@@ -109,17 +129,15 @@ class FriendActivityMonitor(
             val previousBaseline = tokenStorage.getFriendActivityBaseline(userId, todayIso)
             val currentFriends = dto.entries.filter { !it.isCurrentUser && it.userId != userId }
 
-            if (previousBaseline != null) {
-                val mutedIds = tokenStorage.getMutedWorkoutFriendIds(userId)
-                val detected = detectFriendActivityChanges(
-                    previous = previousBaseline,
-                    current = currentFriends,
-                    dateIso = todayIso,
-                    nowMs = nowMs,
-                    mutedUserIds = mutedIds
-                )
-                generatedEvents.addAll(detected)
-            }
+            val mutedIds = tokenStorage.getMutedWorkoutFriendIds(userId)
+            val detected = detectFriendActivityChanges(
+                previous = previousBaseline.orEmpty(),
+                current = currentFriends,
+                dateIso = todayIso,
+                nowMs = nowMs,
+                mutedUserIds = mutedIds
+            ).filter { it.actorUserId !in flushedWorkoutActorIds }
+            generatedEvents.addAll(detected)
 
             val updatedBaseline = currentFriends.map { entry ->
                 FriendBaselineEntry(
@@ -138,6 +156,7 @@ class FriendActivityMonitor(
         }
 
         generatedEvents.forEach { enqueueForImmediateDisplay(it) }
+        return@withLock generatedEvents
     }
 
     fun enqueueForImmediateDisplay(event: FriendNotificationEvent) {
@@ -166,6 +185,7 @@ class FriendActivityMonitor(
     fun clearAll() {
         _queue.value = emptyList()
         _currentBanner.value = null
+        lastCheckMs = 0L
     }
 
     companion object {
@@ -208,7 +228,7 @@ class FriendActivityMonitor(
 
             current.forEach { entry ->
                 if (entry.userId in mutedUserIds) return@forEach
-                val prev = prevById[entry.userId] ?: return@forEach
+                val prev = prevById[entry.userId] ?: FriendBaselineEntry(userId = entry.userId)
                 val actor = entry.name.trim().substringBefore(" ")
                     .ifBlank { entry.username.ifBlank { "Arkadaşın" } }
 

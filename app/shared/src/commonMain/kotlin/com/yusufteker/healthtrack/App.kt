@@ -91,6 +91,7 @@ import com.yusufteker.healthtrack.ui.components.ForceUpdateDialog
 import com.yusufteker.healthtrack.ui.components.FriendActivityBannerHost
 import com.yusufteker.healthtrack.ui.components.GradientText
 import com.yusufteker.healthtrack.ui.components.HealthBrandLogo
+import com.yusufteker.healthtrack.ui.components.HealthSnackbarHost
 import com.yusufteker.healthtrack.ui.components.MotivationalToastHost
 import com.yusufteker.healthtrack.ui.components.NotificationPermissionDialog
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
@@ -331,12 +332,44 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
-            // On launch/login, restore stored pushes delivered while closed (live pushes arrive via direct FCM)
+            suspend fun checkFriendUpdatesAndNotify(force: Boolean = false) {
+                val currentSession = tokenStorage.sessionFlow.value
+                if (!currentSession.isAuthenticated || currentSession.userId <= 0) return
+                val newlyDetected = friendActivityMonitor.checkForUpdates(
+                    userId = currentSession.userId,
+                    force = force
+                )
+                newlyDetected.forEach { event ->
+                    dailyReminderNotifier.sendFriendActivityNotification(
+                        id = event.id,
+                        title = event.localizedTitle(currentLanguage),
+                        body = event.localizedMessage(currentLanguage),
+                        targetTab = "LEADERBOARD"
+                    )
+                }
+            }
+
+            // On app launch / active session, immediately check friend updates & pending pushes
             LaunchedEffect(session.isAuthenticated, session.userId) {
                 if (session.isAuthenticated && session.userId > 0) {
-                    friendActivityMonitor.checkForUpdates(session.userId)
+                    checkFriendUpdatesAndNotify(force = true)
                 } else {
                     friendActivityMonitor.clearAll()
+                }
+            }
+
+            // Every time the main dashboard becomes visible (after closing Profile/Leaderboard/etc.), check friend activity
+            val isDashboardVisible = session.isAuthenticated &&
+                session.userId > 0 &&
+                !isOnboardingVisible &&
+                !isInitialSetupVisible &&
+                !isProfileScreenOpen &&
+                !isPremiumScreenOpen &&
+                !isGuestAuthOpen &&
+                gamificationSectionOpen == null
+            LaunchedEffect(isDashboardVisible, session.userId) {
+                if (isDashboardVisible) {
+                    checkFriendUpdatesAndNotify(force = false)
                 }
             }
 
@@ -359,6 +392,11 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 isProfileScreenOpen = false
                 isPremiumScreenOpen = false
                 isGuestAuthOpen = false
+                if (target.tabName == "LEADERBOARD") {
+                    gamificationSectionOpen = GamificationSection.LEADERBOARD
+                    WidgetDeepLinkBus.clearTarget()
+                    return@LaunchedEffect
+                }
                 gamificationSectionOpen = null
                 val targetTab = when (target.tabName) {
                     "WORKOUT" -> HealthTab.WORKOUT
@@ -377,18 +415,16 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 apiClient.syncHuaweiHealth(days = 7).onSuccess { dto ->
                     tokenStorage.setHuaweiConnected(dto.connected)
                     if (dto.connected && !dto.needsReauth) {
-                        val summary = deviceHealthSyncManager.mergeSnapshot(
+                        deviceHealthSyncManager.mergeSnapshot(
                             dto.toDeviceHealthSnapshot(),
                             syncToCloud = true
                         )
                         tokenStorage.setLastHuaweiSyncMs(currentTimeMillis())
-                        if (summary.totalChanges > 0) {
-                            showToast(summary.toUserMessage(currentLanguage))
-                        } else if (showFeedbackAlways) {
+                        if (showFeedbackAlways) {
                             showToast(
                                 trEn(
-                                    "Huawei Sağlık bağlandı ✓ Verileriniz eşitlendi.",
-                                    "Huawei Health connected ✓ Your data is synced.",
+                                    "Huawei Sağlık bağlandı ✓",
+                                    "Huawei Health connected ✓",
                                     currentLanguage
                                 )
                             )
@@ -425,13 +461,6 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         coroutineScope.launch {
                             val currentTarget = widgetSnapshotBuilder.buildTodaySnapshot(session.userId, today).waterTargetMl
                             database.addWater(session.userId, today, pendingWaterMl, currentTarget)
-                            showToast(
-                                trEn(
-                                    "Widget'tan +$pendingWaterMl ml su kaydedildi 💧",
-                                    "+$pendingWaterMl ml water synced from widget 💧",
-                                    currentLanguage
-                                )
-                            )
                         }
                     }
                     widgetBridge.checkWidgetInstalled { installed ->
@@ -503,8 +532,10 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         evaluateWidgetReminderAndSync()
                         if (session.hasActiveSession && session.userId != 0) {
                             if (session.isAuthenticated) {
-                                friendActivityMonitor.flushPendingPushes()
-                                coroutineScope.launch { syncFcmTokenIfNeeded() }
+                                coroutineScope.launch {
+                                    syncFcmTokenIfNeeded()
+                                    checkFriendUpdatesAndNotify(force = true)
+                                }
                             }
                             if (tokenStorage.isAutoDeviceSyncEnabled()) {
                                 val nowMs = currentTimeMillis()
@@ -537,6 +568,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
+            val hasNotificationPermission = dailyReminderNotifier.hasPermission
             LaunchedEffect(
                 session.hasActiveSession,
                 session.userId,
@@ -546,7 +578,8 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 isPremiumScreenOpen,
                 isGuestAuthOpen,
                 gamificationSectionOpen,
-                updateStatus
+                updateStatus,
+                hasNotificationPermission
             ) {
                 evaluateWidgetReminderAndSync()
                 val canShowNotifPrompt = session.hasActiveSession &&
@@ -559,7 +592,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     gamificationSectionOpen == null &&
                     updateStatus == UpdateStatus.UpToDate &&
                     !isWidgetPromoDialogVisible &&
-                    !dailyReminderNotifier.hasPermission
+                    !hasNotificationPermission
                 if (canShowNotifPrompt) {
                     val nowMs = currentTimeMillis()
                     val cooldownMs = 3L * 24 * 60 * 60 * 1000L
@@ -593,13 +626,10 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
                             result.onSuccess { snapshot ->
                                 coroutineScope.launch {
-                                    val summary = deviceHealthSyncManager.mergeSnapshot(
+                                    deviceHealthSyncManager.mergeSnapshot(
                                         snapshot,
                                         syncToCloud = session.isAuthenticated
                                     )
-                                    if (summary.totalChanges > 0) {
-                                        snackbarHostState.showSnackbar(summary.toUserMessage(currentLanguage))
-                                    }
                                 }
                             }
                         }
@@ -758,7 +788,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     LocalBottomBarVisibility provides bottomBarVisibility
                 ) {
                     Scaffold(
-                        snackbarHost = { SnackbarHost(snackbarHostState) },
+                        snackbarHost = { HealthSnackbarHost(snackbarHostState) },
                         topBar = {
                             TopAppBar(
                                 title = {
@@ -821,15 +851,13 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                                         if (isPlanoraInstalled) {
                                                             appLauncher.openApp(ExternalApp.PLANORA)
                                                         } else {
-                                                            coroutineScope.launch {
-                                                                snackbarHostState.showSnackbar(
-                                                                    trEn(
-                                                                        "Planora uygulaması cihazınızda yüklü değil.",
-                                                                        "Planora app is not installed on your device.",
-                                                                        currentLanguage
-                                                                    )
+                                                            showToast(
+                                                                trEn(
+                                                                    "Planora uygulaması cihazınızda yüklü değil.",
+                                                                    "Planora app is not installed on your device.",
+                                                                    currentLanguage
                                                                 )
-                                                            }
+                                                            )
                                                         }
                                                     },
                                                 contentAlignment = Alignment.Center
@@ -1033,14 +1061,14 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
                 }
 
-                if (!session.hasActiveSession || isGuestAuthOpen || isPremiumScreenOpen || isProfileScreenOpen || gamificationSectionOpen != null) {
-                    SnackbarHost(
+                if (!session.hasActiveSession || isGuestAuthOpen || isInitialSetupVisible || isPremiumScreenOpen || isProfileScreenOpen || gamificationSectionOpen != null) {
+                    HealthSnackbarHost(
                         hostState = snackbarHostState,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
                             .imePadding()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(bottom = 8.dp)
                     )
                 }
 
@@ -1115,7 +1143,6 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                     currentLanguage
                                 )
                                 autoScaleSuccessMessage = msg
-                                showToast(msg)
                                 kotlinx.coroutines.delay(4500L)
                                 if (autoScaleSuccessMessage == msg) {
                                     autoScaleSuccessMessage = null
@@ -1212,6 +1239,9 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                         onAllowClick = {
                             isNotifPermDialogVisible = false
                             dailyReminderNotifier.requestPermission { granted ->
+                                if (granted) {
+                                    coroutineScope.launch { syncFcmTokenIfNeeded(force = true) }
+                                }
                                 showToast(
                                     if (granted) {
                                         trEn("Bildirimler açıldı!", "Notifications enabled!", currentLanguage)

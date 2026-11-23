@@ -162,7 +162,7 @@ fun AnalyticsScreen(
                 )
             }
 
-            var hasNotificationPerm by remember { mutableStateOf(reportNotifier.hasPermission) }
+            val hasNotificationPerm = reportNotifier.hasPermission
             val permGrantedMsg = str(
                 "🔔 Bildirim izni verildi! Haftalık raporlarınız kilit ekranınıza gelecek.",
                 "🔔 Notification permission granted! Your weekly reports will arrive on your lock screen."
@@ -187,7 +187,6 @@ fun AnalyticsScreen(
                 hasNotificationPermission = hasNotificationPerm,
                 onRequestNotificationPermission = {
                     reportNotifier.requestPermission { granted ->
-                        hasNotificationPerm = granted
                         if (granted) {
                             onIntent(AnalyticsIntent.OnShowInfoMessage(permGrantedMsg))
                         } else {

@@ -56,7 +56,10 @@ fun HealthTrackTheme(
         error = HealthColors.Error,
         onError = HealthColors.OnError,
         errorContainer = HealthColors.ErrorContainer,
-        onErrorContainer = HealthColors.OnErrorContainer
+        onErrorContainer = HealthColors.OnErrorContainer,
+        inverseSurface = HealthColors.SurfaceContainer,
+        inverseOnSurface = HealthColors.OnSurfaceDark,
+        inversePrimary = themeAccent.primaryGlow
     )
 
     val darkScheme = darkColorScheme(
@@ -83,7 +86,10 @@ fun HealthTrackTheme(
         error = HealthColors.Error,
         onError = HealthColors.OnError,
         errorContainer = HealthColors.ErrorContainer,
-        onErrorContainer = HealthColors.OnErrorContainer
+        onErrorContainer = HealthColors.OnErrorContainer,
+        inverseSurface = HealthColors.SurfaceContainerHigh,
+        inverseOnSurface = HealthColors.OnSurfaceDark,
+        inversePrimary = themeAccent.primary
     )
 
     val colorScheme = if (darkTheme) darkScheme else lightScheme

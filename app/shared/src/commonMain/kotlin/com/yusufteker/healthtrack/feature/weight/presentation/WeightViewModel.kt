@@ -101,10 +101,9 @@ class WeightViewModel(
                     val lang = LocalizationManager.currentLanguage
                     intent.result.onSuccess { snapshot ->
                         val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
-                        val msg = summary.toUserMessage(lang)
-                        if (!intent.isSilent || summary.totalChanges > 0) {
+                        if (!intent.isSilent) {
+                            val msg = summary.toUserMessage(lang)
                             _state.update { it.copy(isSyncingScale = false, infoMessage = msg) }
-                            _effects.send(WeightEffect.ShowToast(msg))
                         } else {
                             _state.update { it.copy(isSyncingScale = false) }
                         }
@@ -384,7 +383,6 @@ class WeightViewModel(
                     infoMessage = savedMsg
                 )
             }
-            _effects.send(WeightEffect.ShowToast(savedMsg))
             launch { syncEngine.sync() }
         }
     }
@@ -433,7 +431,6 @@ class WeightViewModel(
                     infoMessage = msg
                 )
             }
-            _effects.send(WeightEffect.ShowToast(msg))
         }
     }
 
@@ -468,7 +465,6 @@ class WeightViewModel(
                 database.upsertWeight(updated)
                 launch { syncEngine.sync() }
             }
-            _effects.send(WeightEffect.ShowToast(updatedMsg))
         }
     }
 

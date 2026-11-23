@@ -8,6 +8,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.yusufteker.healthtrack.core.model.ScheduledReminderPayload
 import io.github.aakira.napier.Napier
 import java.util.Calendar
@@ -15,22 +18,36 @@ import java.util.Calendar
 @Composable
 actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var authorized by remember(context) { mutableStateOf(HealthReminderNotifications.hasPermission(context)) }
     var pendingCallback by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                authorized = HealthReminderNotifications.hasPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        pendingCallback?.invoke(granted)
+        authorized = granted || HealthReminderNotifications.hasPermission(context)
+        pendingCallback?.invoke(authorized)
         pendingCallback = null
     }
 
     return remember(context, permissionLauncher) {
         object : DailyReminderNotifier {
             override val hasPermission: Boolean
-                get() = HealthReminderNotifications.hasPermission(context)
+                get() = authorized
 
             override fun requestPermission(onResult: (Boolean) -> Unit) {
-                if (hasPermission) {
+                if (HealthReminderNotifications.hasPermission(context)) {
+                    authorized = true
                     onResult(true)
                     return
                 }
@@ -38,6 +55,7 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                     pendingCallback = onResult
                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
+                    authorized = true
                     onResult(true)
                 }
             }
@@ -48,6 +66,26 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                     Napier.i("Notification posted: ${payload.title}", tag = "NOTIFICATION")
                 } catch (e: Exception) {
                     Napier.e("Failed to post notification: ${e.message}", e, tag = "NOTIFICATION")
+                }
+            }
+
+            override fun sendFriendActivityNotification(
+                id: String,
+                title: String,
+                body: String,
+                targetTab: String
+            ) {
+                try {
+                    HealthReminderNotifications.postFriendActivityNotification(
+                        context = context,
+                        eventId = id,
+                        title = title,
+                        body = body,
+                        targetTab = targetTab
+                    )
+                    Napier.i("Friend activity notification posted: $title", tag = "NOTIFICATION")
+                } catch (e: Exception) {
+                    Napier.e("Failed to post friend activity notification: ${e.message}", e, tag = "NOTIFICATION")
                 }
             }
 

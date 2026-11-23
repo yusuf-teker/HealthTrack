@@ -42,7 +42,7 @@ fun ProfileScreenRoot(
     val deviceHealthBridge = rememberDeviceHealthBridge()
     val uriHandler = LocalUriHandler.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var hasNotifPermission by remember { mutableStateOf(dailyReminderNotifier.hasPermission) }
+    val hasNotifPermission = dailyReminderNotifier.hasPermission
     var isDeviceAuthorized by remember { mutableStateOf(state.hasConnectedDevice) }
 
     val huaweiCallbackEvent by HuaweiDeepLinkBus.pendingEvent.collectAsState()
@@ -125,9 +125,7 @@ fun ProfileScreenRoot(
         onLogout = onLogout,
         hasNotificationPermission = hasNotifPermission,
         onRequestNotificationPermission = {
-            dailyReminderNotifier.requestPermission { granted ->
-                hasNotifPermission = granted
-            }
+            dailyReminderNotifier.requestPermission { _ -> }
         },
         isDeviceAuthorized = isDeviceAuthorized,
         modifier = modifier

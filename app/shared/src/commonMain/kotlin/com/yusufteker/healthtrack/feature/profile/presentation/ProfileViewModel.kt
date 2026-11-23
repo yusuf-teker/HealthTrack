@@ -390,9 +390,7 @@ class ProfileViewModel(
                 viewModelScope.launch {
                     val lang = LocalizationManager.currentLanguage
                     val success = syncEngine.sync(forceFullPull = true)
-                    if (success) {
-                        _effects.send(ProfileEffect.ShowToast(trEn("Senkronizasyon tamamlandı.", "Sync completed.", lang)))
-                    } else {
+                    if (!success) {
                         _effects.send(
                             ProfileEffect.ShowToast(
                                 trEn(
@@ -418,11 +416,9 @@ class ProfileViewModel(
                             it.copy(
                                 isDeviceSyncing = false,
                                 hasConnectedDevice = true,
-                                lastDeviceSyncSummary = msg,
-                                infoMessage = msg
+                                lastDeviceSyncSummary = msg
                             )
                         }
-                        _effects.send(ProfileEffect.ShowToast(msg))
                     }.onFailure { err ->
                         val msg = err.message ?: trEn("Cihaz senkronizasyonu başarısız oldu.", "Device sync failed.", lang)
                         _state.update {
@@ -837,7 +833,7 @@ class ProfileViewModel(
             try {
                 persistProfileChanges()
                 val savedMsg = trEn("Değişiklikler kaydedildi.", "Changes saved.", lang)
-                _state.update { it.copy(isSaving = false, infoMessage = savedMsg) }
+                _state.update { it.copy(isSaving = false) }
                 _effects.send(ProfileEffect.ShowToast(savedMsg))
                 _effects.send(ProfileEffect.NavigateBack)
             } catch (e: CancellationException) {
@@ -1009,11 +1005,20 @@ class ProfileViewModel(
                             isHuaweiNeedsReauth = false,
                             hasConnectedDevice = true,
                             lastHuaweiSyncSummary = msg,
-                            lastDeviceSyncSummary = msg,
-                            infoMessage = msg
+                            lastDeviceSyncSummary = msg
                         )
                     }
-                    _effects.send(ProfileEffect.ShowToast(msg))
+                    if (showConnectedFeedback) {
+                        _effects.send(
+                            ProfileEffect.ShowToast(
+                                trEn(
+                                    "Huawei Sağlık bağlandı ✓",
+                                    "Huawei Health connected ✓",
+                                    lang
+                                )
+                            )
+                        )
+                    }
                 }
                 .onFailure { err ->
                     _state.update {
@@ -1045,8 +1050,7 @@ class ProfileViewModel(
                             isHuaweiBusy = false,
                             isHuaweiConnected = false,
                             isHuaweiNeedsReauth = false,
-                            lastHuaweiSyncSummary = null,
-                            infoMessage = msg
+                            lastHuaweiSyncSummary = null
                         )
                     }
                     _effects.send(ProfileEffect.ShowToast(msg))

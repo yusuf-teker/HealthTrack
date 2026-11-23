@@ -47,7 +47,7 @@ fun InitialProfileSetupScreenRoot(
     val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val dailyReminderNotifier = rememberDailyReminderNotifier()
     val deviceHealthBridge = rememberDeviceHealthBridge()
-    var hasNotifPermission by remember { mutableStateOf(dailyReminderNotifier.hasPermission) }
+    val hasNotifPermission = dailyReminderNotifier.hasPermission
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
@@ -67,9 +67,7 @@ fun InitialProfileSetupScreenRoot(
         platformName = deviceHealthBridge.platformName,
         onIntent = viewModel::onIntent,
         onRequestNotificationPermission = {
-            dailyReminderNotifier.requestPermission { granted ->
-                hasNotifPermission = granted
-            }
+            dailyReminderNotifier.requestPermission { _ -> }
         },
         onSyncDevice = {
             viewModel.onIntent(ProfileIntent.OnDeviceSyncStarted)

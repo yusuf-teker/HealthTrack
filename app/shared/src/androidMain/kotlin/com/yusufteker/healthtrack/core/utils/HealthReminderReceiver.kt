@@ -44,6 +44,7 @@ internal object HealthReminderNotifications {
 
     const val FOOD_CHANNEL_ID = "ht_food_reminders_channel"
     const val WEEKLY_REPORT_CHANNEL_ID = "ht_weekly_reports_channel"
+    const val FRIEND_ACTIVITY_CHANNEL_ID = "ht_friend_activity_push"
 
     fun hasPermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -116,6 +117,20 @@ internal object HealthReminderNotifications {
                 enableVibration(true)
             }
             notificationManager.createNotificationChannel(weeklyReportChannel)
+
+            val friendActivityChannel = NotificationChannel(
+                FRIEND_ACTIVITY_CHANNEL_ID,
+                trEn("Arkadaş Aktivite Bildirimleri", "Friend Activity Notifications"),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = trEn(
+                    "Takip ettiğin arkadaşlarının antrenman ve aktivite bildirimleri.",
+                    "Workout and activity notifications from friends you follow."
+                )
+                enableLights(true)
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(friendActivityChannel)
         }
     }
 
@@ -158,6 +173,34 @@ internal object HealthReminderNotifications {
             .setContentText(payload.body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(payload.body))
             .setContentIntent(createOpenTabPendingIntent(context, payload.targetTab, requestCode))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .build()
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, notification)
+    }
+
+    fun postFriendActivityNotification(
+        context: Context,
+        eventId: String,
+        title: String,
+        body: String,
+        targetTab: String = "LEADERBOARD"
+    ) {
+        if (!hasPermission(context)) return
+        ensureNotificationChannels(context)
+
+        val notificationId = eventId.hashCode()
+        val notification = NotificationCompat.Builder(context, FRIEND_ACTIVITY_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(0xFF10B981.toInt())
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentIntent(createOpenTabPendingIntent(context, targetTab, notificationId))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)

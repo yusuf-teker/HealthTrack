@@ -1,19 +1,28 @@
 package com.yusufteker.healthtrack.core.utils
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.HealthAiReport
 import io.ktor.http.encodeURLParameter
 import platform.Foundation.NSDateComponents
+import platform.Foundation.NSURL
+import platform.UIKit.UIApplication
+import platform.UIKit.UIApplicationOpenSettingsURLString
 import platform.UserNotifications.UNAuthorizationOptionAlert
 import platform.UserNotifications.UNAuthorizationOptionBadge
 import platform.UserNotifications.UNAuthorizationOptionSound
 import platform.UserNotifications.UNAuthorizationStatusAuthorized
+import platform.UserNotifications.UNAuthorizationStatusDenied
+import platform.UserNotifications.UNAuthorizationStatusEphemeral
 import platform.UserNotifications.UNAuthorizationStatusProvisional
 import platform.UserNotifications.UNCalendarNotificationTrigger
 import platform.UserNotifications.UNMutableNotificationContent
@@ -28,32 +37,79 @@ private const val WEEKLY_REPORT_REMINDER_ID = "ht_weekly_report_sunday_reminder"
 
 @Composable
 actual fun rememberWeeklyReportNotifier(): WeeklyReportNotifier {
-    var authorized by remember { mutableStateOf(false) }
+    var authorized by remember { mutableStateOf<Boolean?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
+    fun refreshAuthorizationStatus() {
         UNUserNotificationCenter.currentNotificationCenter()
             .getNotificationSettingsWithCompletionHandler { settings ->
-                val granted = settings?.authorizationStatus == UNAuthorizationStatusAuthorized ||
-                    settings?.authorizationStatus == UNAuthorizationStatusProvisional
+                val status = settings?.authorizationStatus
+                val granted = status == UNAuthorizationStatusAuthorized ||
+                    status == UNAuthorizationStatusProvisional ||
+                    status == UNAuthorizationStatusEphemeral
                 dispatch_async(dispatch_get_main_queue()) {
                     authorized = granted
                 }
             }
     }
 
+    LaunchedEffect(Unit) {
+        refreshAuthorizationStatus()
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshAuthorizationStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     return remember {
         object : WeeklyReportNotifier {
             override val hasPermission: Boolean
-                get() = authorized
+                get() = authorized != false
 
             override fun requestPermission(onResult: (Boolean) -> Unit) {
                 val center = UNUserNotificationCenter.currentNotificationCenter()
-                center.requestAuthorizationWithOptions(
-                    UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge
-                ) { granted, _ ->
-                    dispatch_async(dispatch_get_main_queue()) {
-                        authorized = granted
-                        onResult(granted)
+                center.getNotificationSettingsWithCompletionHandler { settings ->
+                    val status = settings?.authorizationStatus
+                    val alreadyGranted = status == UNAuthorizationStatusAuthorized ||
+                        status == UNAuthorizationStatusProvisional ||
+                        status == UNAuthorizationStatusEphemeral
+                    when {
+                        alreadyGranted -> {
+                            dispatch_async(dispatch_get_main_queue()) {
+                                authorized = true
+                                onResult(true)
+                            }
+                        }
+                        status == UNAuthorizationStatusDenied -> {
+                            dispatch_async(dispatch_get_main_queue()) {
+                                authorized = false
+                                val settingsUrl = NSURL.URLWithString(UIApplicationOpenSettingsURLString)
+                                if (settingsUrl != null) {
+                                    UIApplication.sharedApplication.openURL(
+                                        settingsUrl,
+                                        options = emptyMap<Any?, Any>(),
+                                        completionHandler = null
+                                    )
+                                }
+                                onResult(false)
+                            }
+                        }
+                        else -> {
+                            center.requestAuthorizationWithOptions(
+                                UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge
+                            ) { granted, _ ->
+                                dispatch_async(dispatch_get_main_queue()) {
+                                    authorized = granted
+                                    onResult(granted)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -96,7 +152,8 @@ actual fun rememberWeeklyReportNotifier(): WeeklyReportNotifier {
                     setUserInfo(
                         mapOf<Any?, Any?>(
                             "open_tab" to "ANALYTICS",
-                            "whatsapp_url" to whatsappUrl
+                            "whatsapp_url" to whatsappUrl,
+                            "is_local" to true
                         )
                     )
                 }
@@ -124,7 +181,7 @@ actual fun rememberWeeklyReportNotifier(): WeeklyReportNotifier {
                         )
                     )
                     setSound(UNNotificationSound.defaultSound())
-                    setUserInfo(mapOf<Any?, Any?>("open_tab" to "ANALYTICS"))
+                    setUserInfo(mapOf<Any?, Any?>("open_tab" to "ANALYTICS", "is_local" to true))
                 }
                 val trigger = UNCalendarNotificationTrigger.triggerWithDateMatchingComponents(
                     components,

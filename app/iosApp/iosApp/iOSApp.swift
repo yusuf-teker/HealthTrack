@@ -72,7 +72,11 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         forwardNotification(userInfo: notification.request.content.userInfo, content: notification.request.content, isForeground: true)
-        completionHandler([.sound])
+        if #available(iOS 14.0, *) {
+            completionHandler([.banner, .list, .sound])
+        } else {
+            completionHandler([.alert, .sound])
+        }
     }
 
     func userNotificationCenter(
@@ -98,6 +102,9 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
     }
 
     private func forwardNotification(userInfo: [AnyHashable: Any], content: UNNotificationContent?, isForeground: Bool) {
+        if (userInfo["is_local"] as? Bool) == true {
+            return
+        }
         let aps = userInfo["aps"] as? [AnyHashable: Any]
         let alert = aps?["alert"] as? [AnyHashable: Any]
         let title = (userInfo["title"] as? String) ?? (alert?["title"] as? String) ?? content?.title

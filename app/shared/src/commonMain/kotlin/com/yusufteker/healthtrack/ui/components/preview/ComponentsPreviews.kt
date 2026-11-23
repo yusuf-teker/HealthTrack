@@ -570,3 +570,65 @@ fun SportMedalUnlockedLightPreview() {
         }
     }
 }
+
+@Preview
+@Composable
+fun HealthToastDarkPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF0B0F19))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            HealthToastPill(
+                message = "Değişiklikler kaydedildi.",
+                type = ToastType.SUCCESS,
+                onDismiss = {}
+            )
+            HealthToastPill(
+                message = "Planora uygulaması cihazınızda yüklü değil.",
+                type = ToastType.ERROR,
+                onDismiss = {}
+            )
+            HealthToastPill(
+                message = "Spora teşvik sıklığı: Haftada 3 gün olarak ayarlandı.",
+                type = ToastType.INFO,
+                onDismiss = {}
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun HealthToastLightPreview() {
+    HealthTrackTheme(darkTheme = false) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF8FAFC))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            HealthToastPill(
+                message = "Değişiklikler kaydedildi.",
+                type = ToastType.SUCCESS,
+                onDismiss = {}
+            )
+            HealthToastPill(
+                message = "Planora uygulaması cihazınızda yüklü değil.",
+                type = ToastType.ERROR,
+                onDismiss = {}
+            )
+            HealthToastPill(
+                message = "Spora teşvik sıklığı: Haftada 3 gün olarak ayarlandı.",
+                type = ToastType.INFO,
+                onDismiss = {}
+            )
+        }
+    }
+}

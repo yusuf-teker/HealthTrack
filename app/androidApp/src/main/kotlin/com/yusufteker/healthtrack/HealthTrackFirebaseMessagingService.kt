@@ -67,12 +67,13 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
             // Persist so when the user opens the app (even after swipe-dismissing the notification),
             // the top in-app push popup is displayed cleanly on launch.
             persistPendingNotification(this, event)
-            showSystemNotification(
-                title = title ?: event.actorName,
-                body = body ?: event.messageTr,
-                eventId = event.id
-            )
         }
+        // Always show a native top system notification (both background and foreground)
+        showSystemNotification(
+            title = title ?: event.actorName,
+            body = body ?: event.messageTr,
+            eventId = event.id
+        )
     }
 
     private fun showSystemNotification(title: String, body: String, eventId: String) {
@@ -87,6 +88,7 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_PUSH_NOTIFICATION_ID, eventId)
+            putExtra("open_tab", "LEADERBOARD")
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
