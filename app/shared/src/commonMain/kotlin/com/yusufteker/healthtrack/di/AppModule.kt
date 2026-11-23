@@ -21,6 +21,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.module
+import org.koin.mp.KoinPlatformTools
 
 val featureModule = module {
     viewModel { AuthViewModel(get(), get(), get(), get(), get<Settings>()) }
@@ -46,6 +47,7 @@ val featureModule = module {
 val appModules = listOf(coreModule, featureModule)
 
 fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
+    if (KoinPlatformTools.defaultContext().getOrNull() != null) return
     startKoin {
         appDeclaration()
         modules(appModules)

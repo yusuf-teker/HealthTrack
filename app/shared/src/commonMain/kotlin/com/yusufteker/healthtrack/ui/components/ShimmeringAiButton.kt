@@ -30,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,81 +63,97 @@ fun ShimmeringAiButton(
     badgeText: String? = null,
     isBadgeAlert: Boolean = false
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "ai_btn_shimmer")
-
-    // Continuous 2.8s timeline; beam sweeps swiftly in the first ~45%, pauses calmly in the rest.
-    val shimmerPhase by infiniteTransition.animateFloat(
-        initialValue = -0.35f,
-        targetValue = 1.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ai_shimmer_phase"
-    )
-
-    val sparkleScale by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "ai_sparkle_scale"
-    )
-
-    val baseGradient = if (enabled) {
-        listOf(
-            HealthColors.Primary,
-            Color(0xFF0EA5E9),
-            Color(0xFF6366F1)
-        )
+    val shouldAnimate = enabled && !isLoading
+    val shimmerPhase: Float
+    val sparkleScale: Float
+    if (shouldAnimate) {
+        val infiniteTransition = rememberInfiniteTransition(label = "ai_btn_shimmer")
+        shimmerPhase = infiniteTransition.animateFloat(
+            initialValue = -0.35f,
+            targetValue = 1.9f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2800, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "ai_shimmer_phase"
+        ).value
+        sparkleScale = infiniteTransition.animateFloat(
+            initialValue = 0.92f,
+            targetValue = 1.15f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "ai_sparkle_scale"
+        ).value
     } else {
-        listOf(
-            HealthColors.Primary.copy(alpha = 0.45f),
-            Color(0xFF0EA5E9).copy(alpha = 0.38f),
-            Color(0xFF6366F1).copy(alpha = 0.35f)
-        )
+        shimmerPhase = 2.0f
+        sparkleScale = 1.0f
     }
 
-    val borderBrush = Brush.horizontalGradient(
-        colors = if (enabled) {
+    val primaryColor = HealthColors.Primary
+    val primaryGlow = HealthColors.PrimaryGlow
+    val baseGradientBrush = remember(enabled, primaryColor) {
+        val colors = if (enabled) {
             listOf(
-                Color.White.copy(alpha = 0.48f),
-                HealthColors.PrimaryGlow.copy(alpha = 0.72f),
-                Color(0xFF38BDF8).copy(alpha = 0.65f)
+                primaryColor,
+                Color(0xFF0EA5E9),
+                Color(0xFF6366F1)
             )
         } else {
             listOf(
-                Color.White.copy(alpha = 0.22f),
-                HealthColors.PrimaryGlow.copy(alpha = 0.35f),
-                Color(0xFF38BDF8).copy(alpha = 0.28f)
+                primaryColor.copy(alpha = 0.45f),
+                Color(0xFF0EA5E9).copy(alpha = 0.38f),
+                Color(0xFF6366F1).copy(alpha = 0.35f)
             )
         }
-    )
+        Brush.horizontalGradient(colors)
+    }
 
-    val shape = RoundedCornerShape(999.dp)
+    val borderBrush = remember(enabled, primaryGlow) {
+        Brush.horizontalGradient(
+            colors = if (enabled) {
+                listOf(
+                    Color.White.copy(alpha = 0.48f),
+                    primaryGlow.copy(alpha = 0.72f),
+                    Color(0xFF38BDF8).copy(alpha = 0.65f)
+                )
+            } else {
+                listOf(
+                    Color.White.copy(alpha = 0.22f),
+                    primaryGlow.copy(alpha = 0.35f),
+                    Color(0xFF38BDF8).copy(alpha = 0.28f)
+                )
+            }
+        )
+    }
+
+    val shimmerColors = remember(enabled) {
+        val alpha = if (enabled) 0.34f else 0.14f
+        listOf(
+            Color.Transparent,
+            Color.White.copy(alpha = alpha),
+            Color.Transparent
+        )
+    }
+
+    val shape = remember { RoundedCornerShape(999.dp) }
 
     Box(
         modifier = modifier
             .height(height)
             .then(if (enabled && !isLoading) Modifier.bounceClick() else Modifier)
             .clip(shape)
-            .background(Brush.horizontalGradient(baseGradient))
+            .background(baseGradientBrush)
             .border(width = if (enabled) 1.25.dp else 1.dp, brush = borderBrush, shape = shape)
             .drawWithContent {
                 drawContent()
-                if (shimmerPhase in -0.35f..1.35f) {
+                if (shouldAnimate && shimmerPhase in -0.35f..1.35f) {
                     val beamWidth = size.width * 0.42f
                     val startX = (size.width + beamWidth) * shimmerPhase - beamWidth
-                    val alpha = if (enabled) 0.34f else 0.14f
                     drawRect(
                         brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = alpha),
-                                Color.Transparent
-                            ),
+                            colors = shimmerColors,
                             start = Offset(startX, 0f),
                             end = Offset(startX + beamWidth, size.height)
                         )

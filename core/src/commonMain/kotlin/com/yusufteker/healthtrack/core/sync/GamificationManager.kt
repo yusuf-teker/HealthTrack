@@ -253,7 +253,7 @@ class GamificationManager(
                 workoutTarget = workoutTarget
             )
             summary
-        }
+        }.distinctUntilChanged()
     }
 
     fun dismissCurrentCelebration() {

@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -113,6 +114,15 @@ fun ShimmeringStreakPill(
     }
     val borderColor = flamePrimary.copy(alpha = if (isActiveToday) 0.55f else 0.30f)
 
+    val shimmerColors = remember(isDark) {
+        listOf(
+            Color.Transparent,
+            Color.White.copy(alpha = if (isDark) 0.28f else 0.48f),
+            Color.Transparent
+        )
+    }
+    val starPath = remember { Path() }
+
     Surface(
         shape = RoundedCornerShape(999.dp),
         color = containerBg,
@@ -127,11 +137,7 @@ fun ShimmeringStreakPill(
                 if (shimmerProgress in -0.4f..1.5f) {
                     val startX = size.width * shimmerProgress
                     val shimmerBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.White.copy(alpha = if (isDark) 0.28f else 0.48f),
-                            Color.Transparent
-                        ),
+                        colors = shimmerColors,
                         start = Offset(startX - size.height, 0f),
                         end = Offset(startX + size.height * 0.4f, size.height)
                     )
@@ -167,17 +173,19 @@ fun ShimmeringStreakPill(
                         )
                 )
 
-                // Twinkling 4-point stars around the flame
+                // Twinkling 4-point stars around the flame (reuses starPath to avoid per-frame Path allocations)
                 if (streakDays > 0) {
                     Canvas(modifier = Modifier.matchParentSize()) {
                         val s1 = 0.3f + 0.7f * sparklePhase
                         val s2 = 0.3f + 0.7f * (1f - sparklePhase)
                         drawFourPointStar(
+                            path = starPath,
                             center = Offset(size.width * 0.85f, size.height * 0.18f),
                             radius = 3.2.dp.toPx() * s1,
                             color = Color(0xFFFEF08A).copy(alpha = s1)
                         )
                         drawFourPointStar(
+                            path = starPath,
                             center = Offset(size.width * 0.15f, size.height * 0.28f),
                             radius = 2.4.dp.toPx() * s2,
                             color = flamePrimary.copy(alpha = s2)
@@ -223,23 +231,23 @@ fun ShimmeringStreakPill(
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFourPointStar(
+    path: Path,
     center: Offset,
     radius: Float,
     color: Color
 ) {
     if (radius <= 0.4f) return
     val inner = radius * 0.32f
-    val path = Path().apply {
-        moveTo(center.x, center.y - radius)
-        lineTo(center.x + inner, center.y - inner)
-        lineTo(center.x + radius, center.y)
-        lineTo(center.x + inner, center.y + inner)
-        lineTo(center.x, center.y + radius)
-        lineTo(center.x - inner, center.y + inner)
-        lineTo(center.x - radius, center.y)
-        lineTo(center.x - inner, center.y - inner)
-        close()
-    }
+    path.reset()
+    path.moveTo(center.x, center.y - radius)
+    path.lineTo(center.x + inner, center.y - inner)
+    path.lineTo(center.x + radius, center.y)
+    path.lineTo(center.x + inner, center.y + inner)
+    path.lineTo(center.x, center.y + radius)
+    path.lineTo(center.x - inner, center.y + inner)
+    path.lineTo(center.x - radius, center.y)
+    path.lineTo(center.x - inner, center.y - inner)
+    path.close()
     drawPath(path = path, color = color)
 }
 

@@ -26,21 +26,12 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        com.yusufteker.healthtrack.core.database.HealthAndroidDbContext.init(this)
-
-        if (BuildConfig.DEBUG) {
-            Napier.base(DebugAntilog())
-        }
 
         val isHealthRationaleIntent = intent?.action == "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" ||
             intent?.action == "android.intent.action.VIEW_PERMISSION_USAGE"
 
         val initialTab = resolveTabFromIntent(intent)
         dispatchDeepLinkIfPresent(intent)
-        (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.let {
-            HealthTrackFirebaseMessagingService.ensurePushChannel(it)
-        }
-        refreshFcmToken()
 
         setContent {
             App(initialTab = initialTab)
@@ -68,9 +59,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var fcmRefreshPosted = false
+
     override fun onResume() {
         super.onResume()
-        refreshFcmToken()
+        if (!fcmRefreshPosted) {
+            fcmRefreshPosted = true
+            window.decorView.postDelayed({
+                fcmRefreshPosted = false
+                refreshFcmToken()
+            }, 1500L)
+        }
     }
 
     private fun refreshFcmToken() {

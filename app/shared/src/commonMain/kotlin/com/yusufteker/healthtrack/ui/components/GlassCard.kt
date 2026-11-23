@@ -43,29 +43,39 @@ fun GlassCard(
         HealthColors.SurfaceLight.copy(alpha = 0.95f)
     }
 
-    val defaultBorderGradient = if (isDark) {
-        listOf(
-            Color.White.copy(alpha = 0.12f),
-            HealthColors.Primary.copy(alpha = 0.08f),
-            Color.White.copy(alpha = 0.02f)
-        )
-    } else {
-        listOf(
-            Color.White.copy(alpha = 0.85f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-        )
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val actualBorderBrush = remember(isDark, borderGradient, primaryColor) {
+        val colors = borderGradient ?: if (isDark) {
+            listOf(
+                Color.White.copy(alpha = 0.12f),
+                HealthColors.Primary.copy(alpha = 0.08f),
+                Color.White.copy(alpha = 0.02f)
+            )
+        } else {
+            listOf(
+                Color.White.copy(alpha = 0.85f),
+                primaryColor.copy(alpha = 0.15f)
+            )
+        }
+        Brush.linearGradient(colors)
     }
 
-    val actualBorderBrush = Brush.linearGradient(borderGradient ?: defaultBorderGradient)
-
-    val cardModifier = modifier
-        .shadow(
+    // In dark mode on obsidian background, glowing border + translucent surface define depth
+    // without forcing an expensive hardware RenderNode shadow layer on every card.
+    val shadowModifier = if (!isDark && elevation > 0.dp) {
+        Modifier.shadow(
             elevation = elevation,
             shape = shape,
             clip = false,
-            ambientColor = if (isDark) Color.Black.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-            spotColor = if (isDark) Color.Black.copy(alpha = 0.7f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            ambientColor = primaryColor.copy(alpha = 0.08f),
+            spotColor = primaryColor.copy(alpha = 0.12f)
         )
+    } else {
+        Modifier
+    }
+
+    val cardModifier = modifier
+        .then(shadowModifier)
         .clip(shape)
         .background(glassBg)
         .border(width = borderWidth, brush = actualBorderBrush, shape = shape)

@@ -101,9 +101,14 @@ import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
+import org.koin.mp.KoinPlatformTools
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -120,12 +125,24 @@ enum class HealthTab(val titleTr: String, val titleEn: String) {
         trEn(titleTr, titleEn, language)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalUuidApi::class)
 @Composable
 fun App(initialTab: HealthTab = HealthTab.FOOD) {
-    KoinApplication(application = {
-        modules(appModules)
-    }) {
+    val isKoinStarted = remember { KoinPlatformTools.defaultContext().getOrNull() != null }
+    if (isKoinStarted) {
+        AppContent(initialTab = initialTab)
+    } else {
+        KoinApplication(application = {
+            modules(appModules)
+        }) {
+            AppContent(initialTab = initialTab)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalUuidApi::class)
+@Composable
+private fun AppContent(initialTab: HealthTab) {
+    run {
         val settings: Settings = koinInject()
         remember(settings) { LocalizationManager.init(settings) }
         val currentLanguage by LocalizationManager.languageFlow.collectAsState()
@@ -159,9 +176,9 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             var autoScaleSuccessMessage by remember { mutableStateOf<String?>(null) }
             val currentAppVersion = rememberAppVersion()
             val session by tokenStorage.sessionFlow.collectAsState()
-            val widgetSnapshot by remember(session.hasActiveSession, session.userId, isDark, currentThemeColor, currentLanguage) {
+            val widgetSnapshot by remember(session.hasActiveSession, session.userId) {
                 widgetSnapshotBuilder.observeTodaySnapshot(session.userId)
-            }.collectAsState(initial = widgetSnapshotBuilder.buildTodaySnapshot(session.userId))
+            }.collectAsState(initial = null)
             var isWidgetPromoDialogVisible by remember { mutableStateOf(false) }
             var isWidgetInstalled by remember { mutableStateOf(false) }
             val isIosPlatform = remember {
@@ -170,7 +187,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             }
             val gamificationSummary by remember(session.hasActiveSession, session.userId) {
                 if (session.hasActiveSession && session.userId != 0) {
-                    gamificationManager.observeSummary(session.userId)
+                    gamificationManager.observeSummary(session.userId).flowOn(Dispatchers.Default)
                 } else {
                     kotlinx.coroutines.flow.flowOf(GamificationSummary())
                 }
@@ -184,8 +201,14 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             var isOptionalUpdateDismissed by remember { mutableStateOf(false) }
 
             LaunchedEffect(currentAppVersion) {
-                apiClient.fetchAppVersionConfig().onSuccess { config ->
-                    updateStatus = checkAppVersionUseCase.evaluate(currentAppVersion, config)
+                delay(1500L)
+                val evaluated = withContext(Dispatchers.Default) {
+                    apiClient.fetchAppVersionConfig().getOrNull()?.let { config ->
+                        checkAppVersionUseCase.evaluate(currentAppVersion, config)
+                    }
+                }
+                if (evaluated != null) {
+                    updateStatus = evaluated
                 }
             }
 
@@ -228,40 +251,42 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             val weeklyReportNotifier = rememberWeeklyReportNotifier()
 
             LaunchedEffect(session.hasActiveSession, session.userId) {
-                if (session.hasActiveSession) {
-                    if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
-                        dailyReminderNotifier.scheduleEveningWorkoutReminder(
-                            hour = tokenStorage.getWorkoutReminderHour(),
-                            minute = tokenStorage.getWorkoutReminderMinute()
-                        )
+                withContext(Dispatchers.Default) {
+                    if (session.hasActiveSession) {
+                        if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
+                            dailyReminderNotifier.scheduleEveningWorkoutReminder(
+                                hour = tokenStorage.getWorkoutReminderHour(),
+                                minute = tokenStorage.getWorkoutReminderMinute()
+                            )
+                        } else {
+                            dailyReminderNotifier.cancelEveningWorkoutReminder()
+                        }
+                        val weightFreq = tokenStorage.getWeightReminderFrequency()
+                        if (weightFreq != WeightReminderFrequency.OFF) {
+                            dailyReminderNotifier.scheduleMorningWeightReminder(
+                                hour = tokenStorage.getWeightReminderHour(),
+                                minute = tokenStorage.getWeightReminderMinute(),
+                                frequency = weightFreq
+                            )
+                        } else {
+                            dailyReminderNotifier.cancelMorningWeightReminder()
+                        }
+                        if (tokenStorage.isFoodReminderEnabled()) {
+                            dailyReminderNotifier.scheduleMiddayFoodReminder(hour = 13, minute = 30)
+                        } else {
+                            dailyReminderNotifier.cancelMiddayFoodReminder()
+                        }
+                        if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
+                            weeklyReportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
+                        } else {
+                            weeklyReportNotifier.cancelSundayEveningReminder()
+                        }
                     } else {
                         dailyReminderNotifier.cancelEveningWorkoutReminder()
-                    }
-                    val weightFreq = tokenStorage.getWeightReminderFrequency()
-                    if (weightFreq != WeightReminderFrequency.OFF) {
-                        dailyReminderNotifier.scheduleMorningWeightReminder(
-                            hour = tokenStorage.getWeightReminderHour(),
-                            minute = tokenStorage.getWeightReminderMinute(),
-                            frequency = weightFreq
-                        )
-                    } else {
                         dailyReminderNotifier.cancelMorningWeightReminder()
-                    }
-                    if (tokenStorage.isFoodReminderEnabled()) {
-                        dailyReminderNotifier.scheduleMiddayFoodReminder(hour = 13, minute = 30)
-                    } else {
                         dailyReminderNotifier.cancelMiddayFoodReminder()
-                    }
-                    if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
-                        weeklyReportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
-                    } else {
                         weeklyReportNotifier.cancelSundayEveningReminder()
                     }
-                } else {
-                    dailyReminderNotifier.cancelEveningWorkoutReminder()
-                    dailyReminderNotifier.cancelMorningWeightReminder()
-                    dailyReminderNotifier.cancelMiddayFoodReminder()
-                    weeklyReportNotifier.cancelSundayEveningReminder()
                 }
             }
 
@@ -276,24 +301,20 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
-            LaunchedEffect(Unit) {
-                try {
-                    Napier.base(DebugAntilog())
-                } catch (_: Exception) {}
-            }
-
             // Collect incoming live pushes (FCM / APNs) immediately while app is open
             LaunchedEffect(Unit) {
                 friendActivityMonitor.observeLivePushBus()
             }
 
             var lastRegisteredFcmKey by remember { mutableStateOf<String?>(null) }
+            var inFlightFcmKey by remember { mutableStateOf<String?>(null) }
             val rawApnsHexRegex = remember { Regex("^[0-9a-fA-F]{64}$") }
 
             suspend fun syncFcmTokenIfNeeded(force: Boolean = false) {
                 val currentSession = tokenStorage.sessionFlow.value
                 if (!currentSession.isAuthenticated || currentSession.userId <= 0) {
                     lastRegisteredFcmKey = null
+                    inFlightFcmKey = null
                     return
                 }
                 val candidate = (PushTokenBus.tokenFlow.value ?: tokenStorage.getFcmToken())?.trim()
@@ -304,18 +325,24 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     return
                 }
                 val key = "${currentSession.userId}:$candidate"
-                if (!force && key == lastRegisteredFcmKey) return
+                if (!force && (key == lastRegisteredFcmKey || key == inFlightFcmKey)) return
+                inFlightFcmKey = key
 
                 val platformLabel = if (isIosPlatform) "HEALTHTRACK_IOS" else "HEALTHTRACK_ANDROID"
-                apiClient.registerFcmToken(candidate, platformLabel)
+                val result = withContext(Dispatchers.Default) {
+                    apiClient.registerFcmToken(candidate, platformLabel)
+                }
+                result
                     .onSuccess {
                         lastRegisteredFcmKey = key
+                        if (inFlightFcmKey == key) inFlightFcmKey = null
                         Napier.d(
                             "FCM token registered for userId=${currentSession.userId} ($platformLabel)",
                             tag = "FCM"
                         )
                     }
                     .onFailure { err ->
+                        if (inFlightFcmKey == key) inFlightFcmKey = null
                         Napier.w(
                             "FCM token register failed, will retry on resume: ${err.message}",
                             tag = "FCM"
@@ -335,10 +362,12 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
             suspend fun checkFriendUpdatesAndNotify(force: Boolean = false) {
                 val currentSession = tokenStorage.sessionFlow.value
                 if (!currentSession.isAuthenticated || currentSession.userId <= 0) return
-                val newlyDetected = friendActivityMonitor.checkForUpdates(
-                    userId = currentSession.userId,
-                    force = force
-                )
+                val newlyDetected = withContext(Dispatchers.Default) {
+                    friendActivityMonitor.checkForUpdates(
+                        userId = currentSession.userId,
+                        force = force
+                    )
+                }
                 newlyDetected.forEach { event ->
                     dailyReminderNotifier.sendFriendActivityNotification(
                         id = event.id,
@@ -375,8 +404,9 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
 
             // Keep Home Screen Widget telemetry always in sync with local database & theme
             LaunchedEffect(widgetSnapshot, isDark, currentThemeColor, currentLanguage) {
+                val snapshot = widgetSnapshot ?: return@LaunchedEffect
                 widgetBridge.updateSnapshot(
-                    widgetSnapshot.copy(
+                    snapshot.copy(
                         isDarkTheme = isDark,
                         themeAccentId = currentThemeColor.id,
                         languageCode = currentLanguage.code
@@ -607,17 +637,21 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 if (session.hasActiveSession && session.userId != 0) {
                     if (session.isAuthenticated) {
                         Napier.d("SYNC: Oturum açık, uygulama açılışında otomatik sync tetikleniyor (userId=${session.userId})...")
-                        apiClient.fetchSubscriptionStatus().onSuccess { subStatus ->
-                            tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
-                        }
-                        syncEngine.sync()
-                        launch {
-                            apiClient.getHuaweiStatus().onSuccess { status ->
-                                tokenStorage.setHuaweiConnected(status.connected)
-                                if (tokenStorage.isAutoDeviceSyncEnabled() && status.connected && !status.needsReauth) {
-                                    syncHuaweiCloudIfReady()
+                        withContext(Dispatchers.Default) {
+                            launch {
+                                apiClient.fetchSubscriptionStatus().onSuccess { subStatus ->
+                                    tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
                                 }
                             }
+                            launch {
+                                apiClient.getHuaweiStatus().onSuccess { status ->
+                                    tokenStorage.setHuaweiConnected(status.connected)
+                                    if (tokenStorage.isAutoDeviceSyncEnabled() && status.connected && !status.needsReauth) {
+                                        syncHuaweiCloudIfReady()
+                                    }
+                                }
+                            }
+                            syncEngine.sync()
                         }
                     } else {
                         Napier.d("GUEST: Misafir modu aktif (userId=${session.userId}), bulut sync atlanıyor.")
@@ -625,7 +659,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                     if (tokenStorage.isAutoDeviceSyncEnabled()) {
                         deviceHealthBridge.syncSilentlyIfAuthorized(days = 30) { result ->
                             result.onSuccess { snapshot ->
-                                coroutineScope.launch {
+                                coroutineScope.launch(Dispatchers.Default) {
                                     deviceHealthSyncManager.mergeSnapshot(
                                         snapshot,
                                         syncToCloud = session.isAuthenticated
@@ -1030,7 +1064,7 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxSize(),
-                                beyondViewportPageCount = 1
+                                beyondViewportPageCount = 0
                             ) { page ->
                                 when (HealthTab.entries[page]) {
                                     HealthTab.FOOD -> FoodScreenRoot(
@@ -1261,8 +1295,11 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
 
                 // Daily Widget Reminder Popup (Max 1x/day if widget is not yet added)
                 if (isWidgetPromoDialogVisible) {
+                    val promoSnapshot = widgetSnapshot ?: remember(session.userId) {
+                        widgetSnapshotBuilder.buildTodaySnapshot(session.userId)
+                    }
                     WidgetPromoDialog(
-                        snapshot = widgetSnapshot.copy(
+                        snapshot = promoSnapshot.copy(
                             isDarkTheme = isDark,
                             themeAccentId = currentThemeColor.id,
                             languageCode = currentLanguage.code

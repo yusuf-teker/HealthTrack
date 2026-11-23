@@ -12,9 +12,14 @@ import com.yusufteker.healthtrack.core.model.calculateProteinTarget
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlin.math.roundToInt
 
 /**
@@ -129,6 +134,7 @@ class WidgetSnapshotBuilder(
         )
     }
 
+    @OptIn(FlowPreview::class)
     fun observeTodaySnapshot(userId: Int): Flow<WidgetTelemetrySnapshot> {
         if (userId == 0) {
             return flowOf(buildTodaySnapshot(userId = 0))
@@ -144,8 +150,14 @@ class WidgetSnapshotBuilder(
         return combine(
             dataFlow,
             LocalizationManager.languageFlow
-        ) { _, _ ->
-            buildTodaySnapshot(userId = userId, todayIso = getTodayIso())
-        }
+        ) { _, _ -> Unit }
+            .debounce(250L)
+            .combine(flowOf(Unit)) { _, _ ->
+                buildTodaySnapshot(userId = userId, todayIso = getTodayIso())
+            }
+            .distinctUntilChanged { old, new ->
+                old.copy(updatedAtMs = 0L) == new.copy(updatedAtMs = 0L)
+            }
+            .flowOn(Dispatchers.Default)
     }
 }

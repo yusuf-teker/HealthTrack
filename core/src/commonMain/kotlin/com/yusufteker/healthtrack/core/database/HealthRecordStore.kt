@@ -20,6 +20,7 @@ data class HealthRecordRow(
 
 interface HealthRecordStore {
     fun loadBucket(bucket: String): List<String>
+    fun loadAllBuckets(): Map<String, List<String>>? = null
     fun upsertRecord(row: HealthRecordRow)
     fun upsertRecords(rows: List<HealthRecordRow>)
     fun deleteRecord(bucket: String, recordId: String)

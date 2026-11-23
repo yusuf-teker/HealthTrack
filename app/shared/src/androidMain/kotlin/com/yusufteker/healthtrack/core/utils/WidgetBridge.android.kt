@@ -20,7 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+
+private val widgetIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 private class AndroidWidgetBridge(private val context: Context) : WidgetBridge {
     override val isWidgetSupportedOnPlatform: Boolean = true
@@ -30,12 +33,19 @@ private class AndroidWidgetBridge(private val context: Context) : WidgetBridge {
             AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported
 
     override fun checkWidgetInstalled(onResult: (Boolean) -> Unit) {
-        onResult(HealthTrackWidgetStore.isAnyWidgetInstalled(context))
+        widgetIoScope.launch {
+            val installed = runCatching { HealthTrackWidgetStore.isAnyWidgetInstalled(context) }.getOrDefault(false)
+            withContext(Dispatchers.Main) {
+                onResult(installed)
+            }
+        }
     }
 
     override fun updateSnapshot(snapshot: WidgetTelemetrySnapshot) {
-        HealthTrackWidgetStore.saveSnapshot(context, snapshot)
-        HealthTrackWidgetStore.updateAllWidgets(context)
+        widgetIoScope.launch {
+            HealthTrackWidgetStore.saveSnapshot(context, snapshot)
+            HealthTrackWidgetStore.updateAllWidgets(context)
+        }
     }
 
     override fun consumePendingWaterDeltaMl(dateIso: String): Int = 0

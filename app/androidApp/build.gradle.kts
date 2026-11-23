@@ -19,6 +19,7 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     // Firebase
     implementation(platform(libs.firebase.bom))

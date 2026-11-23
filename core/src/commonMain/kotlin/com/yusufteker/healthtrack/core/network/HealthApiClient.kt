@@ -190,6 +190,10 @@ data class PullResponsePayload(
     val serverTimestamp: Long = 0L
 )
 
+object HealthTrackRuntimeConfig {
+    var isDebugLoggingEnabled: Boolean = false
+}
+
 class HealthApiClient(
     private val tokenStorage: TokenStorage,
     private val baseUrl: String = "https://pulse-7b4z.onrender.com" // Planora Render backend
@@ -200,97 +204,99 @@ class HealthApiClient(
         encodeDefaults = true
     }
 
-    val httpClient: HttpClient = HttpClient {
-        install(ContentNegotiation) {
-            json(this@HealthApiClient.json)
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = 45_000
-            connectTimeoutMillis = 20_000
-            socketTimeoutMillis = 45_000
-        }
-        defaultRequest {
-            url(baseUrl)
-        }
-        install(Logging) {
-            logger = object : Logger {
-                override fun log(message: String) {
-                    Napier.d(message = message, tag = "HTTP_LOG")
-                }
+    val httpClient: HttpClient by lazy {
+        HttpClient {
+            install(ContentNegotiation) {
+                json(this@HealthApiClient.json)
             }
-            level = LogLevel.ALL
-            sanitizeHeader { header ->
-                header.equals(HttpHeaders.Authorization, ignoreCase = true) ||
-                header.equals(HttpHeaders.Cookie, ignoreCase = true) ||
-                header.equals("X-Gemini-Api-Key", ignoreCase = true)
+            install(HttpTimeout) {
+                requestTimeoutMillis = 45_000
+                connectTimeoutMillis = 20_000
+                socketTimeoutMillis = 45_000
             }
-        }
-        install(Auth) {
-            bearer {
-                sendWithoutRequest { request ->
-                    val path = request.url.encodedPath
-                    !path.contains("auth/login") && !path.contains("auth/register") && !path.contains("auth/send-register-code") && !path.contains("auth/refresh")
-                }
-
-                loadTokens {
-                    val accessToken = tokenStorage.getAccessToken()
-                    val refreshToken = tokenStorage.getRefreshToken()
-                    if (!accessToken.isNullOrBlank()) {
-                        BearerTokens(accessToken, refreshToken ?: "")
-                    } else {
-                        null
+            defaultRequest {
+                url(baseUrl)
+            }
+            if (HealthTrackRuntimeConfig.isDebugLoggingEnabled) {
+                install(Logging) {
+                    logger = object : Logger {
+                        override fun log(message: String) {
+                            Napier.d(message = message, tag = "HTTP_LOG")
+                        }
+                    }
+                    level = LogLevel.INFO
+                    sanitizeHeader { header ->
+                        header.equals(HttpHeaders.Authorization, ignoreCase = true) ||
+                        header.equals(HttpHeaders.Cookie, ignoreCase = true) ||
+                        header.equals("X-Gemini-Api-Key", ignoreCase = true)
                     }
                 }
+            }
+            install(Auth) {
+                bearer {
+                    sendWithoutRequest { request ->
+                        val path = request.url.encodedPath
+                        !path.contains("auth/login") && !path.contains("auth/register") && !path.contains("auth/send-register-code") && !path.contains("auth/refresh")
+                    }
 
-                refreshTokens {
-                    val refreshToken = tokenStorage.getRefreshToken() ?: return@refreshTokens null
-                    try {
-                        val response = client.post("/auth/refresh") {
-                            markAsRefreshTokenRequest()
-                            contentType(ContentType.Application.Json)
-                            setBody(RefreshTokenRequest(refreshToken))
-                        }
-                        if (response.status.isSuccess()) {
-                            val authResponse = response.body<AuthResponse>()
-                            tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
-                            BearerTokens(authResponse.accessToken, authResponse.refreshToken)
+                    loadTokens {
+                        val accessToken = tokenStorage.getAccessToken()
+                        val refreshToken = tokenStorage.getRefreshToken()
+                        if (!accessToken.isNullOrBlank()) {
+                            BearerTokens(accessToken, refreshToken ?: "")
                         } else {
-                            if (response.status == HttpStatusCode.Unauthorized || response.status == HttpStatusCode.Forbidden) {
-                                Napier.w("Refresh token geçersiz (${response.status.value}), oturum kapatılıyor.", tag = "AUTH_LOG")
-                                tokenStorage.clearSession()
-                            }
                             null
                         }
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        null
+                    }
+
+                    refreshTokens {
+                        val refreshToken = tokenStorage.getRefreshToken() ?: return@refreshTokens null
+                        try {
+                            val response = client.post("/auth/refresh") {
+                                markAsRefreshTokenRequest()
+                                contentType(ContentType.Application.Json)
+                                setBody(RefreshTokenRequest(refreshToken))
+                            }
+                            if (response.status.isSuccess()) {
+                                val authResponse = response.body<AuthResponse>()
+                                tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
+                                BearerTokens(authResponse.accessToken, authResponse.refreshToken)
+                            } else {
+                                if (response.status == HttpStatusCode.Unauthorized || response.status == HttpStatusCode.Forbidden) {
+                                    Napier.w("Refresh token geçersiz (${response.status.value}), oturum kapatılıyor.", tag = "AUTH_LOG")
+                                    tokenStorage.clearSession()
+                                }
+                                null
+                            }
+                        } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            null
+                        }
                     }
                 }
             }
-        }
-    }
-
-    init {
-        httpClient.requestPipeline.intercept(HttpRequestPipeline.State) {
-            val langCode = LocalizationManager.currentLanguage.code
-            context.headers.remove(HttpHeaders.AcceptLanguage)
-            context.headers.append(HttpHeaders.AcceptLanguage, langCode)
-            context.headers.remove("X-App-Source")
-            context.headers.append("X-App-Source", "healthtrack")
-            val path = context.url.buildString()
-            val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/send-register-code") || path.contains("auth/refresh")
-            if (!isAuthEndpoint) {
-                val token = tokenStorage.getAccessToken()
-                if (!token.isNullOrBlank()) {
-                    context.headers.remove(HttpHeaders.Authorization)
-                    context.headers.append(HttpHeaders.Authorization, "Bearer $token")
+        }.also { client ->
+            client.requestPipeline.intercept(HttpRequestPipeline.State) {
+                val langCode = LocalizationManager.currentLanguage.code
+                context.headers.remove(HttpHeaders.AcceptLanguage)
+                context.headers.append(HttpHeaders.AcceptLanguage, langCode)
+                context.headers.remove("X-App-Source")
+                context.headers.append("X-App-Source", "healthtrack")
+                val path = context.url.buildString()
+                val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register") || path.contains("auth/send-register-code") || path.contains("auth/refresh")
+                if (!isAuthEndpoint) {
+                    val token = tokenStorage.getAccessToken()
+                    if (!token.isNullOrBlank()) {
+                        context.headers.remove(HttpHeaders.Authorization)
+                        context.headers.append(HttpHeaders.Authorization, "Bearer $token")
+                    }
                 }
-            }
-            if (path.contains("/health/ai/")) {
-                val customGeminiKey = tokenStorage.getCustomGeminiApiKey()
-                if (!customGeminiKey.isNullOrBlank()) {
-                    context.headers.remove("X-Gemini-Api-Key")
-                    context.headers.append("X-Gemini-Api-Key", customGeminiKey)
+                if (path.contains("/health/ai/")) {
+                    val customGeminiKey = tokenStorage.getCustomGeminiApiKey()
+                    if (!customGeminiKey.isNullOrBlank()) {
+                        context.headers.remove("X-Gemini-Api-Key")
+                        context.headers.append("X-Gemini-Api-Key", customGeminiKey)
+                    }
                 }
             }
         }

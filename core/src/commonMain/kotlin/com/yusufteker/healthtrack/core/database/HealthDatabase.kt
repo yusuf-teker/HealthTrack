@@ -69,16 +69,30 @@ class HealthDatabase(
     init {
         if (useRowStore) {
             migrateLegacySettingsIfNeeded()
-            _foodsFlow.value = loadBucketList(BUCKET_FOODS)
-            _goalsFlow.value = loadBucketList<NutritionGoal>(BUCKET_GOALS).associateBy { it.userId }
-            _workoutsFlow.value = loadBucketList(BUCKET_WORKOUTS)
-            _weightsFlow.value = loadBucketList(BUCKET_WEIGHTS)
-            _customFoodsFlow.value = loadBucketList(BUCKET_CUSTOM_FOODS)
-            _favoriteFoodsFlow.value = loadBucketList<FavoriteFoodListPayload>(BUCKET_FAVORITE_FOODS)
-                .associate { it.userId to it.foodIds }
-            _reportsFlow.value = loadBucketList(BUCKET_AI_REPORTS)
-            _waterFlow.value = loadBucketList(BUCKET_WATER)
-            _dailyMealPlansFlow.value = loadBucketList(BUCKET_DAILY_MEAL_PLANS)
+            val allBuckets = recordStore.loadAllBuckets()
+            if (allBuckets != null) {
+                _foodsFlow.value = decodeBucketList(BUCKET_FOODS, allBuckets[BUCKET_FOODS].orEmpty())
+                _goalsFlow.value = decodeBucketList<NutritionGoal>(BUCKET_GOALS, allBuckets[BUCKET_GOALS].orEmpty()).associateBy { it.userId }
+                _workoutsFlow.value = decodeBucketList(BUCKET_WORKOUTS, allBuckets[BUCKET_WORKOUTS].orEmpty())
+                _weightsFlow.value = decodeBucketList(BUCKET_WEIGHTS, allBuckets[BUCKET_WEIGHTS].orEmpty())
+                _customFoodsFlow.value = decodeBucketList(BUCKET_CUSTOM_FOODS, allBuckets[BUCKET_CUSTOM_FOODS].orEmpty())
+                _favoriteFoodsFlow.value = decodeBucketList<FavoriteFoodListPayload>(BUCKET_FAVORITE_FOODS, allBuckets[BUCKET_FAVORITE_FOODS].orEmpty())
+                    .associate { it.userId to it.foodIds }
+                _reportsFlow.value = decodeBucketList(BUCKET_AI_REPORTS, allBuckets[BUCKET_AI_REPORTS].orEmpty())
+                _waterFlow.value = decodeBucketList(BUCKET_WATER, allBuckets[BUCKET_WATER].orEmpty())
+                _dailyMealPlansFlow.value = decodeBucketList(BUCKET_DAILY_MEAL_PLANS, allBuckets[BUCKET_DAILY_MEAL_PLANS].orEmpty())
+            } else {
+                _foodsFlow.value = loadBucketList(BUCKET_FOODS)
+                _goalsFlow.value = loadBucketList<NutritionGoal>(BUCKET_GOALS).associateBy { it.userId }
+                _workoutsFlow.value = loadBucketList(BUCKET_WORKOUTS)
+                _weightsFlow.value = loadBucketList(BUCKET_WEIGHTS)
+                _customFoodsFlow.value = loadBucketList(BUCKET_CUSTOM_FOODS)
+                _favoriteFoodsFlow.value = loadBucketList<FavoriteFoodListPayload>(BUCKET_FAVORITE_FOODS)
+                    .associate { it.userId to it.foodIds }
+                _reportsFlow.value = loadBucketList(BUCKET_AI_REPORTS)
+                _waterFlow.value = loadBucketList(BUCKET_WATER)
+                _dailyMealPlansFlow.value = loadBucketList(BUCKET_DAILY_MEAL_PLANS)
+            }
         } else {
             _foodsFlow.value = loadList(KEY_FOODS)
             _goalsFlow.value = loadMap(KEY_GOALS)
@@ -1506,7 +1520,11 @@ class HealthDatabase(
     }
 
     private inline fun <reified T> loadBucketList(bucket: String): List<T> {
-        return recordStore.loadBucket(bucket).mapNotNull { payload ->
+        return decodeBucketList(bucket, recordStore.loadBucket(bucket))
+    }
+
+    private inline fun <reified T> decodeBucketList(bucket: String, payloads: List<String>): List<T> {
+        return payloads.mapNotNull { payload ->
             try {
                 json.decodeFromString<T>(payload)
             } catch (e: Exception) {

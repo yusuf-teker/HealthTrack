@@ -48,6 +48,23 @@ class SqliteHealthRecordStore(
         )
     }
 
+    override fun loadAllBuckets(): Map<String, List<String>> {
+        val grouped = HashMap<String, MutableList<String>>(12)
+        val stmt = connection.prepare(
+            "SELECT bucket, payload_json FROM ht_records;"
+        )
+        try {
+            while (stmt.step()) {
+                val bucket = stmt.getText(0)
+                val payload = stmt.getText(1)
+                grouped.getOrPut(bucket) { mutableListOf() }.add(payload)
+            }
+        } finally {
+            stmt.close()
+        }
+        return grouped
+    }
+
     override fun loadBucket(bucket: String): List<String> {
         val result = mutableListOf<String>()
         val stmt = connection.prepare(

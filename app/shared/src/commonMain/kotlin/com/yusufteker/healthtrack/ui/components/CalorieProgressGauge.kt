@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -189,6 +190,38 @@ fun CalorieProgressGauge(
                 val trackColor = if (isDark) HealthColors.SurfaceContainerHighest.copy(alpha = 0.35f)
                 else HealthColors.SurfaceVariantLight
 
+                val sweepTier = when {
+                    isExceeded -> 3
+                    rawRatio >= 0.75f -> 2
+                    rawRatio >= 0.50f -> 1
+                    else -> 0
+                }
+                val sweepBrush = remember(sweepTier) {
+                    when (sweepTier) {
+                        3 -> Brush.sweepGradient(
+                            0.0f to CalorieTelemetryColors.Orange,
+                            0.5f to CalorieTelemetryColors.Red,
+                            1.0f to CalorieTelemetryColors.Orange
+                        )
+                        2 -> Brush.sweepGradient(
+                            0.0f to CalorieTelemetryColors.Blue,
+                            0.4f to CalorieTelemetryColors.Yellow,
+                            0.85f to CalorieTelemetryColors.Orange,
+                            1.0f to CalorieTelemetryColors.Blue
+                        )
+                        1 -> Brush.sweepGradient(
+                            0.0f to CalorieTelemetryColors.Blue,
+                            0.6f to CalorieTelemetryColors.Yellow,
+                            1.0f to CalorieTelemetryColors.Blue
+                        )
+                        else -> Brush.sweepGradient(
+                            0.0f to CalorieTelemetryColors.Blue,
+                            0.5f to CalorieTelemetryColors.BlueGlow,
+                            1.0f to CalorieTelemetryColors.Blue
+                        )
+                    }
+                }
+
                 Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
                     val strokeWidth = 9.dp.toPx()
                     val diameter = size.minDimension - strokeWidth
@@ -223,29 +256,6 @@ fun CalorieProgressGauge(
                     // Note: Wrap points at 0.0f and 1.0f match to prevent StrokeCap.Round backward bleed
                     if (animatedProgress > 0f) {
                         rotate(degrees = -90f, pivot = center) {
-                            val sweepBrush = when {
-                                isExceeded -> Brush.sweepGradient(
-                                    0.0f to CalorieTelemetryColors.Orange,
-                                    0.5f to CalorieTelemetryColors.Red,
-                                    1.0f to CalorieTelemetryColors.Orange
-                                )
-                                rawRatio >= 0.75f -> Brush.sweepGradient(
-                                    0.0f to CalorieTelemetryColors.Blue,
-                                    0.4f to CalorieTelemetryColors.Yellow,
-                                    0.85f to CalorieTelemetryColors.Orange,
-                                    1.0f to CalorieTelemetryColors.Blue
-                                )
-                                rawRatio >= 0.50f -> Brush.sweepGradient(
-                                    0.0f to CalorieTelemetryColors.Blue,
-                                    0.6f to CalorieTelemetryColors.Yellow,
-                                    1.0f to CalorieTelemetryColors.Blue
-                                )
-                                else -> Brush.sweepGradient(
-                                    0.0f to CalorieTelemetryColors.Blue,
-                                    0.5f to CalorieTelemetryColors.BlueGlow,
-                                    1.0f to CalorieTelemetryColors.Blue
-                                )
-                            }
                             drawArc(
                                 brush = sweepBrush,
                                 startAngle = 0f,
