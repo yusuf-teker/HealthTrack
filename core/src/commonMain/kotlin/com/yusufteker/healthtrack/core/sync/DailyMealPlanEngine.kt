@@ -20,6 +20,8 @@ class DailyMealPlanEngine(
         goal: NutritionGoal,
         fitnessGoal: FitnessGoal,
         userWeightKg: Double,
+        excludedIngredients: Set<String> = emptySet(),
+        favoriteIngredients: Set<String> = emptySet(),
         language: AppLanguage = LocalizationManager.currentLanguage
     ): DailyMealPlan {
         val targetProteinG = calculateProteinTarget(userWeightKg, fitnessGoal)
@@ -135,8 +137,35 @@ class DailyMealPlanEngine(
             deficiencies = detectedDeficiencies,
             deficiencySummary = deficiencySummaryText,
             isAiGenerated = false,
+            excludedIngredients = excludedIngredients,
+            favoriteIngredients = favoriteIngredients,
             language = language
         )
+    }
+
+    private fun pickBestSlot(
+        candidates: List<Pair<MealSlotSuggestion, Int>>,
+        excludedIngredients: Set<String>,
+        favoriteIngredients: Set<String>
+    ): MealSlotSuggestion {
+        val allowed = if (excludedIngredients.isEmpty()) {
+            candidates
+        } else {
+            candidates.filter { (slot, _) ->
+                val searchableText = (listOf(slot.title, slot.subtitle, slot.instructions) + slot.ingredients).joinToString(" ")
+                excludedIngredients.none { MealPreferencesCatalog.matchesText(searchableText, it) }
+            }.ifEmpty { candidates }
+        }
+
+        return allowed.maxByOrNull { (slot, baseScore) ->
+            val favSearchable = (listOf(slot.title) + slot.ingredients).joinToString(" ")
+            val favMatches = if (favoriteIngredients.isEmpty()) {
+                0
+            } else {
+                favoriteIngredients.count { MealPreferencesCatalog.matchesText(favSearchable, it) }
+            }
+            baseScore + favMatches * 80
+        }?.first ?: candidates.first().first
     }
 
     private fun generateDeterministicPlan(
@@ -150,10 +179,12 @@ class DailyMealPlanEngine(
         deficiencies: List<String>,
         deficiencySummary: String,
         isAiGenerated: Boolean = false,
+        excludedIngredients: Set<String> = emptySet(),
+        favoriteIngredients: Set<String> = emptySet(),
         language: AppLanguage = LocalizationManager.currentLanguage
     ): DailyMealPlan {
         // ── 1. BREAKFAST ──
-        val breakfast = if (isIronOrVitCNeed || isHighProteinNeed) {
+        val breakfastCandidates = listOf(
             MealSlotSuggestion(
                 slot = MealSlotType.BREAKFAST,
                 title = trEn("Ispanaklı & Mantarlı Lorlu Omlet", "Spinach, Mushroom & Cottage Cheese Omelet", language),
@@ -194,8 +225,7 @@ class DailyMealPlanEngine(
                         calories = 70, proteinG = 3.0, carbsG = 14.0, fatG = 1.0, fiberG = 2.0
                     )
                 )
-            )
-        } else {
+            ) to (if (isIronOrVitCNeed || isHighProteinNeed) 30 else 10),
             MealSlotSuggestion(
                 slot = MealSlotType.BREAKFAST,
                 title = trEn("Chia & Muzlu Sütlü Yulaf Kasesi", "Chia & Banana Milk Oatmeal Bowl", language),
@@ -230,20 +260,91 @@ class DailyMealPlanEngine(
                         calories = 285, proteinG = 12.0, carbsG = 45.0, fatG = 6.5, fiberG = 8.5
                     )
                 )
-            )
-        }
+            ) to (if (!(isIronOrVitCNeed || isHighProteinNeed)) 30 else 10),
+            MealSlotSuggestion(
+                slot = MealSlotType.BREAKFAST,
+                title = trEn("Domatesli & Biberli Klasik Menemen", "Tomato & Pepper Scrambled Eggs", language),
+                subtitle = trEn("Likopen, C Vitamini & Süt Ürünsüz Kahvaltı", "Lycopene, Vitamin C & Dairy-Free Breakfast", language),
+                prepTimeMinutes = 8,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("2 Adet Yumurta", "2 Adet Domates", "2 Adet Yeşil Biber", "1 Tatlı Kaşığı Zeytinyağı")
+                } else {
+                    listOf("2 Eggs", "2 Tomatoes", "2 Green Peppers", "1 tsp Olive Oil")
+                },
+                instructions = trEn(
+                    "Biber ve domatesi zeytinyağında 4 dk pişirin, yumurtaları kırıp karıştırarak servis edin.",
+                    "Cook diced peppers and tomatoes in olive oil for 4 min, then fold in eggs until softly set.",
+                    language
+                ),
+                calories = 245,
+                proteinG = 14.0,
+                carbsG = 9.0,
+                fatG = 16.0,
+                fiberG = 2.8,
+                keyBenefits = trEn(
+                    "Süt ürünü ve gluten içermeden hızlı ve tok tutan proteinli kahvaltı sunar.",
+                    "Delivers warm protein-rich satiety completely free of dairy and gluten.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Protein", "C Vitamini", "B12 Vitamini") else listOf("Protein", "Vitamin C", "Vitamin B12"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "bm_4",
+                        name = trEn("Domatesli Biberli Menemen", "Tomato & Pepper Menemen", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 245, proteinG = 14.0, carbsG = 9.0, fatG = 16.0, fiberG = 2.8
+                    )
+                )
+            ) to 18,
+            MealSlotSuggestion(
+                slot = MealSlotType.BREAKFAST,
+                title = trEn("Avokadolu & Kapya Biberli Kahvaltı Tabağı", "Avocado, Red Pepper & Olive Breakfast Plate", language),
+                subtitle = trEn("Sağlıklı Yağ, C Vitamini & Alerjen Dostu", "Healthy Fats, Vitamin C & Allergen-Friendly", language),
+                prepTimeMinutes = 5,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("Yarım Avokado", "1 Adet Kapya Biber", "1 Salatalık", "8 Adet Zeytin & Maydanoz")
+                } else {
+                    listOf("Half Avocado", "1 Red Bell Pepper", "1 Cucumber", "8 Olives & Fresh Parsley")
+                },
+                instructions = trEn(
+                    "Avokado, biber ve salatalığı dilimleyip zeytin ve limonlu maydanozla servis edin.",
+                    "Slice avocado, bell pepper, and cucumber; serve with olives, parsley, and lemon.",
+                    language
+                ),
+                calories = 240,
+                proteinG = 4.0,
+                carbsG = 14.0,
+                fatG = 19.0,
+                fiberG = 7.5,
+                keyBenefits = trEn(
+                    "Yumurta, süt, gluten ve kuruyemiş içermeden lif ve sağlıklı yağlarla güne başlatır.",
+                    "Starts the day with fiber and healthy fats, completely free of eggs, dairy, gluten, and nuts.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Lif", "C Vitamini", "Potasyum") else listOf("Fiber", "Vitamin C", "Potassium"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "bm_5",
+                        name = trEn("Avokado & Zeytinli Kahvaltı Tabağı", "Avocado & Olive Breakfast Plate", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 240, proteinG = 4.0, carbsG = 14.0, fatG = 19.0, fiberG = 7.5
+                    )
+                )
+            ) to 8
+        )
+        val breakfast = pickBestSlot(breakfastCandidates, excludedIngredients, favoriteIngredients)
 
         // ── 2. LUNCH ──
-        val lunch = if (isHighProteinNeed) {
+        val lunchCandidates = listOf(
             MealSlotSuggestion(
                 slot = MealSlotType.LUNCH,
                 title = trEn("Izgara Tavuk Göğsü & Limonlu Buharda Brokoli", "Grilled Chicken Breast & Lemon Steamed Broccoli", language),
                 subtitle = trEn("Ultra Saf Kas Proteini & C Vitamini", "Lean Muscle Protein & Vitamin C", language),
                 prepTimeMinutes = 12,
                 ingredients = if (language == AppLanguage.TR) {
-                    listOf("180g Tavuk Göğsü", "150g Brokoli veya Mevsim Yeşilliği", "Yarım Limon Suyu", "1 Çay Kaşığı Zeytinyağı")
+                    listOf("180g Tavuk Göğsü", "150g Brokoli", "Yarım Limon Suyu", "1 Çay Kaşığı Zeytinyağı")
                 } else {
-                    listOf("180g Chicken Breast", "150g Broccoli or Seasonal Greens", "Juice of Half a Lemon", "1 tsp Olive Oil")
+                    listOf("180g Chicken Breast", "150g Broccoli", "Juice of Half a Lemon", "1 tsp Olive Oil")
                 },
                 instructions = trEn(
                     "Tavuk göğsünü yağsız tavada arkalı önlü pişirin. Brokoliyi 4-5 dk buharda haşlayıp bol limon ve zeytinyağıyla servis edin.",
@@ -270,13 +371,47 @@ class DailyMealPlanEngine(
                     ),
                     FoodItem(
                         id = "lm_2",
-                        name = trEn("Limonlu Haşlanmış Brokoli & Salata", "Lemon Steamed Broccoli & Salad", language),
+                        name = trEn("Limonlu Haşlanmış Brokoli", "Lemon Steamed Broccoli", language),
                         formattedPortion = "150g",
                         calories = 90, proteinG = 4.0, carbsG = 9.0, fatG = 3.0, fiberG = 4.8
                     )
                 )
-            )
-        } else {
+            ) to (if (isHighProteinNeed) 30 else 15),
+            MealSlotSuggestion(
+                slot = MealSlotType.LUNCH,
+                title = trEn("Izgara Tavuklu Yeşil Salata", "Grilled Chicken Green Salad", language),
+                subtitle = trEn("Yüksek Protein, Taze Salata & C Vitamini", "High Protein, Crisp Salad & Vitamin C", language),
+                prepTimeMinutes = 12,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("160g Tavuk Göğsü", "1 Büyük Kase Roka & Marul", "1 Domates & 1 Salatalık", "Limon & Zeytinyağı")
+                } else {
+                    listOf("160g Chicken Breast", "1 Large Bowl Arugula & Lettuce", "1 Tomato & 1 Cucumber", "Lemon & Olive Oil")
+                },
+                instructions = trEn(
+                    "Tavuk göğsünü ızgarada pişirip dilimleyin. Doğranmış taze yeşillik, domates ve salatalık üzerine koyup limon ve zeytinyağı gezdirin.",
+                    "Grill and slice chicken breast. Place over chopped greens, tomato, and cucumber, then drizzle with lemon and olive oil.",
+                    language
+                ),
+                calories = 305,
+                proteinG = 38.0,
+                carbsG = 9.0,
+                fatG = 11.0,
+                fiberG = 4.5,
+                keyBenefits = trEn(
+                    "Hem yüksek yağsız protein hem de taze salata lifi ile öğleden sonra enerjisini dengeler.",
+                    "Balances afternoon energy with lean chicken protein and crisp salad fiber.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Protein", "C Vitamini", "Lif") else listOf("Protein", "Vitamin C", "Fiber"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "lm_4",
+                        name = trEn("Izgara Tavuklu Yeşil Salata", "Grilled Chicken Green Salad", language),
+                        formattedPortion = trEn("1 Büyük Porsiyon", "1 Large Serving", language),
+                        calories = 305, proteinG = 38.0, carbsG = 9.0, fatG = 11.0, fiberG = 4.5
+                    )
+                )
+            ) to (if (isHighProteinNeed) 28 else 22),
             MealSlotSuggestion(
                 slot = MealSlotType.LUNCH,
                 title = trEn("Konserve Ton Balıklı & Mısırlı Roka Salatası", "Tuna, Sweetcorn & Arugula Salad", language),
@@ -311,11 +446,47 @@ class DailyMealPlanEngine(
                         calories = 310, proteinG = 32.0, carbsG = 12.0, fatG = 9.0, fiberG = 3.8
                     )
                 )
-            )
-        }
+            ) to (if (!isHighProteinNeed) 30 else 15),
+            MealSlotSuggestion(
+                slot = MealSlotType.LUNCH,
+                title = trEn("Zeytinyağlı Nohut & Yeşillik Salatası", "Mediterranean Chickpea Salad", language),
+                subtitle = trEn("Bitkisel Protein, Yüksek Lif & Et İçermez", "Plant Protein, High Fiber & Meat-Free", language),
+                prepTimeMinutes = 5,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("1 Su Bardağı Haşlanmış Nohut", "1 Salatalık & 1 Domates", "1 Avuç Maydanoz & Roka", "Limon & Zeytinyağı")
+                } else {
+                    listOf("1 Cup Boiled Chickpeas", "1 Cucumber & 1 Tomato", "1 Handful Parsley & Arugula", "Lemon & Olive Oil")
+                },
+                instructions = trEn(
+                    "Nohudu doğranmış domates, salatalık ve yeşilliklerle karıştırıp limon ve zeytinyağı ile tatlandırın.",
+                    "Toss chickpeas with diced tomato, cucumber, and greens; dress with lemon and olive oil.",
+                    language
+                ),
+                calories = 295,
+                proteinG = 12.0,
+                carbsG = 36.0,
+                fatG = 10.0,
+                fiberG = 9.5,
+                keyBenefits = trEn(
+                    "Et, balık, süt ve gluten içermeden yüksek lif ve bitkisel demir sağlar.",
+                    "Delivers high fiber and plant iron without meat, fish, dairy, or gluten.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Lif", "Demir", "Magnezyum") else listOf("Fiber", "Iron", "Magnesium"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "lm_5",
+                        name = trEn("Zeytinyağlı Nohut Salatası", "Mediterranean Chickpea Salad", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 295, proteinG = 12.0, carbsG = 36.0, fatG = 10.0, fiberG = 9.5
+                    )
+                )
+            ) to 10
+        )
+        val lunch = pickBestSlot(lunchCandidates, excludedIngredients, favoriteIngredients)
 
         // ── 3. DINNER ──
-        val dinner = if (isFiberNeed || isIronOrVitCNeed) {
+        val dinnerCandidates = listOf(
             MealSlotSuggestion(
                 slot = MealSlotType.DINNER,
                 title = trEn("Kıymalı Yeşil Mercimek Yemeği & Yoğurt", "Green Lentil & Lean Beef Stew with Yogurt", language),
@@ -356,8 +527,7 @@ class DailyMealPlanEngine(
                         calories = 90, proteinG = 6.0, carbsG = 4.0, fatG = 2.5, fiberG = 0.0
                     )
                 )
-            )
-        } else {
+            ) to (if (isFiberNeed || isIronOrVitCNeed) 30 else 10),
             MealSlotSuggestion(
                 slot = MealSlotType.DINNER,
                 title = trEn("Fırında/Tavada Anne Köftesi & Yoğurtlu Kabak Sote", "Grilled Meatballs & Garlic Yogurt Zucchini", language),
@@ -398,11 +568,82 @@ class DailyMealPlanEngine(
                         calories = 120, proteinG = 7.0, carbsG = 8.0, fatG = 3.0, fiberG = 3.7
                     )
                 )
-            )
-        }
+            ) to (if (!(isFiberNeed || isIronOrVitCNeed)) 30 else 10),
+            MealSlotSuggestion(
+                slot = MealSlotType.DINNER,
+                title = trEn("Izgara Tavuk & Zeytinyağlı Sebze Sote", "Grilled Chicken & Roasted Veggies", language),
+                subtitle = trEn("Süt Ürünsüz Hafif Protein & Akşam Öğünü", "Dairy-Free Lean Protein & Light Dinner", language),
+                prepTimeMinutes = 14,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("160g Tavuk Göğsü", "1 Kabak & 1 Kapya Biber", "1 Tatlı Kaşığı Zeytinyağı", "Kekik & Limon")
+                } else {
+                    listOf("160g Chicken Breast", "1 Zucchini & 1 Red Bell Pepper", "1 tsp Olive Oil", "Oregano & Lemon")
+                },
+                instructions = trEn(
+                    "Tavuk göğsünü tavada pişirin. Doğranmış kabak ve kapya biberi zeytinyağında 4 dk soteleyip birlikte servis edin.",
+                    "Grill chicken breast in a pan. Sauté sliced zucchini and bell pepper in olive oil for 4 min and serve together.",
+                    language
+                ),
+                calories = 335,
+                proteinG = 37.0,
+                carbsG = 11.0,
+                fatG = 13.0,
+                fiberG = 4.0,
+                keyBenefits = trEn(
+                    "Süt ürünü, kırmızı et, gluten ve bakliyat içermeden yüksek kas proteini ve hafif sindirim sunar.",
+                    "High muscle protein and light digestion without dairy, red meat, gluten, or legumes.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Protein", "C Vitamini", "Potasyum") else listOf("Protein", "Vitamin C", "Potassium"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "dm_5",
+                        name = trEn("Izgara Tavuk & Sebze Sote", "Grilled Chicken & Roasted Veggies", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 335, proteinG = 37.0, carbsG = 11.0, fatG = 13.0, fiberG = 4.0
+                    )
+                )
+            ) to 20,
+            MealSlotSuggestion(
+                slot = MealSlotType.DINNER,
+                title = trEn("Fırın Somon & Roka Salatası", "Baked Salmon & Arugula Salad", language),
+                subtitle = trEn("Omega-3, D Vitamini & Temiz Protein", "Omega-3, Vitamin D & Clean Protein", language),
+                prepTimeMinutes = 15,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("150g Somon Fileto", "1 Demet Roka & Yeşillik", "Yarım Limon", "1 Tatlı Kaşığı Zeytinyağı")
+                } else {
+                    listOf("150g Salmon Fillet", "1 Bunch Arugula & Greens", "Half Lemon", "1 tsp Olive Oil")
+                },
+                instructions = trEn(
+                    "Somonu 12 dk fırınlayın veya tavada pişirin. Taze roka yaprakları ve limonla servis edin.",
+                    "Bake or pan-sear salmon for 12 min. Serve over fresh arugula greens with lemon.",
+                    language
+                ),
+                calories = 380,
+                proteinG = 32.0,
+                carbsG = 5.0,
+                fatG = 24.0,
+                fiberG = 3.0,
+                keyBenefits = trEn(
+                    "Kaliteli omega-3 yağları ve D vitamini ile gece onarımını destekler.",
+                    "Supports overnight recovery with rich omega-3s and Vitamin D.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("D Vitamini", "B12 Vitamini", "Protein") else listOf("Vitamin D", "Vitamin B12", "Protein"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "dm_6",
+                        name = trEn("Fırın Somon & Roka Salatası", "Baked Salmon & Arugula Salad", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 380, proteinG = 32.0, carbsG = 5.0, fatG = 24.0, fiberG = 3.0
+                    )
+                )
+            ) to 18
+        )
+        val dinner = pickBestSlot(dinnerCandidates, excludedIngredients, favoriteIngredients)
 
         // ── 4. SNACK ──
-        val snack = if (isHighProteinNeed) {
+        val snackCandidates = listOf(
             MealSlotSuggestion(
                 slot = MealSlotType.SNACK,
                 title = trEn("Kabak Çekirdekli & Keten Tohumlu Süzme Yoğurt", "Greek Yogurt with Pumpkin & Flax Seeds", language),
@@ -437,8 +678,7 @@ class DailyMealPlanEngine(
                         calories = 210, proteinG = 19.5, carbsG = 6.5, fatG = 10.5, fiberG = 4.2
                     )
                 )
-            )
-        } else {
+            ) to (if (isHighProteinNeed) 30 else 10),
             MealSlotSuggestion(
                 slot = MealSlotType.SNACK,
                 title = trEn("Yeşil Elma & Çiğ Ceviz", "Green Apple & Raw Walnuts", language),
@@ -473,8 +713,79 @@ class DailyMealPlanEngine(
                         calories = 165, proteinG = 3.0, carbsG = 21.0, fatG = 8.5, fiberG = 4.2
                     )
                 )
-            )
-        }
+            ) to (if (!isHighProteinNeed) 30 else 10),
+            MealSlotSuggestion(
+                slot = MealSlotType.SNACK,
+                title = trEn("Humus & Çıtır Sebze Çubukları", "Hummus & Crisp Veggie Sticks", language),
+                subtitle = trEn("Aç & Ye: Lif, C Vitamini & Süt/Kuruyemiş İçermez", "Ready-to-Eat: Fiber, Vitamin C & Dairy/Nut-Free", language),
+                prepTimeMinutes = 0,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("3 Yemek Kaşığı Humus", "1 Havuç", "1 Salatalık", "1 Kapya Biber")
+                } else {
+                    listOf("3 tbsp Hummus", "1 Carrot", "1 Cucumber", "1 Red Bell Pepper")
+                },
+                instructions = trEn(
+                    "Sebzeleri çubuk şeklinde doğrayıp humusa batırarak tüketin.",
+                    "Slice veggies into sticks and dip into hummus.",
+                    language
+                ),
+                calories = 210,
+                proteinG = 7.5,
+                carbsG = 24.0,
+                fatG = 9.0,
+                fiberG = 7.2,
+                keyBenefits = trEn(
+                    "Süt ürünü ve kuruyemiş içermeden yüksek lif ve C vitamini ile tok tutar.",
+                    "Keeps you satisfied with fiber and Vitamin C, free of dairy and nuts.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Lif", "C Vitamini", "Demir") else listOf("Fiber", "Vitamin C", "Iron"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "sm_3",
+                        name = trEn("Humus & Sebze Çubukları", "Hummus & Veggie Sticks", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 210, proteinG = 7.5, carbsG = 24.0, fatG = 9.0, fiberG = 7.2
+                    )
+                )
+            ) to 18,
+            MealSlotSuggestion(
+                slot = MealSlotType.SNACK,
+                title = trEn("Tarçınlı Muz & Yaban Mersini", "Cinnamon Banana & Blueberries", language),
+                subtitle = trEn("Aç & Ye: Potasyum, Antioksidan & Alerjen Dostu", "Ready-to-Eat: Potassium, Antioxidants & Allergen-Friendly", language),
+                prepTimeMinutes = 0,
+                ingredients = if (language == AppLanguage.TR) {
+                    listOf("1 Orta Boy Muz", "1 Avuç Yaban Mersini", "1 Çay Kaşığı Tarçın")
+                } else {
+                    listOf("1 Medium Banana", "1 Handful Blueberries", "1 tsp Cinnamon")
+                },
+                instructions = trEn(
+                    "Muzu dilimleyin, yaban mersini ve tarçın ekleyip hemen tüketin.",
+                    "Slice banana, top with blueberries and cinnamon, and enjoy immediately.",
+                    language
+                ),
+                calories = 145,
+                proteinG = 2.0,
+                carbsG = 35.0,
+                fatG = 0.6,
+                fiberG = 5.0,
+                keyBenefits = trEn(
+                    "Süt, kuruyemiş, gluten ve bakliyat içermeden hızlı doğal enerji verir.",
+                    "Provides clean natural energy free of dairy, nuts, gluten, and legumes.",
+                    language
+                ),
+                targetDeficiencies = if (language == AppLanguage.TR) listOf("Potasyum", "Lif", "C Vitamini") else listOf("Potassium", "Fiber", "Vitamin C"),
+                itemsToAdd = listOf(
+                    FoodItem(
+                        id = "sm_4",
+                        name = trEn("Tarçınlı Muz & Yaban Mersini", "Cinnamon Banana & Blueberries", language),
+                        formattedPortion = trEn("1 Porsiyon", "1 Serving", language),
+                        calories = 145, proteinG = 2.0, carbsG = 35.0, fatG = 0.6, fiberG = 5.0
+                    )
+                )
+            ) to 12
+        )
+        val snack = pickBestSlot(snackCandidates, excludedIngredients, favoriteIngredients)
 
         val totalCals = breakfast.calories + lunch.calories + dinner.calories + snack.calories
         val totalProt = breakfast.proteinG + lunch.proteinG + dinner.proteinG + snack.proteinG

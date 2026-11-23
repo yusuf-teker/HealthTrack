@@ -130,7 +130,8 @@ data class SmartMealSuggestion(
     val fatG: Double = 0.0,
     val fiberG: Double = 0.0,
     val keyMicros: List<Micronutrient> = emptyList(),
-    val instructions: String? = null
+    val instructions: String? = null,
+    val matchedFavorites: List<String> = emptyList()
 )
 
 @Serializable

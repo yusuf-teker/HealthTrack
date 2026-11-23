@@ -11,6 +11,7 @@ import com.yusufteker.healthtrack.core.model.NutritionGoal
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.model.calculateProteinTarget
+import com.yusufteker.healthtrack.core.model.toDeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
@@ -64,6 +65,11 @@ class ProfileViewModel(
                 _state.update { it.copy(language = lang) }
             }
         }
+        viewModelScope.launch {
+            tokenStorage.isHuaweiConnectedFlow.collect { connected ->
+                _state.update { it.copy(isHuaweiConnected = connected) }
+            }
+        }
     }
 
     private fun observeSession() {
@@ -80,6 +86,7 @@ class ProfileViewModel(
                         if (session.isAuthenticated) {
                             refreshAiQuota()
                             refreshSocialData()
+                            refreshHuaweiStatus()
                         }
                     } else {
                         weightObservationJob?.cancel()
@@ -152,6 +159,7 @@ class ProfileViewModel(
         val foodReminder = tokenStorage.isFoodReminderEnabled()
         val autoDeviceSync = tokenStorage.isAutoDeviceSyncEnabled()
         val hasConnectedDevice = tokenStorage.hasConnectedDevice()
+        val isHuaweiConnected = tokenStorage.isHuaweiConnected()
         val lastDeviceSyncSummary = tokenStorage.getLastDeviceSyncSummary()
         val isDark = settings.getBoolean("dark_mode", true)
         val accent = AppThemeColor.fromId(settings.getString("theme_accent", AppThemeColor.OCEAN.id))
@@ -176,6 +184,7 @@ class ProfileViewModel(
             foodReminderEnabled = foodReminder,
             isAutoDeviceSyncEnabled = autoDeviceSync,
             hasConnectedDevice = hasConnectedDevice,
+            isHuaweiConnected = isHuaweiConnected,
             lastDeviceSyncSummary = lastDeviceSyncSummary,
             isDarkMode = isDark,
             themeAccent = accent,
@@ -425,6 +434,11 @@ class ProfileViewModel(
                     }
                 }
             }
+            ProfileIntent.OnConnectHuaweiClicked -> connectHuawei()
+            ProfileIntent.OnSyncHuaweiClicked -> syncHuaweiNow(showConnectedFeedback = false)
+            ProfileIntent.OnDisconnectHuaweiClicked -> disconnectHuawei()
+            is ProfileIntent.OnHuaweiOAuthCallback -> handleHuaweiCallback(intent.status, intent.reason)
+            ProfileIntent.OnRefreshHuaweiStatus -> refreshHuaweiStatus()
             ProfileIntent.OnLogoutClicked -> {
                 viewModelScope.launch {
                     database.clearAll()
@@ -468,6 +482,7 @@ class ProfileViewModel(
                     )
                 }
                 refreshSocialData()
+                refreshHuaweiStatus()
             }
             is ProfileIntent.OnUploadProfileImage -> uploadProfileImage(intent.imageBytes)
             ProfileIntent.OnRefreshSocial -> refreshSocialData()
@@ -853,6 +868,202 @@ class ProfileViewModel(
             tokenStorage.setUserAge(s.age)
             tokenStorage.setUserGender(s.gender)
             tokenStorage.setUserFitnessGoal(s.fitnessGoal)
+        }
+    }
+
+    private fun refreshHuaweiStatus() {
+        if (!tokenStorage.isAuthenticated()) return
+        val wasConnected = _state.value.isHuaweiConnected || tokenStorage.isHuaweiConnected()
+        viewModelScope.launch {
+            apiClient.getHuaweiStatus().onSuccess { status ->
+                tokenStorage.setHuaweiConnected(status.connected)
+                _state.update {
+                    it.copy(
+                        isHuaweiConnected = status.connected,
+                        isHuaweiNeedsReauth = status.needsReauth
+                    )
+                }
+                if (!wasConnected && status.connected && !status.needsReauth) {
+                    syncHuaweiNow(showConnectedFeedback = true)
+                }
+            }
+        }
+    }
+
+    private fun connectHuawei() {
+        val lang = LocalizationManager.currentLanguage
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update {
+                it.copy(
+                    errorMessage = trEn(
+                        "Huawei Sağlık bağlamak için lütfen önce hesabınıza giriş yapın.",
+                        "Please sign in to your account before connecting Huawei Health.",
+                        lang
+                    )
+                )
+            }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isHuaweiBusy = true, errorMessage = null, infoMessage = null) }
+            apiClient.getHuaweiAuthUrl()
+                .onSuccess { res ->
+                    _state.update { it.copy(isHuaweiBusy = false) }
+                    _effects.send(ProfileEffect.OpenExternalUrl(res.authUrl))
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            isHuaweiBusy = false,
+                            errorMessage = formatActionableApiError(
+                                error = err,
+                                operationTr = "Huawei Sağlık bağlantısı",
+                                operationEn = "Huawei Health connection",
+                                language = lang
+                            )
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun handleHuaweiCallback(status: String, reason: String?) {
+        val lang = LocalizationManager.currentLanguage
+        if (status.equals("connected", ignoreCase = true)) {
+            tokenStorage.setHuaweiConnected(true)
+            _state.update {
+                it.copy(
+                    isHuaweiConnected = true,
+                    isHuaweiNeedsReauth = false,
+                    errorMessage = null
+                )
+            }
+            syncHuaweiNow(showConnectedFeedback = true)
+        } else {
+            val detail = reason?.trim()?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+            _state.update {
+                it.copy(
+                    isHuaweiBusy = false,
+                    errorMessage = trEn(
+                        "Huawei Sağlık yetkilendirmesi tamamlanamadı$detail.",
+                        "Huawei Health authorization could not complete$detail.",
+                        lang
+                    )
+                )
+            }
+        }
+    }
+
+    private fun syncHuaweiNow(showConnectedFeedback: Boolean) {
+        val lang = LocalizationManager.currentLanguage
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update {
+                it.copy(
+                    isHuaweiBusy = false,
+                    errorMessage = trEn(
+                        "Huawei Sağlık eşitlemesi için oturum açmanız gerekiyor.",
+                        "Please sign in to sync Huawei Health.",
+                        lang
+                    )
+                )
+            }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(isHuaweiBusy = true, errorMessage = null, infoMessage = null) }
+            apiClient.syncHuaweiHealth(days = 7)
+                .onSuccess { dto ->
+                    tokenStorage.setHuaweiConnected(dto.connected)
+                    if (!dto.connected || dto.needsReauth) {
+                        val reauthMsg = trEn(
+                            "Huawei Sağlık yetkisinin yenilenmesi gerekiyor. Lütfen yeniden bağlanın.",
+                            "Huawei Health authorization needs to be renewed. Please reconnect.",
+                            lang
+                        )
+                        _state.update {
+                            it.copy(
+                                isHuaweiBusy = false,
+                                isHuaweiConnected = dto.connected,
+                                isHuaweiNeedsReauth = dto.needsReauth,
+                                errorMessage = reauthMsg
+                            )
+                        }
+                        return@onSuccess
+                    }
+                    val snapshot = dto.toDeviceHealthSnapshot()
+                    val summary = deviceHealthSyncManager.mergeSnapshot(snapshot)
+                    tokenStorage.setLastHuaweiSyncMs(currentTimeMillis())
+                    val msg = if (showConnectedFeedback && summary.totalChanges == 0) {
+                        trEn(
+                            "Huawei Sağlık bağlandı ✓ Verileriniz eşitlendi.",
+                            "Huawei Health connected ✓ Your data is synced.",
+                            lang
+                        )
+                    } else {
+                        summary.toUserMessage(lang)
+                    }
+                    _state.update {
+                        it.copy(
+                            isHuaweiBusy = false,
+                            isHuaweiConnected = true,
+                            isHuaweiNeedsReauth = false,
+                            hasConnectedDevice = true,
+                            lastHuaweiSyncSummary = msg,
+                            lastDeviceSyncSummary = msg,
+                            infoMessage = msg
+                        )
+                    }
+                    _effects.send(ProfileEffect.ShowToast(msg))
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            isHuaweiBusy = false,
+                            errorMessage = formatActionableApiError(
+                                error = err,
+                                operationTr = "Huawei Sağlık eşitlemesi",
+                                operationEn = "Huawei Health sync",
+                                language = lang
+                            )
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun disconnectHuawei() {
+        val lang = LocalizationManager.currentLanguage
+        viewModelScope.launch {
+            _state.update { it.copy(isHuaweiBusy = true, errorMessage = null, infoMessage = null) }
+            apiClient.disconnectHuaweiHealth()
+                .onSuccess {
+                    tokenStorage.setHuaweiConnected(false)
+                    tokenStorage.setLastHuaweiSyncMs(0L)
+                    val msg = trEn("Huawei Sağlık bağlantısı kesildi.", "Huawei Health disconnected.", lang)
+                    _state.update {
+                        it.copy(
+                            isHuaweiBusy = false,
+                            isHuaweiConnected = false,
+                            isHuaweiNeedsReauth = false,
+                            lastHuaweiSyncSummary = null,
+                            infoMessage = msg
+                        )
+                    }
+                    _effects.send(ProfileEffect.ShowToast(msg))
+                }
+                .onFailure { err ->
+                    _state.update {
+                        it.copy(
+                            isHuaweiBusy = false,
+                            errorMessage = formatActionableApiError(
+                                error = err,
+                                operationTr = "Huawei bağlantısı kesme",
+                                operationEn = "Huawei disconnect",
+                                language = lang
+                            )
+                        )
+                    }
+                }
         }
     }
 }

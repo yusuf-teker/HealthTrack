@@ -55,6 +55,7 @@ fun InitialProfileSetupScreenRoot(
                 is ProfileEffect.NavigateBack -> onComplete()
                 is ProfileEffect.ShowToast -> onShowToast(effect.message)
                 is ProfileEffect.LoggedOut -> Unit
+                is ProfileEffect.OpenExternalUrl -> Unit
             }
         }
     }

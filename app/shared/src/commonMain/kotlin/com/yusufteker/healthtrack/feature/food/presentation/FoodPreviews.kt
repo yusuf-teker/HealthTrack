@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,6 +21,7 @@ import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.model.NutrientSynergyTip
 import com.yusufteker.healthtrack.core.model.NutritionGoal
+import com.yusufteker.healthtrack.core.model.SmartMealSuggestion
 import com.yusufteker.healthtrack.core.model.WaterEntry
 import com.yusufteker.healthtrack.core.network.FoodAiResultDto
 import com.yusufteker.healthtrack.feature.food.presentation.components.AddCustomFoodDialog
@@ -34,6 +36,8 @@ import com.yusufteker.healthtrack.feature.food.presentation.components.FoodTable
 import com.yusufteker.healthtrack.feature.food.presentation.components.InventoryMixStudioDialog
 import com.yusufteker.healthtrack.feature.food.presentation.components.NutrientBarsView
 import com.yusufteker.healthtrack.feature.food.presentation.components.QuickFoodPresetsView
+import com.yusufteker.healthtrack.feature.food.presentation.components.SmartMealMatcherContent
+import com.yusufteker.healthtrack.feature.food.presentation.components.SmartMealTab
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 import com.yusufteker.healthtrack.core.i18n.AppLanguage
 
@@ -640,5 +644,151 @@ fun DailyMealPlanBottomSheetPreviewEnglish() {
             onOpenGroceryForMeal = { _, _ -> },
             onDismiss = {}
         )
+    }
+}
+
+private val sampleSmartMealSuggestions = listOf(
+    SmartMealSuggestion(
+        id = "preview_chicken_salad",
+        title = "Izgara Tavuklu Yeşil Salata",
+        subtitle = "Yüksek Protein, Taze Yeşillik & C Vitamini",
+        prepTimeMinutes = 12,
+        ingredients = listOf("160g Tavuk Göğsü", "1 Büyük Kase Roka & Marul", "1 Domates & 1 Salatalık", "Limon & Zeytinyağı"),
+        calories = 305,
+        proteinG = 38.0,
+        carbsG = 9.0,
+        fatG = 11.0,
+        fiberG = 4.5,
+        instructions = "Tavuğu ızgarada pişirip taze yeşillikler ve limonlu sosla servis edin.",
+        matchedFavorites = listOf("Tavuk", "Salata")
+    ),
+    SmartMealSuggestion(
+        id = "preview_chicken_bowl",
+        title = "Tavuklu & Avokadolu Kase",
+        subtitle = "Temiz Protein, Sağlıklı Yağ & Lif",
+        prepTimeMinutes = 10,
+        ingredients = listOf("150g Izgara Tavuk Göğsü", "Yarım Avokado", "1 Avuç Mevsim Yeşilliği"),
+        calories = 365,
+        proteinG = 35.0,
+        carbsG = 10.0,
+        fatG = 19.0,
+        fiberG = 6.5,
+        matchedFavorites = listOf("Tavuk")
+    ),
+    SmartMealSuggestion(
+        id = "preview_hummus_veggies",
+        title = "Humus & Çıtır Sebze Çubukları",
+        subtitle = "Aç & Ye: Bitkisel Lif & Pratik Ara Öğün",
+        prepTimeMinutes = 0,
+        ingredients = listOf("3 Yemek Kaşığı Humus", "1 Havuç", "1 Salatalık", "1 Kapya Biber"),
+        calories = 210,
+        proteinG = 7.5,
+        carbsG = 24.0,
+        fatG = 9.0,
+        fiberG = 7.2
+    )
+)
+
+@Preview
+@Composable
+fun SmartMealMatcherSuggestionsPreviewDark() {
+    HealthTrackTheme(darkTheme = true) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            SmartMealMatcherContent(
+                suggestions = sampleSmartMealSuggestions,
+                isFromUserDb = false,
+                isOnlyQuick = false,
+                isOnlyFewIngredients = false,
+                isExcludeRecent3Days = true,
+                isHighProtein = true,
+                isGeneratingAi = false,
+                excludedIngredients = setOf("dairy", "nuts"),
+                favoriteIngredients = setOf("chicken", "salad"),
+                onToggleFilter = {},
+                onAddMeal = {},
+                onOpenGroceryForMeal = { _, _ -> },
+                onRequestAiRecipe = {},
+                onOpenDailyMealPlan = {},
+                onDismiss = {},
+                initialTab = SmartMealTab.SUGGESTIONS
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun SmartMealMatcherSuggestionsPreviewLight() {
+    HealthTrackTheme(darkTheme = false) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            SmartMealMatcherContent(
+                suggestions = sampleSmartMealSuggestions,
+                isFromUserDb = false,
+                isOnlyQuick = false,
+                isOnlyFewIngredients = false,
+                isExcludeRecent3Days = true,
+                isHighProtein = false,
+                isGeneratingAi = false,
+                excludedIngredients = setOf("dairy"),
+                favoriteIngredients = setOf("chicken", "salad"),
+                onToggleFilter = {},
+                onAddMeal = {},
+                onOpenGroceryForMeal = { _, _ -> },
+                onRequestAiRecipe = {},
+                onOpenDailyMealPlan = {},
+                onDismiss = {},
+                initialTab = SmartMealTab.SUGGESTIONS
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun SmartMealMatcherPreferencesPreviewDark() {
+    HealthTrackTheme(darkTheme = true) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            SmartMealMatcherContent(
+                suggestions = sampleSmartMealSuggestions,
+                isOnlyQuick = false,
+                isOnlyFewIngredients = false,
+                isExcludeRecent3Days = true,
+                isHighProtein = false,
+                isGeneratingAi = false,
+                excludedIngredients = setOf("dairy", "nuts", "mantar"),
+                favoriteIngredients = setOf("chicken", "salad"),
+                onToggleFilter = {},
+                onAddMeal = {},
+                onOpenGroceryForMeal = { _, _ -> },
+                onRequestAiRecipe = {},
+                onDismiss = {},
+                initialTab = SmartMealTab.PREFERENCES
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun SmartMealMatcherEmptyPreviewDark() {
+    HealthTrackTheme(darkTheme = true) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            SmartMealMatcherContent(
+                suggestions = emptyList(),
+                isOnlyQuick = true,
+                isOnlyFewIngredients = true,
+                isExcludeRecent3Days = true,
+                isHighProtein = true,
+                isGeneratingAi = false,
+                excludedIngredients = setOf("dairy", "egg", "chicken"),
+                favoriteIngredients = emptySet(),
+                onToggleFilter = {},
+                onAddMeal = {},
+                onOpenGroceryForMeal = { _, _ -> },
+                onRequestAiRecipe = {},
+                onDismiss = {},
+                initialTab = SmartMealTab.SUGGESTIONS
+            )
+        }
     }
 }

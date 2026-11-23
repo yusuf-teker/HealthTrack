@@ -173,11 +173,53 @@ data class DeviceSyncSummary(
                 "$platformName data is already up to date (no conflicts, ${skippedWeights + skippedWorkouts} records checked).",
                 language
             )
-            else -> trEn(
-                "$platformName üzerinde son 30 güne ait yeni tartım, adım veya antrenman kaydı bulunamadı. Lütfen Huawei Health / Health Sync veya Zepp Life uygulamasının $platformName'e veri yazdığından emin olun.",
-                "No new weigh-ins, steps, or workouts found on $platformName in the last 30 days. Please make sure Huawei Health / Health Sync or Zepp Life is writing data to $platformName.",
-                language
-            )
+            else -> if (platformName.contains("Huawei", ignoreCase = true)) {
+                trEn(
+                    "$platformName üzerinde son 7 güne ait yeni tartım, adım veya antrenman kaydı bulunamadı. Lütfen Huawei Sağlık uygulamasının saatinizle eşitlendiğinden emin olun.",
+                    "No new weigh-ins, steps, or workouts found on $platformName in the last 7 days. Please make sure the Huawei Health app has synced with your watch.",
+                    language
+                )
+            } else {
+                trEn(
+                    "$platformName üzerinde son 30 güne ait yeni tartım, adım veya antrenman kaydı bulunamadı. Lütfen Huawei Health / Health Sync veya Zepp Life uygulamasının $platformName'e veri yazdığından emin olun.",
+                    "No new weigh-ins, steps, or workouts found on $platformName in the last 30 days. Please make sure Huawei Health / Health Sync or Zepp Life is writing data to $platformName.",
+                    language
+                )
+            }
         }
     }
 }
+
+@Serializable
+data class HuaweiAuthUrlResponseDto(
+    val authUrl: String,
+    val configured: Boolean = true,
+    val message: String? = null
+)
+
+@Serializable
+data class HuaweiConnectionStatusDto(
+    val connected: Boolean = false,
+    val configured: Boolean = true,
+    val needsReauth: Boolean = false,
+    val apiBaseUrl: String? = null,
+    val lastSyncedAtMillis: Long? = null,
+    val grantedScopes: String? = null
+)
+
+@Serializable
+data class HuaweiSyncResponseDto(
+    val connected: Boolean = false,
+    val needsReauth: Boolean = false,
+    val weights: List<DeviceWeightRecord> = emptyList(),
+    val workouts: List<DeviceWorkoutRecord> = emptyList(),
+    val platformName: String = "Huawei Health",
+    val syncedAtMillis: Long = 0L,
+    val warnings: List<String> = emptyList()
+)
+
+fun HuaweiSyncResponseDto.toDeviceHealthSnapshot(): DeviceHealthSnapshot = DeviceHealthSnapshot(
+    weights = weights,
+    workouts = workouts,
+    platformName = platformName
+)

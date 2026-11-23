@@ -95,6 +95,7 @@ fun ProfileScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showCustomApiKeyDialog by remember { mutableStateOf(false) }
+    var showHuaweiDisconnectDialog by remember { mutableStateOf(false) }
     var followListTabToOpen by remember { mutableStateOf<Int?>(null) }
     var showSearchUsersSheet by remember { mutableStateOf(false) }
     var selectedFriendForProfileSheet by remember { mutableStateOf<FriendUserDto?>(null) }
@@ -1259,12 +1260,12 @@ fun ProfileScreen(
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
                                     val (badgeText, badgeColor) = when {
+                                        isDeviceAuthorized || state.hasConnectedDevice || state.isHuaweiConnected ->
+                                            str("Bağlı ✓", "Connected ✓") to Color(0xFF10B981)
                                         deviceHealthBridge.status == HealthPlatformStatus.NOT_SUPPORTED ->
                                             str("Desteklenmiyor", "Unsupported") to MaterialTheme.colorScheme.onSurfaceVariant
                                         deviceHealthBridge.status == HealthPlatformStatus.NOT_INSTALLED ->
                                             str("Kurulu Değil", "Not Installed") to Color(0xFFF97316)
-                                        isDeviceAuthorized || state.hasConnectedDevice ->
-                                            str("Bağlı ✓", "Connected ✓") to Color(0xFF10B981)
                                         else ->
                                             str("İzin Gerekli", "Permission Needed") to Color(0xFFF59E0B)
                                     }
@@ -1361,6 +1362,18 @@ fun ProfileScreen(
                             )
                         }
                     }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+
+                    HuaweiCloudSyncSection(
+                        isConnected = state.isHuaweiConnected,
+                        needsReauth = state.isHuaweiNeedsReauth,
+                        isBusy = state.isHuaweiBusy,
+                        lastSyncSummary = state.lastHuaweiSyncSummary,
+                        onConnect = { onIntent(ProfileIntent.OnConnectHuaweiClicked) },
+                        onSyncNow = { onIntent(ProfileIntent.OnSyncHuaweiClicked) },
+                        onRequestDisconnect = { showHuaweiDisconnectDialog = true }
+                    )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
 
@@ -1747,5 +1760,215 @@ fun ProfileScreen(
             },
             onDismiss = { showDeleteAccountDialog = false }
         )
+    }
+
+    if (showHuaweiDisconnectDialog) {
+        AlertDialog(
+            onDismissRequest = { showHuaweiDisconnectDialog = false },
+            title = {
+                Text(
+                    text = str("Huawei Bağlantısını Kes?", "Disconnect Huawei Health?"),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = str(
+                        "Daha önce içe aktarılmış tartım ve antrenman verileriniz korunur, ancak yeni Huawei Sağlık verileri otomatik çekilmez.",
+                        "Your previously imported weigh-ins and workouts remain saved, but new Huawei Health data will stop syncing automatically."
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showHuaweiDisconnectDialog = false
+                        onIntent(ProfileIntent.OnDisconnectHuaweiClicked)
+                    }
+                ) {
+                    Text(
+                        text = str("Bağlantıyı Kes", "Disconnect"),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHuaweiDisconnectDialog = false }) {
+                    Text(str("İptal", "Cancel"))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun HuaweiCloudSyncSection(
+    isConnected: Boolean,
+    needsReauth: Boolean,
+    isBusy: Boolean,
+    lastSyncSummary: String?,
+    onConnect: () -> Unit,
+    onSyncNow: () -> Unit,
+    onRequestDisconnect: () -> Unit
+) {
+    val huaweiAccent = Color(0xFFEF4444)
+    val (statusLabel, statusColor) = when {
+        needsReauth -> str("Yeniden Bağla", "Reconnect") to Color(0xFFF59E0B)
+        isConnected -> str("Bağlı ✓", "Connected ✓") to Color(0xFF10B981)
+        else -> str("Bağlı Değil", "Not Connected") to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(huaweiAccent.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = huaweiAccent
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.CloudSync,
+                            contentDescription = null,
+                            tint = huaweiAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = str("Huawei Sağlık (Doğrudan Bulut)", "Huawei Health (Direct Cloud)"),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                color = statusColor.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(999.dp),
+                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f))
+            ) {
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp
+                    ),
+                    color = statusColor,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                    maxLines = 1
+                )
+            }
+        }
+
+        Text(
+            text = lastSyncSummary ?: if (isConnected && !needsReauth) {
+                str(
+                    "Health Sync olmadan adım, egzersiz, nabız ve kilo doğrudan çekilir.",
+                    "Steps, workouts, heart rate & weight sync directly without Health Sync."
+                )
+            } else {
+                str(
+                    "Huawei Watch ve bileklik verilerini Health Sync olmadan doğrudan bağlayın.",
+                    "Connect Huawei Watch & Band directly with no bridge app needed."
+                )
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (!isConnected || needsReauth) {
+            Button(
+                onClick = onConnect,
+                enabled = !isBusy,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().bounceClick(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = huaweiAccent,
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Link,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = when {
+                        isBusy -> str("Hazırlanıyor...", "Preparing...")
+                        needsReauth -> str("Huawei Sağlık'ı Yeniden Bağla", "Reconnect Huawei Health")
+                        else -> str("Huawei Sağlık ile Bağlan", "Connect Huawei Health")
+                    },
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilledTonalButton(
+                    onClick = onSyncNow,
+                    enabled = !isBusy,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).bounceClick(),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = huaweiAccent.copy(alpha = 0.16f),
+                        contentColor = huaweiAccent
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isBusy) str("Eşitleniyor...", "Syncing...") else str("Huawei Eşitle", "Sync Huawei"),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onRequestDisconnect,
+                    enabled = !isBusy,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.bounceClick(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+                ) {
+                    Text(
+                        text = str("Bağlantıyı Kes", "Disconnect"),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }

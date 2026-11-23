@@ -30,6 +30,8 @@ class GuestModeMigrationTest {
         storage.setUserHeight(180.0)
         storage.setUserFitnessGoal(FitnessGoal.LOSE_WEIGHT)
         storage.hideFrequentFoodName(UserSession.GUEST_USER_ID, "ekmek")
+        storage.setExcludedFoodIngredients(setOf("dairy", "nuts"), UserSession.GUEST_USER_ID)
+        storage.setFavoriteFoodIngredients(setOf("chicken", "salad"), UserSession.GUEST_USER_ID)
 
         // Reloading TokenStorage should restore guest session
         val reloaded = TokenStorage(settings)
@@ -57,6 +59,10 @@ class GuestModeMigrationTest {
         assertEquals(FitnessGoal.LOSE_WEIGHT, reloaded.getUserFitnessGoal())
         assertTrue(reloaded.getHiddenFrequentFoodNames(42).contains("ekmek"))
         assertTrue(reloaded.getHiddenFrequentFoodNames(UserSession.GUEST_USER_ID).isEmpty())
+        assertEquals(setOf("dairy", "nuts"), reloaded.getExcludedFoodIngredients(42))
+        assertTrue(reloaded.getExcludedFoodIngredients(UserSession.GUEST_USER_ID).isEmpty())
+        assertEquals(setOf("chicken", "salad"), reloaded.getFavoriteFoodIngredients(42))
+        assertTrue(reloaded.getFavoriteFoodIngredients(UserSession.GUEST_USER_ID).isEmpty())
     }
 
     @Test

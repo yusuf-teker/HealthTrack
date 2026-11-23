@@ -10,6 +10,7 @@ import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.model.WorkoutTelemetryHelper
+import com.yusufteker.healthtrack.core.model.toDeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.network.AiQuotaExceededException
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
@@ -60,6 +61,7 @@ class WorkoutViewModel(
                         observeAllWorkoutsHistory(session.userId)
                         observeWeight(session.userId)
                         refreshAiQuota()
+                        syncHuaweiSilentlyIfConnected()
                     }
                 }
         }
@@ -439,6 +441,32 @@ class WorkoutViewModel(
         viewModelScope.launch {
             database.deleteWorkout(id)
             launch { syncEngine.sync() }
+        }
+    }
+
+    private fun syncHuaweiSilentlyIfConnected() {
+        if (!tokenStorage.isAuthenticated() || !tokenStorage.isAutoDeviceSyncEnabled() || !tokenStorage.isHuaweiConnected()) {
+            return
+        }
+        val now = currentTime()
+        if (now - tokenStorage.getLastHuaweiSyncMs() < 5 * 60 * 1000L) {
+            return
+        }
+        viewModelScope.launch {
+            val lang = LocalizationManager.currentLanguage
+            apiClient.syncHuaweiHealth(days = 7).onSuccess { dto ->
+                tokenStorage.setHuaweiConnected(dto.connected)
+                if (dto.connected && !dto.needsReauth) {
+                    val summary = deviceHealthSyncManager.mergeSnapshot(
+                        dto.toDeviceHealthSnapshot(),
+                        syncToCloud = true
+                    )
+                    tokenStorage.setLastHuaweiSyncMs(currentTime())
+                    if (summary.totalChanges > 0) {
+                        _effects.send(WorkoutEffect.ShowToast(summary.toUserMessage(lang)))
+                    }
+                }
+            }
         }
     }
 

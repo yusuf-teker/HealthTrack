@@ -45,6 +45,7 @@ import com.yusufteker.healthtrack.core.model.PushTokenBus
 import com.yusufteker.healthtrack.core.model.UpdateStatus
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
+import com.yusufteker.healthtrack.core.model.toDeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.network.HealthApiClient
 import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
@@ -54,6 +55,7 @@ import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.sync.WidgetSnapshotBuilder
 import com.yusufteker.healthtrack.core.utils.BleScaleScanState
 import com.yusufteker.healthtrack.core.utils.ExternalApp
+import com.yusufteker.healthtrack.core.utils.HuaweiDeepLinkBus
 import com.yusufteker.healthtrack.core.utils.WidgetDeepLinkBus
 import com.yusufteker.healthtrack.core.utils.currentTimeMillis
 import com.yusufteker.healthtrack.core.utils.getTodayIso
@@ -370,6 +372,51 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                 }
             }
 
+            suspend fun syncHuaweiCloudIfReady(showFeedbackAlways: Boolean = false) {
+                if (!tokenStorage.isAuthenticated()) return
+                apiClient.syncHuaweiHealth(days = 7).onSuccess { dto ->
+                    tokenStorage.setHuaweiConnected(dto.connected)
+                    if (dto.connected && !dto.needsReauth) {
+                        val summary = deviceHealthSyncManager.mergeSnapshot(
+                            dto.toDeviceHealthSnapshot(),
+                            syncToCloud = true
+                        )
+                        tokenStorage.setLastHuaweiSyncMs(currentTimeMillis())
+                        if (summary.totalChanges > 0) {
+                            showToast(summary.toUserMessage(currentLanguage))
+                        } else if (showFeedbackAlways) {
+                            showToast(
+                                trEn(
+                                    "Huawei Sağlık bağlandı ✓ Verileriniz eşitlendi.",
+                                    "Huawei Health connected ✓ Your data is synced.",
+                                    currentLanguage
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            val pendingHuaweiCallback by HuaweiDeepLinkBus.pendingEvent.collectAsState()
+            LaunchedEffect(pendingHuaweiCallback, isProfileScreenOpen, session.isAuthenticated) {
+                val event = pendingHuaweiCallback ?: return@LaunchedEffect
+                if (isProfileScreenOpen || !session.isAuthenticated) return@LaunchedEffect
+                HuaweiDeepLinkBus.consume()
+                if (event.status.equals("connected", ignoreCase = true)) {
+                    tokenStorage.setHuaweiConnected(true)
+                    syncHuaweiCloudIfReady(showFeedbackAlways = true)
+                } else {
+                    val detail = event.reason?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+                    showToast(
+                        trEn(
+                            "Huawei Sağlık bağlantısı tamamlanamadı$detail.",
+                            "Could not connect Huawei Health$detail.",
+                            currentLanguage
+                        )
+                    )
+                }
+            }
+
             val evaluateWidgetReminderAndSync: () -> Unit = {
                 if (session.hasActiveSession && session.userId != 0) {
                     val today = getTodayIso()
@@ -474,6 +521,12 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                                         }
                                     }
                                 }
+                                if (session.isAuthenticated &&
+                                    tokenStorage.isHuaweiConnected() &&
+                                    nowMs - tokenStorage.getLastHuaweiSyncMs() >= minResumeIntervalMs
+                                ) {
+                                    coroutineScope.launch { syncHuaweiCloudIfReady() }
+                                }
                             }
                         }
                     }
@@ -525,6 +578,14 @@ fun App(initialTab: HealthTab = HealthTab.FOOD) {
                             tokenStorage.setPremium(subStatus.isPremium, subStatus.premiumUntil)
                         }
                         syncEngine.sync()
+                        launch {
+                            apiClient.getHuaweiStatus().onSuccess { status ->
+                                tokenStorage.setHuaweiConnected(status.connected)
+                                if (tokenStorage.isAutoDeviceSyncEnabled() && status.connected && !status.needsReauth) {
+                                    syncHuaweiCloudIfReady()
+                                }
+                            }
+                        }
                     } else {
                         Napier.d("GUEST: Misafir modu aktif (userId=${session.userId}), bulut sync atlanıyor.")
                     }

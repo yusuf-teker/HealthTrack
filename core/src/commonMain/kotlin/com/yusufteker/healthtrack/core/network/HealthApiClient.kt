@@ -626,4 +626,42 @@ class HealthApiClient(
             throw response.toHttpApiException("Spor bildirim tercihi güncellenemedi", "Could not update workout notification preference", json)
         }
     }
+
+    suspend fun getHuaweiStatus(): Result<HuaweiConnectionStatusDto> = safeApiCall {
+        val response = httpClient.get("/health/huawei/status")
+        if (response.status.isSuccess()) {
+            response.body<HuaweiConnectionStatusDto>()
+        } else {
+            throw response.toHttpApiException("Huawei bağlantı durumu alınamadı", "Could not fetch Huawei status", json)
+        }
+    }
+
+    suspend fun getHuaweiAuthUrl(): Result<HuaweiAuthUrlResponseDto> = safeApiCall {
+        val response = httpClient.get("/health/huawei/auth-url")
+        if (response.status.isSuccess()) {
+            response.body<HuaweiAuthUrlResponseDto>()
+        } else {
+            throw response.toHttpApiException("Huawei yetkilendirme linki alınamadı", "Could not get Huawei authorization URL", json)
+        }
+    }
+
+    suspend fun syncHuaweiHealth(days: Int = 7): Result<HuaweiSyncResponseDto> = safeApiCall {
+        val tzId = runCatching { kotlinx.datetime.TimeZone.currentSystemDefault().id }.getOrDefault("Europe/Istanbul")
+        val response = httpClient.get("/health/huawei/sync") {
+            parameter("days", days.coerceIn(1, 7))
+            parameter("tz", tzId)
+        }
+        if (response.status.isSuccess()) {
+            response.body<HuaweiSyncResponseDto>()
+        } else {
+            throw response.toHttpApiException("Huawei Sağlık verileri eşitlenemedi", "Could not sync Huawei Health data", json)
+        }
+    }
+
+    suspend fun disconnectHuaweiHealth(): Result<Unit> = safeApiCall {
+        val response = httpClient.delete("/health/huawei/disconnect")
+        if (!response.status.isSuccess()) {
+            throw response.toHttpApiException("Huawei bağlantısı kesilemedi", "Could not disconnect Huawei Health", json)
+        }
+    }
 }

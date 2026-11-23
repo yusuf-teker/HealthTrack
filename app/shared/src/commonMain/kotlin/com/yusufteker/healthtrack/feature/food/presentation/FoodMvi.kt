@@ -75,6 +75,8 @@ data class FoodState(
     val isSmartMealExcludeRecent3Days: Boolean = true,
     val isSmartMealHighProtein: Boolean = false,
     val isGeneratingAiCustomRecipe: Boolean = false,
+    val excludedIngredients: Set<String> = emptySet(),
+    val favoriteIngredients: Set<String> = emptySet(),
 
     // ── 2.B: Besin Sinerjisi & Emilim İpuçları ──
     val synergyTips: List<NutrientSynergyTip> = emptyList(),
@@ -180,6 +182,10 @@ sealed interface FoodIntent {
     data class OnAddSuggestedMeal(val meal: SmartMealSuggestion) : FoodIntent
     data object OnRequestCustomAiMealSuggestion : FoodIntent
     data object OnDismissAiRecipe : FoodIntent
+    data class OnToggleExcludedIngredient(val ingredient: String) : FoodIntent
+    data class OnAddCustomExcludedIngredient(val ingredient: String) : FoodIntent
+    data class OnToggleFavoriteIngredient(val ingredient: String) : FoodIntent
+    data class OnAddCustomFavoriteIngredient(val ingredient: String) : FoodIntent
 
     // ── 2.B: Besin Sinerjisi Intent'i ──
     data class OnDismissSynergyTip(val tipId: String) : FoodIntent

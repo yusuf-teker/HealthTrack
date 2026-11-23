@@ -107,3 +107,19 @@ fun ProfileScreenEnglishPreview() {
         )
     }
 }
+
+@Preview
+@Composable
+fun ProfileScreenHuaweiConnectedPreview() {
+    HealthTrackTheme(darkTheme = true, themeAccent = AppThemeColor.TEAL) {
+        ProfileScreen(
+            state = populatedProfileState.copy(
+                isHuaweiConnected = true,
+                lastHuaweiSyncSummary = "Huawei Health: 2 yeni antrenman eklendi."
+            ),
+            onIntent = {},
+            onBack = {},
+            onLogout = {}
+        )
+    }
+}

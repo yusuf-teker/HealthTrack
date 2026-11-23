@@ -1,15 +1,22 @@
 package com.yusufteker.healthtrack.feature.profile.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
+import com.yusufteker.healthtrack.core.utils.HuaweiDeepLinkBus
 import com.yusufteker.healthtrack.core.utils.rememberDailyReminderNotifier
 import com.yusufteker.healthtrack.core.utils.rememberDeviceHealthBridge
 import com.yusufteker.healthtrack.theme.AppThemeColor
@@ -33,8 +40,27 @@ fun ProfileScreenRoot(
     val state by viewModel.state.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
     val dailyReminderNotifier = rememberDailyReminderNotifier()
     val deviceHealthBridge = rememberDeviceHealthBridge()
+    val uriHandler = LocalUriHandler.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var hasNotifPermission by remember { mutableStateOf(dailyReminderNotifier.hasPermission) }
     var isDeviceAuthorized by remember { mutableStateOf(state.hasConnectedDevice) }
+
+    val huaweiCallbackEvent by HuaweiDeepLinkBus.pendingEvent.collectAsState()
+    LaunchedEffect(huaweiCallbackEvent) {
+        val event = huaweiCallbackEvent ?: return@LaunchedEffect
+        HuaweiDeepLinkBus.consume()
+        viewModel.onIntent(ProfileIntent.OnHuaweiOAuthCallback(event.status, event.reason))
+    }
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onIntent(ProfileIntent.OnRefreshHuaweiStatus)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(deviceHealthBridge.status, state.hasConnectedDevice, state.isDeviceSyncing) {
         isDeviceAuthorized = state.hasConnectedDevice || deviceHealthBridge.isAuthorized()
@@ -83,6 +109,7 @@ fun ProfileScreenRoot(
                 is ProfileEffect.NavigateBack -> onBack()
                 is ProfileEffect.LoggedOut -> onLogout()
                 is ProfileEffect.ShowToast -> onShowToast(effect.message)
+                is ProfileEffect.OpenExternalUrl -> runCatching { uriHandler.openUri(effect.url) }
             }
         }
     }

@@ -799,8 +799,6 @@ fun FoodScreen(
         if (state.isSmartMealSheetOpen && !state.isGroceryListSheetOpen) {
             SmartMealMatcherBottomSheet(
                 suggestions = state.smartMealSuggestions,
-                nutrientBars = state.nutrientBars,
-                remainingCalories = (state.nutritionGoal.calories - state.totalCalories).coerceAtLeast(0),
                 latestAiRecipe = state.latestAiRecipe,
                 isFromUserDb = state.isSmartMealFromUserDb,
                 isOnlyQuick = state.isSmartMealOnlyQuick,
@@ -808,7 +806,13 @@ fun FoodScreen(
                 isExcludeRecent3Days = state.isSmartMealExcludeRecent3Days,
                 isHighProtein = state.isSmartMealHighProtein,
                 isGeneratingAi = state.isGeneratingAiCustomRecipe,
+                excludedIngredients = state.excludedIngredients,
+                favoriteIngredients = state.favoriteIngredients,
                 onToggleFilter = { onIntent(FoodIntent.OnToggleSmartMealFilter(it)) },
+                onToggleExcludedIngredient = { onIntent(FoodIntent.OnToggleExcludedIngredient(it)) },
+                onAddCustomExcludedIngredient = { onIntent(FoodIntent.OnAddCustomExcludedIngredient(it)) },
+                onToggleFavoriteIngredient = { onIntent(FoodIntent.OnToggleFavoriteIngredient(it)) },
+                onAddCustomFavoriteIngredient = { onIntent(FoodIntent.OnAddCustomFavoriteIngredient(it)) },
                 onAddMeal = { onIntent(FoodIntent.OnAddSuggestedMeal(it)) },
                 onOpenGroceryForMeal = { title, ingredients ->
                     onIntent(FoodIntent.OnOpenGroceryListSheet(title, ingredients))

@@ -146,23 +146,26 @@ fun DeviceConnectionGuideDialog(
 
                 // 2: Huawei Watch
                 if (selectedFilter == DeviceGuideFilter.ALL || selectedFilter == DeviceGuideFilter.HUAWEI) {
+                    val directCloudStep = str(
+                        "Doğrudan Huawei Sağlık Bağlantısı (Önerilen — Health Sync Gerekmez): Profil → Cihaz & Hesap → Akıllı Saat & Tartı → \"Huawei Sağlık ile Bağlan\" butonuna basıp Huawei kimliğinizle izin verin; adım, antrenman (Tenis, Koşu, Yoga vb.), nabız, kalori ve tartı verileriniz doğrudan aktarılır.",
+                        "Direct Huawei Health Connection (Recommended — No Health Sync Needed): Go to Profile → Devices & Account → Smart Watch & Scale → \"Connect Huawei Health\" and authorize with your HUAWEI ID; steps, workouts (Tennis, Running, Yoga, etc.), heart rate, calories & weight sync directly."
+                    )
                     GuideStepCard(
                         stepNumber = "2",
                         title = str("Huawei Watch (Tenis, Yoga, Adım & Nabız)", "Huawei Watch (Tennis, Yoga, Steps & HR)"),
-                        badge = if (isAppleHealth) str("Huawei Sağlık → Apple Sağlık", "Huawei Health → Apple Health") else str("Huawei Sağlık veya Health Sync", "Huawei Health or Health Sync"),
+                        badge = str("Doğrudan Huawei Bulut (Önerilen)", "Direct Huawei Cloud (Recommended)"),
                         accentColor = MaterialTheme.colorScheme.tertiary,
                         icon = Icons.Rounded.DirectionsRun,
                         steps = if (isAppleHealth) {
                             listOf(
-                                str("iPhone'da Huawei Sağlık uygulamasını açıp saat verilerinizin güncellendiğinden emin olun.", "Open Huawei Health on iPhone and make sure your watch has synced."),
-                                str("Ben → Gizlilik Yönetimi → Veri Paylaşımı ve Yetkilendirme → \"Apple Sağlık\" yolunu açıp Tüm Kategorileri (Adım, Egzersiz, Nabız, Kalori) etkinleştirin.", "Go to Me → Privacy Management → Data Sharing and Authorization → \"Apple Health\" and enable Steps, Workouts, Heart Rate & Calories."),
-                                str("Tenis, Yoga, Koşu antrenmanlarınız ile günlük adım, nabız ve aktif kalori verileriniz Apple Sağlık üzerinden HealthTrack'e otomatik gelir (ek uygulama gerekmez).", "Your Tennis, Yoga, Running workouts plus daily steps, heart rate & calories sync into HealthTrack via Apple Health automatically (no extra bridge app needed)."),
-                                str("Veri görünmezse iPhone Ayarlar → Sağlık → Veri Erişimi ve Cihazlar → HealthTrack bölümünden okuma izinlerinin açık olduğunu kontrol edin.", "If data is missing, check iPhone Settings → Health → Data Access & Devices → HealthTrack and verify read toggles are ON.")
+                                directCloudStep,
+                                str("Alternatif Apple Sağlık Köprüsü: Huawei Sağlık'ta Ben → Gizlilik Yönetimi → Veri Paylaşımı → \"Apple Sağlık\" yolunu açıp Tüm Kategorileri (Adım, Egzersiz, Nabız, Kalori) etkinleştirin.", "Alternative Apple Health Bridge: In Huawei Health, open Me → Privacy Management → Data Sharing → \"Apple Health\" and enable Steps, Workouts, Heart Rate & Calories."),
+                                str("Çakışmasız akıllı birleştirme sayesinde aynı antrenman iki kez sayılmaz.", "Conflict-free smart merging ensures the same workout is never double-counted.")
                             )
                         } else {
                             listOf(
-                                str("Health Sync Köprüsü (Önerilen): Google Play Store'dan \"Health Sync\" uygulamasını indirin. Kaynak olarak \"Huawei Sağlık (Huawei Health)\", Hedef olarak \"$platformName\" seçip Adım, Egzersiz (Tenis, Koşu vb.), Nabız ve Kalori aktarımını açın.", "Health Sync Bridge (Recommended): Install \"Health Sync\" from Google Play. Set Source to \"Huawei Health\" and Destination to \"$platformName\", then enable Steps, Activities (Tennis, Running, etc.), Heart Rate & Calories."),
-                                str("Alternatif Doğrudan Bağlantı: Huawei Sağlık uygulamanızın sürümü destekliyorsa Ben → Gizlilik Yönetimi → Veri Paylaşımı → \"$platformName\" menüsünden de izin verebilirsiniz.", "Alternative Direct Sync: If supported by your Huawei Health version, go to Me → Privacy Management → Data Sharing → \"$platformName\" and enable permissions."),
+                                directCloudStep,
+                                str("Alternatif Yerel Köprü (Opsiyonel): İsterseniz Huawei Sağlık → Ben → Gizlilik Yönetimi → Veri Paylaşımı → \"$platformName\" veya Health Sync ile de veri aktarabilirsiniz.", "Alternative Local Bridge (Optional): You can also sync via Huawei Health → Me → Privacy Management → Data Sharing → \"$platformName\" or Health Sync."),
                                 str("Saatten antrenman başlatmasanız bile günlük adım ve tahmini kalori otomatik çekilir; çakışmasız birleştirme ile çift sayım olmaz.", "Daily steps and active burn are imported automatically even without manual watch workouts, with conflict-free deduplication.")
                             )
                         }

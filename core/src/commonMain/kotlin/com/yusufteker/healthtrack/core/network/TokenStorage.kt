@@ -27,6 +27,9 @@ class TokenStorage(private val settings: Settings = Settings()) {
     private val _hasConnectedDeviceFlow = MutableStateFlow(hasConnectedDevice())
     val hasConnectedDeviceFlow: StateFlow<Boolean> = _hasConnectedDeviceFlow.asStateFlow()
 
+    private val _isHuaweiConnectedFlow = MutableStateFlow(isHuaweiConnected())
+    val isHuaweiConnectedFlow: StateFlow<Boolean> = _isHuaweiConnectedFlow.asStateFlow()
+
     @OptIn(ExperimentalTime::class)
     fun isPremium(): Boolean {
         if (!settings.getBoolean(KEY_IS_PREMIUM, false)) return false
@@ -271,12 +274,24 @@ class TokenStorage(private val settings: Settings = Settings()) {
         if (prevUserId != userId && !upgradingFromGuest) {
             clearUserScopedPreferences()
         } else if (upgradingFromGuest) {
-            // Preserve local guest profile & device settings, migrate hidden frequent foods, reset sync cursor
+            // Preserve local guest profile & device settings, migrate hidden frequent foods and meal preferences, reset sync cursor
             val guestHidden = getHiddenFrequentFoodNames(UserSession.GUEST_USER_ID)
             if (guestHidden.isNotEmpty()) {
                 val mergedHidden = getHiddenFrequentFoodNames(userId) + guestHidden
                 settings.putString("${KEY_HIDDEN_FREQUENT_FOODS}_$userId", mergedHidden.joinToString("||"))
                 settings.remove("${KEY_HIDDEN_FREQUENT_FOODS}_${UserSession.GUEST_USER_ID}")
+            }
+            val guestExcluded = getExcludedFoodIngredients(UserSession.GUEST_USER_ID)
+            if (guestExcluded.isNotEmpty()) {
+                val mergedExcluded = getExcludedFoodIngredients(userId) + guestExcluded
+                setExcludedFoodIngredients(mergedExcluded, userId)
+                settings.remove("${KEY_EXCLUDED_FOOD_INGREDIENTS}_${UserSession.GUEST_USER_ID}")
+            }
+            val guestFavorites = getFavoriteFoodIngredients(UserSession.GUEST_USER_ID)
+            if (guestFavorites.isNotEmpty()) {
+                val mergedFavorites = getFavoriteFoodIngredients(userId) + guestFavorites
+                setFavoriteFoodIngredients(mergedFavorites, userId)
+                settings.remove("${KEY_FAVORITE_FOOD_INGREDIENTS}_${UserSession.GUEST_USER_ID}")
             }
             settings.remove(KEY_LAST_SYNC_TS)
         }
@@ -347,7 +362,10 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_HAS_CONNECTED_DEVICE)
         settings.remove(KEY_LAST_DEVICE_SYNC_MS)
         settings.remove(KEY_LAST_DEVICE_SYNC_SUMMARY)
+        settings.remove(KEY_HUAWEI_CONNECTED)
+        settings.remove(KEY_HUAWEI_LAST_SYNC_MS)
         _hasConnectedDeviceFlow.value = false
+        _isHuaweiConnectedFlow.value = false
     }
 
     fun clearSession() {
@@ -461,8 +479,12 @@ class TokenStorage(private val settings: Settings = Settings()) {
         const val KEY_HAS_CONNECTED_DEVICE = "ht_has_connected_device"
         private const val KEY_LAST_DEVICE_SYNC_MS = "ht_last_device_sync_ms"
         private const val KEY_LAST_DEVICE_SYNC_SUMMARY = "ht_last_device_sync_summary"
+        private const val KEY_HUAWEI_CONNECTED = "ht_huawei_connected"
+        private const val KEY_HUAWEI_LAST_SYNC_MS = "ht_huawei_last_sync_ms"
         private const val KEY_LAST_NOTIF_PERM_PROMPT_MS = "ht_last_notif_perm_prompt_ms"
         private const val KEY_HIDDEN_FREQUENT_FOODS = "ht_hidden_frequent_foods"
+        private const val KEY_EXCLUDED_FOOD_INGREDIENTS = "ht_excluded_food_ingredients"
+        private const val KEY_FAVORITE_FOOD_INGREDIENTS = "ht_favorite_food_ingredients"
     }
 
     fun isAutoDeviceSyncEnabled(): Boolean = settings.getBoolean(KEY_AUTO_DEVICE_SYNC_ENABLED, true)
@@ -496,6 +518,19 @@ class TokenStorage(private val settings: Settings = Settings()) {
         }
     }
 
+    fun isHuaweiConnected(): Boolean = settings.getBoolean(KEY_HUAWEI_CONNECTED, false)
+
+    fun setHuaweiConnected(connected: Boolean) {
+        settings.putBoolean(KEY_HUAWEI_CONNECTED, connected)
+        _isHuaweiConnectedFlow.value = connected
+    }
+
+    fun getLastHuaweiSyncMs(): Long = settings.getLong(KEY_HUAWEI_LAST_SYNC_MS, 0L)
+
+    fun setLastHuaweiSyncMs(ms: Long) {
+        settings.putLong(KEY_HUAWEI_LAST_SYNC_MS, ms)
+    }
+
     fun getLastNotifPermPromptMs(): Long = settings.getLong(KEY_LAST_NOTIF_PERM_PROMPT_MS, 0L)
 
     fun setLastNotifPermPromptMs(ms: Long) {
@@ -522,6 +557,40 @@ class TokenStorage(private val settings: Settings = Settings()) {
             settings.remove("${KEY_HIDDEN_FREQUENT_FOODS}_$userId")
         } else {
             settings.putString("${KEY_HIDDEN_FREQUENT_FOODS}_$userId", updated.joinToString("||"))
+        }
+    }
+
+    fun getExcludedFoodIngredients(userId: Int = getUserId()): Set<String> {
+        if (userId == 0) return emptySet()
+        val raw = settings.getStringOrNull("${KEY_EXCLUDED_FOOD_INGREDIENTS}_$userId") ?: return emptySet()
+        return raw.split("||").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+    }
+
+    fun setExcludedFoodIngredients(ingredients: Set<String>, userId: Int = getUserId()) {
+        if (userId == 0) return
+        val clean = ingredients.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        val key = "${KEY_EXCLUDED_FOOD_INGREDIENTS}_$userId"
+        if (clean.isEmpty()) {
+            settings.remove(key)
+        } else {
+            settings.putString(key, clean.joinToString("||"))
+        }
+    }
+
+    fun getFavoriteFoodIngredients(userId: Int = getUserId()): Set<String> {
+        if (userId == 0) return emptySet()
+        val raw = settings.getStringOrNull("${KEY_FAVORITE_FOOD_INGREDIENTS}_$userId") ?: return emptySet()
+        return raw.split("||").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+    }
+
+    fun setFavoriteFoodIngredients(ingredients: Set<String>, userId: Int = getUserId()) {
+        if (userId == 0) return
+        val clean = ingredients.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        val key = "${KEY_FAVORITE_FOOD_INGREDIENTS}_$userId"
+        if (clean.isEmpty()) {
+            settings.remove(key)
+        } else {
+            settings.putString(key, clean.joinToString("||"))
         }
     }
 

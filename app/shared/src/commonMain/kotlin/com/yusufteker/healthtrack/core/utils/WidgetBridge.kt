@@ -50,6 +50,10 @@ object WidgetDeepLinkBus {
 
         if (tab == null) {
             val host = normalized.removePrefix("healthtrack://").substringBefore("?").substringBefore("/").uppercase()
+            if (host == "HUAWEI") {
+                HuaweiDeepLinkBus.emitFromUri(normalized)
+                return
+            }
             tab = when (host) {
                 "FOOD", "WORKOUT", "WEIGHT", "ANALYTICS" -> host
                 else -> "FOOD"
@@ -70,6 +74,79 @@ object WidgetDeepLinkBus {
             return true
         }
         return false
+    }
+}
+
+data class HuaweiOAuthCallbackEvent(
+    val status: String,
+    val reason: String? = null,
+    val timestampMs: Long = 0L
+)
+
+/**
+ * Shared deep-link bus for Huawei OAuth callbacks (`healthtrack://huawei/sync-done?status=connected`).
+ */
+object HuaweiDeepLinkBus {
+    private val _pendingEvent = MutableStateFlow<HuaweiOAuthCallbackEvent?>(null)
+    val pendingEvent: StateFlow<HuaweiOAuthCallbackEvent?> = _pendingEvent.asStateFlow()
+
+    fun emitFromUri(uriString: String?) {
+        if (uriString.isNullOrBlank()) return
+        val normalized = uriString.trim()
+        if (!normalized.startsWith("healthtrack://huawei", ignoreCase = true)) return
+
+        val queryPart = normalized.substringAfter("?", "")
+        var status = "connected"
+        var reason: String? = null
+
+        if (queryPart.isNotBlank()) {
+            queryPart.split("&").forEach { pair ->
+                val eqIndex = pair.indexOf('=')
+                if (eqIndex > 0) {
+                    val key = pair.substring(0, eqIndex).lowercase()
+                    val value = pair.substring(eqIndex + 1)
+                    when (key) {
+                        "status" -> status = value.lowercase().ifBlank { "connected" }
+                        "reason" -> reason = decodePercent(value).takeIf { it.isNotBlank() }
+                    }
+                }
+            }
+        }
+
+        _pendingEvent.value = HuaweiOAuthCallbackEvent(
+            status = status,
+            reason = reason,
+            timestampMs = currentTimeMillis()
+        )
+    }
+
+    fun consume(): HuaweiOAuthCallbackEvent? {
+        val current = _pendingEvent.value
+        if (current != null) {
+            _pendingEvent.value = null
+        }
+        return current
+    }
+
+    private fun decodePercent(raw: String): String {
+        val plusAsSpace = raw.replace('+', ' ')
+        val out = StringBuilder(plusAsSpace.length)
+        var i = 0
+        while (i < plusAsSpace.length) {
+            val ch = plusAsSpace[i]
+            if (ch == '%' && i + 2 < plusAsSpace.length) {
+                val hex = plusAsSpace.substring(i + 1, i + 3)
+                val code = hex.toIntOrNull(16)
+                if (code != null) {
+                    out.append(code.toChar())
+                    i += 3
+                    continue
+                }
+            }
+            out.append(ch)
+            i++
+        }
+        return out.toString()
     }
 }
 

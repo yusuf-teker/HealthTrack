@@ -5,6 +5,7 @@ import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.CustomFoodItem
 import com.yusufteker.healthtrack.core.model.FoodItem
+import com.yusufteker.healthtrack.core.model.MealPreferencesCatalog
 import com.yusufteker.healthtrack.core.model.Micronutrient
 import com.yusufteker.healthtrack.core.model.NutrientProgress
 import com.yusufteker.healthtrack.core.model.NutrientSynergyTip
@@ -253,6 +254,225 @@ object SmartMealEngine {
                 "Slice the boiled eggs and serve alongside fresh red bell pepper and walnuts.",
                 language
             )
+        ),
+
+        // ── 4. Chicken, Salad & Everyday Balanced Meals ──
+        SmartMealSuggestion(
+            id = "meal_grilled_chicken_salad",
+            title = trEn("Izgara Tavuklu Yeşil Salata", "Grilled Chicken Green Salad", language),
+            subtitle = trEn("Yüksek Protein, Taze Yeşillik & C Vitamini", "High Protein, Crisp Greens & Vitamin C", language),
+            tags = if (language == AppLanguage.TR) listOf("Yüksek Protein", "Az Malzemeli", "Salata") else listOf("High Protein", "Few Ingredients", "Salad"),
+            prepTimeMinutes = 12,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("160g Tavuk Göğsü", "1 Büyük Kase Roka & Marul", "1 Domates & 1 Salatalık", "Limon & 1 Tatlı Kaşığı Zeytinyağı")
+            } else {
+                listOf("160g Chicken Breast", "1 Large Bowl Arugula & Lettuce", "1 Tomato & 1 Cucumber", "Lemon & 1 tsp Olive Oil")
+            },
+            calories = 305,
+            proteinG = 38.0,
+            carbsG = 9.0,
+            fatG = 11.0,
+            fiberG = 4.5,
+            keyMicros = listOf(
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 42.0, "mg"),
+                Micronutrient(trEn("Demir", "Iron", language), 2.3, "mg"),
+                Micronutrient(trEn("Magnezyum", "Magnesium", language), 48.0, "mg")
+            ),
+            instructions = trEn(
+                "Tavuk göğsünü tavada ızgara yapıp dilimleyin. Doğranmış taze yeşillik, domates ve salatalık üzerine ekleyip limon ve zeytinyağı gezdirin.",
+                "Grill and slice the chicken breast. Place over chopped greens, tomato, and cucumber, then drizzle with lemon and olive oil.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_chicken_avocado_bowl",
+            title = trEn("Tavuklu & Avokadolu Kase", "Chicken & Avocado Bowl", language),
+            subtitle = trEn("Temiz Protein, Sağlıklı Yağ & Lif", "Clean Protein, Healthy Fats & Fiber", language),
+            tags = if (language == AppLanguage.TR) listOf("Yüksek Protein", "Hızlı (10 dk)", "Az Malzemeli") else listOf("High Protein", "Quick (10 min)", "Few Ingredients"),
+            prepTimeMinutes = 10,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("150g Izgara Tavuk Göğsü", "Yarım Avokado", "1 Avuç Mevsim Yeşilliği", "6 Adet Kiraz Domates")
+            } else {
+                listOf("150g Grilled Chicken Breast", "Half Avocado", "1 Handful Seasonal Greens", "6 Cherry Tomatoes")
+            },
+            calories = 365,
+            proteinG = 35.0,
+            carbsG = 10.0,
+            fatG = 19.0,
+            fiberG = 6.5,
+            keyMicros = listOf(
+                Micronutrient(trEn("Potasyum", "Potassium", language), 580.0, "mg"),
+                Micronutrient(trEn("Magnezyum", "Magnesium", language), 52.0, "mg"),
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 34.0, "mg")
+            ),
+            instructions = trEn(
+                "Tavukları tavada soteleyip yeşillik kasesine alın. Dilimlenmiş avokado ve kiraz domateslerle tamamlayın.",
+                "Pan-sear the chicken and place in a bowl of greens. Top with sliced avocado and cherry tomatoes.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_chicken_wrap",
+            title = trEn("Izgara Tavuklu Tam Buğday Dürüm", "Grilled Chicken Whole Wheat Wrap", language),
+            subtitle = trEn("Pratik Sporcu Öğünü & Dengeli Enerji", "Practical Athlete Meal & Steady Energy", language),
+            tags = if (language == AppLanguage.TR) listOf("Yüksek Protein", "Hızlı (8 dk)", "Az Malzemeli") else listOf("High Protein", "Quick (8 min)", "Few Ingredients"),
+            prepTimeMinutes = 8,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("140g Tavuk Göğsü", "1 Adet Tam Buğday Lavaş", "2 Yaprak Marul", "1 Küçük Domates")
+            } else {
+                listOf("140g Chicken Breast", "1 Whole Wheat Wrap", "2 Lettuce Leaves", "1 Small Tomato")
+            },
+            calories = 350,
+            proteinG = 34.0,
+            carbsG = 33.0,
+            fatG = 8.0,
+            fiberG = 5.0,
+            keyMicros = listOf(
+                Micronutrient(trEn("Demir", "Iron", language), 2.5, "mg"),
+                Micronutrient(trEn("Magnezyum", "Magnesium", language), 46.0, "mg"),
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 22.0, "mg")
+            ),
+            instructions = trEn(
+                "Tavuk şeritlerini 6 dakikada tavada pişirin. Lavaş içine marul ve domatesle birlikte sarıp tüketin.",
+                "Cook chicken strips in a pan for 6 minutes. Wrap inside whole wheat flatbread with lettuce and tomato.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_salmon_green_salad",
+            title = trEn("Fırın Somon & Roka Salatası", "Baked Salmon & Arugula Salad", language),
+            subtitle = trEn("Omega-3, D Vitamini & Yüksek Protein", "Omega-3, Vitamin D & High Protein", language),
+            tags = if (language == AppLanguage.TR) listOf("Yüksek Protein", "Omega-3", "Salata") else listOf("High Protein", "Omega-3", "Salad"),
+            prepTimeMinutes = 15,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("150g Somon Fileto", "1 Demet Roka & Yeşillik", "Yarım Limon", "1 Tatlı Kaşığı Zeytinyağı")
+            } else {
+                listOf("150g Salmon Fillet", "1 Bunch Arugula & Greens", "Half Lemon", "1 tsp Olive Oil")
+            },
+            calories = 380,
+            proteinG = 32.0,
+            carbsG = 5.0,
+            fatG = 24.0,
+            fiberG = 3.0,
+            keyMicros = listOf(
+                Micronutrient(trEn("D Vitamini", "Vitamin D", language), 11.0, "µg"),
+                Micronutrient(trEn("B12 Vitamini", "Vitamin B12", language), 3.8, "µg"),
+                Micronutrient(trEn("Magnezyum", "Magnesium", language), 54.0, "mg")
+            ),
+            instructions = trEn(
+                "Somonu fırında veya tavada 12 dakika pişirin. Taze roka yaprakları ve limonla servis edin.",
+                "Bake or pan-sear salmon for 12 minutes. Serve over fresh arugula greens with lemon.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_meatball_shepherd_salad",
+            title = trEn("Izgara Köfte & Çoban Salata", "Grilled Meatballs & Shepherd Salad", language),
+            subtitle = trEn("Demir, Çinko & Dengeli Akşam Öğünü", "Iron, Zinc & Balanced Dinner", language),
+            tags = if (language == AppLanguage.TR) listOf("Yüksek Protein", "Az Malzemeli", "Salata") else listOf("High Protein", "Few Ingredients", "Salad"),
+            prepTimeMinutes = 14,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("150g Yağsız Dana Köfte", "1 Domates & 1 Salatalık", "1 Yeşil Biber & Maydanoz", "1 Tatlı Kaşığı Zeytinyağı & Limon")
+            } else {
+                listOf("150g Lean Beef Meatballs", "1 Tomato & 1 Cucumber", "1 Green Pepper & Parsley", "1 tsp Olive Oil & Lemon")
+            },
+            calories = 375,
+            proteinG = 30.0,
+            carbsG = 10.0,
+            fatG = 21.0,
+            fiberG = 3.8,
+            keyMicros = listOf(
+                Micronutrient(trEn("Demir", "Iron", language), 3.6, "mg"),
+                Micronutrient(trEn("B12 Vitamini", "Vitamin B12", language), 2.4, "µg"),
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 45.0, "mg")
+            ),
+            instructions = trEn(
+                "Köfteleri ızgara tavada pişirin. Küp doğranmış domates, salatalık, biber ve maydanozu limonla harmanlayıp yanında tüketin.",
+                "Grill meatballs in a pan. Toss diced tomato, cucumber, pepper, and parsley with lemon and serve alongside.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_chickpea_mediterranean_salad",
+            title = trEn("Zeytinyağlı Nohut & Yeşillik Salatası", "Mediterranean Chickpea Salad", language),
+            subtitle = trEn("Bitkisel Lif, Folat & Ferah Salata", "Plant Fiber, Folate & Fresh Salad", language),
+            tags = if (language == AppLanguage.TR) listOf("Hızlı (5 dk)", "Az Malzemeli", "Salata") else listOf("Quick (5 min)", "Few Ingredients", "Salad"),
+            prepTimeMinutes = 5,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("1 Su Bardağı Haşlanmış Nohut", "1 Salatalık & 1 Domates", "1 Avuç Maydanoz & Roka", "Limon & 1 Tatlı Kaşığı Zeytinyağı")
+            } else {
+                listOf("1 Cup Boiled Chickpeas", "1 Cucumber & 1 Tomato", "1 Handful Parsley & Arugula", "Lemon & 1 tsp Olive Oil")
+            },
+            calories = 295,
+            proteinG = 12.0,
+            carbsG = 36.0,
+            fatG = 10.0,
+            fiberG = 9.5,
+            keyMicros = listOf(
+                Micronutrient(trEn("Lif", "Fiber", language), 9.5, "g"),
+                Micronutrient(trEn("Demir", "Iron", language), 3.8, "mg"),
+                Micronutrient(trEn("Magnezyum", "Magnesium", language), 68.0, "mg"),
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 32.0, "mg")
+            ),
+            instructions = trEn(
+                "Haşlanmış nohudu doğranmış domates, salatalık ve yeşilliklerle karıştırıp limon ve zeytinyağı ekleyin.",
+                "Toss boiled chickpeas with diced tomato, cucumber, and greens; finish with lemon and olive oil.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_hummus_veggie_sticks",
+            title = trEn("Humus & Çıtır Sebze Çubukları", "Hummus & Crisp Veggie Sticks", language),
+            subtitle = trEn("Aç & Ye: Bitkisel Lif & Pratik Ara Öğün", "Ready-to-Eat: Plant Fiber & Crisp Snack", language),
+            tags = if (language == AppLanguage.TR) listOf("Aç & Ye", "Pişirmesiz", "Az Malzemeli") else listOf("Ready-to-Eat", "No-Cook", "Few Ingredients"),
+            prepTimeMinutes = 0,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("3 Yemek Kaşığı Humus", "1 Orta Havuç", "1 Salatalık", "1 Kırmızı Kapya Biber")
+            } else {
+                listOf("3 tbsp Hummus", "1 Medium Carrot", "1 Cucumber", "1 Red Bell Pepper")
+            },
+            calories = 210,
+            proteinG = 7.5,
+            carbsG = 24.0,
+            fatG = 9.0,
+            fiberG = 7.2,
+            keyMicros = listOf(
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 92.0, "mg"),
+                Micronutrient(trEn("Lif", "Fiber", language), 7.2, "g"),
+                Micronutrient(trEn("Demir", "Iron", language), 2.4, "mg")
+            ),
+            instructions = trEn(
+                "Havuç, salatalık ve kapya biberi uzun dilimleyip humusa batırarak anında tüketin.",
+                "Slice carrot, cucumber, and bell pepper into sticks and dip into hummus right away.",
+                language
+            )
+        ),
+        SmartMealSuggestion(
+            id = "meal_menemen",
+            title = trEn("Domatesli & Biberli Klasik Menemen", "Tomato & Pepper Scrambled Eggs", language),
+            subtitle = trEn("Likopen, C Vitamini & Sıcak Kahvaltı", "Lycopene, Vitamin C & Warm Breakfast", language),
+            tags = if (language == AppLanguage.TR) listOf("Hızlı (8 dk)", "Az Malzemeli", "Sıcak Öğün") else listOf("Quick (8 min)", "Few Ingredients", "Warm Meal"),
+            prepTimeMinutes = 8,
+            ingredients = if (language == AppLanguage.TR) {
+                listOf("2 Adet Yumurta", "2 Adet Domates", "2 Adet Yeşil Biber", "1 Tatlı Kaşığı Zeytinyağı")
+            } else {
+                listOf("2 Eggs", "2 Tomatoes", "2 Green Peppers", "1 tsp Olive Oil")
+            },
+            calories = 245,
+            proteinG = 14.0,
+            carbsG = 9.0,
+            fatG = 16.0,
+            fiberG = 2.8,
+            keyMicros = listOf(
+                Micronutrient(trEn("C Vitamini", "Vitamin C", language), 48.0, "mg"),
+                Micronutrient(trEn("Demir", "Iron", language), 2.2, "mg"),
+                Micronutrient(trEn("B12 Vitamini", "Vitamin B12", language), 1.1, "µg")
+            ),
+            instructions = trEn(
+                "Doğranmış biber ve domatesi zeytinyağında 4 dakika pişirin, yumurtaları kırıp karıştırarak servis edin.",
+                "Cook diced peppers and tomatoes in olive oil for 4 minutes, then fold in beaten eggs until softly set.",
+                language
+            )
         )
     )
 
@@ -268,6 +488,8 @@ object SmartMealEngine {
         excludeRecent3Days: Boolean = false,
         highProteinOnly: Boolean = false,
         fromUserDbOnly: Boolean = false,
+        excludedIngredients: Set<String> = emptySet(),
+        favoriteIngredients: Set<String> = emptySet(),
         language: AppLanguage = LocalizationManager.currentLanguage
     ): List<SmartMealSuggestion> {
         val fiberProgress = nutrientBars.firstOrNull { it.key == "fiber" }?.percentage ?: 0f
@@ -384,6 +606,14 @@ object SmartMealEngine {
 
         return candidatePool
             .filter { meal ->
+                if (excludedIngredients.isNotEmpty()) {
+                    val searchableText = listOfNotNull(meal.title, meal.subtitle, meal.instructions)
+                        .plus(meal.ingredients)
+                        .joinToString(" ")
+                    if (excludedIngredients.any { MealPreferencesCatalog.matchesText(searchableText, it) }) {
+                        return@filter false
+                    }
+                }
                 if (onlyQuick && meal.prepTimeMinutes > 10) return@filter false
                 if (onlyFewIngredients && meal.ingredients.size > 4) return@filter false
                 if (highProteinOnly && meal.proteinG < 20.0) return@filter false
@@ -398,7 +628,11 @@ object SmartMealEngine {
                                 (cleanEaten.contains("yulaf") || cleanEaten.contains("oat")) && (keyword.contains("yulaf") || keyword.contains("oat")) ||
                                 (cleanEaten.contains("ton balık") || cleanEaten.contains("tuna")) && (keyword.contains("ton balık") || keyword.contains("tuna")) ||
                                 (cleanEaten.contains("mercimek") || cleanEaten.contains("lentil")) && (keyword.contains("mercimek") || keyword.contains("lentil")) ||
-                                (cleanEaten.contains("yoğurt") || cleanEaten.contains("yogurt")) && (keyword.contains("yoğurt") || keyword.contains("yogurt"))
+                                (cleanEaten.contains("yoğurt") || cleanEaten.contains("yogurt")) && (keyword.contains("yoğurt") || keyword.contains("yogurt")) ||
+                                (cleanEaten.contains("somon") || cleanEaten.contains("salmon")) && (keyword.contains("somon") || keyword.contains("salmon")) ||
+                                (cleanEaten.contains("köfte") || cleanEaten.contains("meatball")) && (keyword.contains("köfte") || keyword.contains("meatball")) ||
+                                (cleanEaten.contains("nohut") || cleanEaten.contains("chickpea")) && (keyword.contains("nohut") || keyword.contains("chickpea")) ||
+                                (cleanEaten.contains("avokado") || cleanEaten.contains("avocado")) && (keyword.contains("avokado") || keyword.contains("avocado"))
                         }
                     }
                     if (hasEatenRecently) return@filter false
@@ -406,8 +640,27 @@ object SmartMealEngine {
 
                 true
             }
-            .sortedByDescending { meal ->
+            .map { meal ->
+                if (favoriteIngredients.isEmpty()) {
+                    Triple(meal, 0, 0)
+                } else {
+                    val favSearchable = (listOf(meal.title) + meal.ingredients).joinToString(" ")
+                    val matchedKeys = favoriteIngredients.filter { favKey ->
+                        MealPreferencesCatalog.matchesText(favSearchable, favKey)
+                    }
+                    val titleMatchCount = matchedKeys.count { favKey ->
+                        MealPreferencesCatalog.matchesText(meal.title, favKey)
+                    }
+                    val labels = matchedKeys.map { MealPreferencesCatalog.localizedLabel(it, language) }.distinct()
+                    Triple(meal.copy(matchedFavorites = labels), matchedKeys.size, titleMatchCount)
+                }
+            }
+            .sortedByDescending { (meal, matchedCount, titleMatchCount) ->
                 var score = 0.0
+                if (matchedCount > 0) {
+                    // Ensure favorite-matched meals consistently outrank non-favorite meals and multi-favorite matches lead
+                    score += matchedCount * 160.0 + titleMatchCount * 45.0
+                }
                 if (meal.tags.any { it.contains("(DB)") }) {
                     score += 50.0
                 }
@@ -422,6 +675,7 @@ object SmartMealEngine {
                 }
                 score
             }
+            .map { (meal, _, _) -> meal }
     }
 
     fun detectSynergyTips(

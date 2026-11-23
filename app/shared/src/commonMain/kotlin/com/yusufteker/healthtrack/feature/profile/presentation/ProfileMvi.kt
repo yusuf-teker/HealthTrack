@@ -34,6 +34,10 @@ data class ProfileState(
     val foodReminderEnabled: Boolean = true,
     val isAutoDeviceSyncEnabled: Boolean = true,
     val hasConnectedDevice: Boolean = false,
+    val isHuaweiConnected: Boolean = false,
+    val isHuaweiNeedsReauth: Boolean = false,
+    val isHuaweiBusy: Boolean = false,
+    val lastHuaweiSyncSummary: String? = null,
     val isDarkMode: Boolean = true,
     val themeAccent: AppThemeColor = AppThemeColor.OCEAN,
     val language: AppLanguage = LocalizationManager.currentLanguage,
@@ -111,6 +115,11 @@ sealed interface ProfileIntent {
     data object OnSyncClicked : ProfileIntent
     data object OnDeviceSyncStarted : ProfileIntent
     data class OnDeviceSnapshotReceived(val result: Result<DeviceHealthSnapshot>) : ProfileIntent
+    data object OnConnectHuaweiClicked : ProfileIntent
+    data object OnSyncHuaweiClicked : ProfileIntent
+    data object OnDisconnectHuaweiClicked : ProfileIntent
+    data class OnHuaweiOAuthCallback(val status: String, val reason: String? = null) : ProfileIntent
+    data object OnRefreshHuaweiStatus : ProfileIntent
     data object OnLogoutClicked : ProfileIntent
     data object OnDeleteAccountConfirmed : ProfileIntent
     data object OnSaveProfileClicked : ProfileIntent
@@ -129,6 +138,7 @@ sealed interface ProfileIntent {
 
 sealed interface ProfileEffect {
     data class ShowToast(val message: String) : ProfileEffect
+    data class OpenExternalUrl(val url: String) : ProfileEffect
     data object NavigateBack : ProfileEffect
     data object LoggedOut : ProfileEffect
 }

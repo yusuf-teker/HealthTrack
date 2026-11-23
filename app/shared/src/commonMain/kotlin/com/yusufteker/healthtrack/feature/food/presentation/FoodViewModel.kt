@@ -143,6 +143,12 @@ class FoodViewModel(
                 .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
                     if (session.hasActiveSession && session.userId != 0) {
+                        _state.update {
+                            it.copy(
+                                excludedIngredients = tokenStorage.getExcludedFoodIngredients(session.userId),
+                                favoriteIngredients = tokenStorage.getFavoriteFoodIngredients(session.userId)
+                            )
+                        }
                         cachedWeights = database.getWeights(session.userId)
                         observeDataForCurrentDate(session.userId, _state.value.selectedDate)
                         observeGoal(session.userId)
@@ -293,6 +299,10 @@ class FoodViewModel(
                 cachedAiRecipe = null
                 _state.update { it.copy(latestAiRecipe = null) }
             }
+            is FoodIntent.OnToggleExcludedIngredient -> updateExcludedIngredient(intent.ingredient, toggle = true)
+            is FoodIntent.OnAddCustomExcludedIngredient -> updateExcludedIngredient(intent.ingredient, toggle = false)
+            is FoodIntent.OnToggleFavoriteIngredient -> updateFavoriteIngredient(intent.ingredient, toggle = true)
+            is FoodIntent.OnAddCustomFavoriteIngredient -> updateFavoriteIngredient(intent.ingredient, toggle = false)
 
             // ── 2.B: Besin Sinerjisi & Emilim ──
             is FoodIntent.OnDismissSynergyTip -> {
@@ -417,6 +427,8 @@ class FoodViewModel(
                     goal = goal,
                     fitnessGoal = fitnessGoal,
                     userWeightKg = effectiveWeight,
+                    excludedIngredients = _state.value.excludedIngredients,
+                    favoriteIngredients = _state.value.favoriteIngredients,
                     language = lang
                 )
 
@@ -1321,6 +1333,80 @@ class FoodViewModel(
 
     private var cachedAiRecipe: SmartMealSuggestion? = null
 
+    private fun updateExcludedIngredient(raw: String, toggle: Boolean) {
+        val key = MealPreferencesCatalog.normalizeKey(raw, MealPreferencesCatalog.allergyPresets)
+        if (key.isBlank()) return
+        val userId = tokenStorage.getUserId()
+
+        _state.update { current ->
+            val wasPresent = key in current.excludedIngredients
+            val newExcluded = if (toggle && wasPresent) {
+                current.excludedIngredients - key
+            } else {
+                current.excludedIngredients + key
+            }
+            val addedNow = key in newExcluded && !wasPresent
+            val newFavorites = if (addedNow) {
+                current.favoriteIngredients - MealPreferencesCatalog.conflictingFavoritesForExcluded(key)
+            } else {
+                current.favoriteIngredients
+            }
+
+            if (addedNow && cachedAiRecipe != null) {
+                val aiText = listOfNotNull(cachedAiRecipe?.title, cachedAiRecipe?.subtitle, cachedAiRecipe?.instructions)
+                    .plus(cachedAiRecipe?.ingredients.orEmpty())
+                    .joinToString(" ")
+                if (MealPreferencesCatalog.matchesText(aiText, key)) {
+                    cachedAiRecipe = null
+                }
+            }
+
+            if (userId != 0) {
+                tokenStorage.setExcludedFoodIngredients(newExcluded, userId)
+                tokenStorage.setFavoriteFoodIngredients(newFavorites, userId)
+            }
+
+            current.copy(
+                excludedIngredients = newExcluded,
+                favoriteIngredients = newFavorites,
+                latestAiRecipe = cachedAiRecipe
+            )
+        }
+        updateSmartMealsAndSynergy()
+    }
+
+    private fun updateFavoriteIngredient(raw: String, toggle: Boolean) {
+        val key = MealPreferencesCatalog.normalizeKey(raw, MealPreferencesCatalog.favoritePresets)
+        if (key.isBlank()) return
+        val userId = tokenStorage.getUserId()
+
+        _state.update { current ->
+            val wasPresent = key in current.favoriteIngredients
+            val newFavorites = if (toggle && wasPresent) {
+                current.favoriteIngredients - key
+            } else {
+                current.favoriteIngredients + key
+            }
+            val addedNow = key in newFavorites && !wasPresent
+            val newExcluded = if (addedNow) {
+                current.excludedIngredients - MealPreferencesCatalog.conflictingExcludesForFavorite(key)
+            } else {
+                current.excludedIngredients
+            }
+
+            if (userId != 0) {
+                tokenStorage.setFavoriteFoodIngredients(newFavorites, userId)
+                tokenStorage.setExcludedFoodIngredients(newExcluded, userId)
+            }
+
+            current.copy(
+                excludedIngredients = newExcluded,
+                favoriteIngredients = newFavorites
+            )
+        }
+        updateSmartMealsAndSynergy()
+    }
+
     private fun updateSmartMealsAndSynergy() {
         val current = _state.value
         val lang = LocalizationManager.currentLanguage
@@ -1339,14 +1425,10 @@ class FoodViewModel(
             excludeRecent3Days = current.isSmartMealExcludeRecent3Days,
             highProteinOnly = current.isSmartMealHighProtein,
             fromUserDbOnly = current.isSmartMealFromUserDb,
+            excludedIngredients = current.excludedIngredients,
+            favoriteIngredients = current.favoriteIngredients,
             language = lang
         )
-
-        val combinedSuggestions = if (cachedAiRecipe != null) {
-            listOf(cachedAiRecipe!!) + suggestions.filterNot { it.id == cachedAiRecipe!!.id }
-        } else {
-            suggestions
-        }
 
         val tips = SmartMealEngine.detectSynergyTips(
             todayItems = current.items,
@@ -1357,7 +1439,7 @@ class FoodViewModel(
 
         _state.update {
             it.copy(
-                smartMealSuggestions = combinedSuggestions,
+                smartMealSuggestions = suggestions,
                 latestAiRecipe = cachedAiRecipe,
                 synergyTips = tips
             )
@@ -1414,11 +1496,20 @@ class FoodViewModel(
         val userDbItems = (current.customFoods.map { "${it.name} (${it.portionUnit})" } +
             current.frequentFoods.map { "${it.name} (${it.formattedPortion})" }).distinct().take(10)
 
+        val excludedLabels = current.excludedIngredients.map { MealPreferencesCatalog.localizedLabel(it, lang) }
+        val favoriteLabels = current.favoriteIngredients.map { MealPreferencesCatalog.localizedLabel(it, lang) }
+
         val prompt = buildString {
             if (lang == AppLanguage.EN) {
                 append("For my remaining calories ($remainingCals kcal) and missing protein (${missingProtein.toInt()}g), ")
                 if (current.isSmartMealOnlyQuick) append("taking under 10 minutes to prepare, ")
                 if (current.isSmartMealOnlyFewIngredients) append("with at most 4 ingredients, ")
+                if (excludedLabels.isNotEmpty()) {
+                    append("STRICTLY EXCLUDING any of these allergens/disliked ingredients: [${excludedLabels.joinToString(", ")}], ")
+                }
+                if (favoriteLabels.isNotEmpty()) {
+                    append("strongly prioritizing these favorite ingredients: [${favoriteLabels.joinToString(", ")}], ")
+                }
                 if (current.isSmartMealExcludeRecent3Days && cachedRecent3DaysFoodNames.isNotEmpty()) {
                     append("excluding ingredients I ate in the last 3 days (${cachedRecent3DaysFoodNames.take(4).joinToString(", ")}), ")
                 }
@@ -1434,6 +1525,12 @@ class FoodViewModel(
                 append("Bana kalan kalori ($remainingCals kcal) ve eksik protein (${missingProtein.toInt()}g) için ")
                 if (current.isSmartMealOnlyQuick) append("10 dakikadan kısa sürede hazırlanan, ")
                 if (current.isSmartMealOnlyFewIngredients) append("en fazla 4 malzemeli, ")
+                if (excludedLabels.isNotEmpty()) {
+                    append("KESİNLİKLE şu alerjen veya tüketmediğim malzemeleri İÇERMEYEN: [${excludedLabels.joinToString(", ")}], ")
+                }
+                if (favoriteLabels.isNotEmpty()) {
+                    append("öncelikli olarak şu favori malzemeleri içeren: [${favoriteLabels.joinToString(", ")}], ")
+                }
                 if (current.isSmartMealExcludeRecent3Days && cachedRecent3DaysFoodNames.isNotEmpty()) {
                     append("son 3 günde yediğim (${cachedRecent3DaysFoodNames.take(4).joinToString(", ")}) dışındaki malzemelerle ")
                 }
@@ -1500,12 +1597,9 @@ class FoodViewModel(
                 cachedAiRecipe = customSuggestion
 
                 _state.update { st ->
-                    val updatedSuggestions = listOf(customSuggestion) +
-                        st.smartMealSuggestions.filterNot { it.id == customSuggestion.id }
                     st.copy(
                         isGeneratingAiCustomRecipe = false,
                         latestAiRecipe = customSuggestion,
-                        smartMealSuggestions = updatedSuggestions,
                         infoMessage = trEn(
                             "✨ \"$recipeTitle\" tarifi başarıyla hazırlandı!",
                             "✨ \"$recipeTitle\" recipe is ready!"
