@@ -7,80 +7,22 @@
     android:orientation="vertical"
     android:padding="12dp">
 
-    <!-- Top Header Row -->
+    <!-- ==================== PAGE 0: SUMMARY / TELEMETRY ==================== -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/widget_brand_pod"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:background="@drawable/bg_widget_brand_pod"
-            android:gravity="center"
-            android:text="H"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/widget_brand_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="HealthTrack"
-            android:textColor="#F8FAFC"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/widget_burned_chip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="6dp"
-            android:text="🔥 360 kcal"
-            android:textColor="#FB923C"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/widget_streak_pill"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_widget_pill_streak"
-            android:paddingStart="7dp"
-            android:paddingTop="2dp"
-            android:paddingEnd="7dp"
-            android:paddingBottom="2dp"
-            android:text="⚡ 7g"
-            android:textColor="#FBBF24"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Main Telemetry Body -->
-    <LinearLayout
+        android:id="@+id/widget_page_summary"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Left: Calorie Progress Ring Bitmap -->
         <ImageView
             android:id="@+id/widget_calorie_ring"
-            android:layout_width="86dp"
-            android:layout_height="86dp"
+            android:layout_width="90dp"
+            android:layout_height="90dp"
             android:contentDescription="Calorie Telemetry Ring"
             android:scaleType="fitCenter" />
 
-        <!-- Right: Macros & Hydration -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -132,7 +74,7 @@
                 android:id="@+id/widget_macro_carbs_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="5dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -172,7 +114,7 @@
                 android:id="@+id/widget_macro_fat_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="5dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -207,11 +149,11 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Hydration Bar + Interactive +250ml Button -->
+            <!-- Hydration Bar + +250ml Button -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="7dp"
+                android:layout_marginTop="8dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -261,63 +203,350 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Bottom Quick Shortcuts Row -->
+    <!-- ==================== PAGE 1: AI FOOD QUICK-ADD ==================== -->
     <LinearLayout
-        android:id="@+id/widget_actions_row"
+        android:id="@+id/widget_page_ai_food"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_ai_food_input_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_widget_input_dark"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingTop="11dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="11dp"
+            android:text="Ne yedin? Örn: 2 yumurta, 1 dilim ekmek..."
+            android:textColor="#CBD5E1"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widget_ai_food_cta_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_widget_btn_primary"
+            android:gravity="center"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="✨ AI ile Hesapla &amp; Öğüne Ekle"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_ai_food_kcal_summary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Bugün: 1480 / 2150 kcal"
+                android:textColor="#94A3B8"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_ai_food_manual_link"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+ Manuel Ekle"
+                android:textColor="#06D6A0"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ==================== PAGE 2: WORKOUT QUICK-LOG ==================== -->
+    <LinearLayout
+        android:id="@+id/widget_page_workout"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_workout_ai_input_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_widget_input_dark"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingTop="11dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="11dp"
+            android:text="Spor yaz (AI hesaplar) • 🔥 360 kcal"
+            android:textColor="#CBD5E1"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_workout_preset_run"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_orange"
+                android:gravity="center"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="30dk Koşu\n-310 kcal"
+                android:textColor="#FB923C"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_workout_preset_gym"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_orange"
+                android:gravity="center"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="45dk Fitness\n-260 kcal"
+                android:textColor="#FB923C"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_workout_preset_walk"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_orange"
+                android:gravity="center"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="30dk Yürüyüş\n-150 kcal"
+                android:textColor="#FB923C"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ==================== PAGE 3: WEIGHT STEPPER & SAVE ==================== -->
+    <LinearLayout
+        android:id="@+id/widget_page_weight"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_weight_value_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="74.2 kg"
+                android:textColor="#F8FAFC"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_weight_target_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:gravity="end"
+                android:maxLines="1"
+                android:text="Hedef: 71.0 kg"
+                android:textColor="#C084FC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_weight_minus_05"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_action"
+                android:gravity="center"
+                android:paddingTop="9dp"
+                android:paddingBottom="9dp"
+                android:text="-0.5"
+                android:textColor="#F8FAFC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_weight_minus_01"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_action"
+                android:gravity="center"
+                android:paddingTop="9dp"
+                android:paddingBottom="9dp"
+                android:text="-0.1"
+                android:textColor="#F8FAFC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_weight_plus_01"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_action"
+                android:gravity="center"
+                android:paddingTop="9dp"
+                android:paddingBottom="9dp"
+                android:text="+0.1"
+                android:textColor="#F8FAFC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_weight_plus_05"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_widget_pill_action"
+                android:gravity="center"
+                android:paddingTop="9dp"
+                android:paddingBottom="9dp"
+                android:text="+0.5"
+                android:textColor="#F8FAFC"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_weight_save_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:background="@drawable/bg_widget_btn_purple"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="9dp"
+                android:text="✓ Kaydet"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ==================== PERSISTENT 4-PAGE BOTTOM NAV BAR ==================== -->
+    <LinearLayout
+        android:id="@+id/widget_bottom_nav_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/widget_action_add_food"
+            android:id="@+id/widget_nav_summary"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_widget_tab_active"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:text="Özet"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_nav_ai_food"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_widget_pill_action"
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="1"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:text="+ Öğün"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:text="AI Öğün"
             android:textColor="#38BDF8"
             android:textSize="11sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/widget_action_workout"
+            android:id="@+id/widget_nav_workout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_widget_pill_action"
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="1"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
             android:text="Spor"
             android:textColor="#FB923C"
             android:textSize="11sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/widget_action_weight"
+            android:id="@+id/widget_nav_weight"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_widget_pill_action"
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="1"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:text="Tartım"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:text="Kilo"
             android:textColor="#C084FC"
             android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>
-

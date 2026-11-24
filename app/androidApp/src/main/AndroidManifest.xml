@@ -98,7 +98,16 @@
             </intent-filter>
         </receiver>
 
-        <!-- Home Screen Bio-Telemetry Widget (4x2 Responsive) -->
+        <!-- Transparent Floating Quick-Input Dialog Activity for Home Screen Widgets -->
+        <activity
+            android:name="com.yusufteker.healthtrack.widget.WidgetQuickLogActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.HealthTrack.WidgetQuickLog"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
+        <!-- Home Screen Bio-Telemetry Widget (4x2 Responsive, 4-Page Interactive Hub) -->
         <receiver
             android:name="com.yusufteker.healthtrack.widget.HealthTrackTelemetryWidgetProvider"
             android:exported="true"
@@ -106,6 +115,11 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.yusufteker.healthtrack.widget.ACTION_ADD_WATER" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_CYCLE_PAGE" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_SET_PAGE" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_QUICK_WORKOUT" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_ADJUST_WEIGHT" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_SAVE_WEIGHT" />
                 <action android:name="android.intent.action.DATE_CHANGED" />
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
@@ -131,6 +145,57 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/healthtrack_hydration_widget_info" />
+        </receiver>
+
+        <!-- Home Screen Standalone AI Meal Widget (Stackable) -->
+        <receiver
+            android:name="com.yusufteker.healthtrack.widget.HealthTrackAiFoodWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_ai_food_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_MIDNIGHT_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/healthtrack_ai_food_widget_info" />
+        </receiver>
+
+        <!-- Home Screen Standalone Quick Workout Widget (Stackable) -->
+        <receiver
+            android:name="com.yusufteker.healthtrack.widget.HealthTrackWorkoutWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_workout_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_MIDNIGHT_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/healthtrack_workout_widget_info" />
+        </receiver>
+
+        <!-- Home Screen Standalone Quick Weight Widget (Stackable) -->
+        <receiver
+            android:name="com.yusufteker.healthtrack.widget.HealthTrackWeightWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_weight_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="com.yusufteker.healthtrack.widget.ACTION_MIDNIGHT_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/healthtrack_weight_widget_info" />
         </receiver>
 
         <receiver

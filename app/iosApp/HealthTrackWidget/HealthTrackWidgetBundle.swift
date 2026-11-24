@@ -5,6 +5,8 @@ import SwiftUI
 struct HealthTrackWidgetBundle: WidgetBundle {
     var body: some Widget {
         HealthTrackTelemetryWidget()
+        HealthTrackAiFoodWidget()
+        HealthTrackWorkoutWidget()
+        HealthTrackWeightWidget()
     }
 }
-

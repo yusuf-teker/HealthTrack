@@ -48,6 +48,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.yusufteker.healthtrack.core.model.HealthPlatformStatus
 import com.yusufteker.healthtrack.core.model.WeightChartMetric
 import com.yusufteker.healthtrack.core.model.WeightEntry
+import androidx.compose.runtime.collectAsState
 import com.yusufteker.healthtrack.core.utils.BodyCompositionCalculator
 import com.yusufteker.healthtrack.core.utils.formatDisplayDateTr
 import com.yusufteker.healthtrack.core.utils.rememberBleScaleBridge

@@ -5,10 +5,28 @@ import com.yusufteker.healthtrack.core.model.WidgetTelemetrySnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class PendingWidgetWorkout(
+    val dateIso: String,
+    val rawText: String,
+    val durationMinutes: Int,
+    val caloriesBurned: Int,
+    val createdAtMs: Long = 0L
+)
+
+@Serializable
+data class PendingWidgetWeight(
+    val dateIso: String,
+    val weightKg: Double,
+    val createdAtMs: Long = 0L
+)
 
 data class WidgetDeepLinkTarget(
     val tabName: String,
-    val action: String? = null
+    val action: String? = null,
+    val eventId: Long = currentTimeMillis()
 )
 
 /**
@@ -17,11 +35,14 @@ data class WidgetDeepLinkTarget(
 object WidgetDeepLinkBus {
     private val _pendingTarget = MutableStateFlow<WidgetDeepLinkTarget?>(null)
     val pendingTarget: StateFlow<WidgetDeepLinkTarget?> = _pendingTarget.asStateFlow()
+    private var nextEventSeq: Long = 0L
 
     fun emit(tabName: String, action: String? = null) {
+        nextEventSeq += 1L
         _pendingTarget.value = WidgetDeepLinkTarget(
             tabName = tabName.uppercase(),
-            action = action?.lowercase()?.takeIf { it.isNotBlank() }
+            action = action?.lowercase()?.takeIf { it.isNotBlank() },
+            eventId = currentTimeMillis() * 1000L + (nextEventSeq % 1000L)
         )
     }
 
@@ -171,6 +192,16 @@ interface WidgetBridge {
      * Consumes any interactive water increments triggered directly from the widget while the app was inactive.
      */
     fun consumePendingWaterDeltaMl(dateIso: String): Int
+
+    /**
+     * Consumes any quick workout logs triggered directly from the widget while the app was inactive (e.g. iOS AppIntents).
+     */
+    fun consumePendingWorkouts(): List<PendingWidgetWorkout> = emptyList()
+
+    /**
+     * Consumes any quick weight logs triggered directly from the widget while the app was inactive (e.g. iOS AppIntents).
+     */
+    fun consumePendingWeights(): List<PendingWidgetWeight> = emptyList()
 
     /**
      * Requests OS-level widget addition (Android 8.0+ pin dialog) or reports whether manual guide should be shown.

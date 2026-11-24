@@ -32,6 +32,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -120,6 +123,8 @@ fun WorkoutScreen(
     val markedWorkoutDates = remember(state.allWorkouts) {
         state.allWorkouts.map { it.date }.toSet()
     }
+
+    val workoutAiFocusRequester = remember { FocusRequester() }
 
     // Auto-sync watch & workouts silently on screen entry if permissions are already authorized
     LaunchedEffect(Unit) {
@@ -431,6 +436,7 @@ fun WorkoutScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(workoutAiFocusRequester)
                         .spotlightTarget(SpotlightTargetId.WORKOUT_INPUT_FIELD),
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(

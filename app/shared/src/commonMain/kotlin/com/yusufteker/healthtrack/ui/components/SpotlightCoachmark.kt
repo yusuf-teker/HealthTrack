@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -228,6 +229,7 @@ fun SpotlightOverlay(
     onPrimaryAction: () -> Unit,
     onSecondarySkip: () -> Unit,
     onBack: () -> Unit,
+    allowCutoutInteraction: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -355,9 +357,27 @@ fun SpotlightOverlay(
             }
         }
 
-        // 2. Four Non-Overlapping Touch-Guard Regions Around the Cutout
-        // Inside the cutout, touches pass 100% natively to the underlying TextField / Button!
-        if (hasCutout && overlaySize.width > 0 && overlaySize.height > 0) {
+        // 2. Touch & Scroll Guard Layer
+        // When allowCutoutInteraction is false (default for guided onboarding), block ALL taps and drags/scrolls
+        // on the underlying screen (including inside the cutout) so only the Coachmark Bubble CTA buttons work.
+        if (!allowCutoutInteraction) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(controller) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                val hasDown = event.changes.any { it.pressed && !it.previousPressed }
+                                event.changes.forEach { it.consume() }
+                                if (hasDown) {
+                                    controller.triggerPulse()
+                                }
+                            }
+                        }
+                    }
+            )
+        } else if (hasCutout && overlaySize.width > 0 && overlaySize.height > 0) {
             val wPx = overlaySize.width.toFloat()
             val hPx = overlaySize.height.toFloat()
             val cLeft = animLeft.coerceIn(0f, wPx)
@@ -406,11 +426,18 @@ fun SpotlightOverlay(
                 )
             }
         } else {
-            // While waiting a frame for target measurement, block stray taps
+            // While waiting a frame for target measurement, block stray taps & drags
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) { detectTapGestures { } }
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    }
             )
         }
 
@@ -489,7 +516,16 @@ private fun TouchBlockerRegion(
             .offset { IntOffset(x, y) }
             .size(width = widthDp, height = heightDp)
             .pointerInput(Unit) {
-                detectTapGestures { onTap() }
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val hasDown = event.changes.any { it.pressed && !it.previousPressed }
+                        event.changes.forEach { it.consume() }
+                        if (hasDown) {
+                            onTap()
+                        }
+                    }
+                }
             }
     )
 }

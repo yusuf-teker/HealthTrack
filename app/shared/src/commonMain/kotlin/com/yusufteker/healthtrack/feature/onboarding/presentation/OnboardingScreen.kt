@@ -69,6 +69,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -205,9 +207,24 @@ fun OnboardingScreen(
                         targetId = state.microStep.targetId,
                         preferTopScroll = state.microStep.preferTopScroll,
                         bubbleSpec = bubbleSpec,
+                        allowCutoutInteraction = false,
                         onPrimaryAction = { onIntent(OnboardingIntent.OnPrimaryBubbleAction) },
                         onSecondarySkip = { onIntent(OnboardingIntent.OnNextStep) },
                         onBack = { onIntent(OnboardingIntent.OnPreviousStep) }
+                    )
+                } else if (state.foodState.isCalculatingAi) {
+                    // Keep underlying screen locked while demo AI calculation animation runs
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
                     )
                 }
             }
@@ -263,7 +280,6 @@ private fun OnboardingTopBar(
                                     .width(pillWidth)
                                     .clip(CircleShape)
                                     .background(pillColor)
-                                    .clickable { onGoToStep(step) }
                             )
                         }
                     }
@@ -307,7 +323,16 @@ private fun OnboardingBottomNavBar(
     lang: AppLanguage,
     onSelectStep: (OnboardingStep) -> Unit
 ) {
-    Column {
+    Column(
+        modifier = Modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    event.changes.forEach { it.consume() }
+                }
+            }
+        }
+    ) {
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
             thickness = 0.5.dp
@@ -368,8 +393,8 @@ private fun buildBubbleSpec(
                 badge = trEn("1/4 • BESLENME", "1/4 • NUTRITION", lang),
                 title = trEn("Öğününü Yaz", "Type Your Meal", lang),
                 description = trEn(
-                    "Kutuya yazabilir ya da tek dokunuşla örnek öğünü doldurabilirsin.",
-                    "Type your meal in the box or fill a sample meal below."
+                    "Tek dokunuşla örnek öğünü doldur ve AI analizini dene.",
+                    "Tap the button below to fill a sample meal and try AI analysis."
                 ),
                 primaryActionLabel = when {
                     isTyping -> trEn("Yazılıyor...", "Typing...", lang)
@@ -474,8 +499,8 @@ private fun buildBubbleSpec(
             badge = trEn("3/4 • KİLO", "3/4 • WEIGHT", lang),
             title = trEn("Tartım Ekle", "Log Weigh-in", lang),
             description = trEn(
-                "Kendi kilonu gir veya 72.1 kg örnek ölçümünü ekle.",
-                "Enter your weight or log a 72.1 kg sample weigh-in."
+                "Aşağıdaki butona dokunarak 72.1 kg örnek ölçümünü ekle.",
+                "Tap the button below to log a 72.1 kg sample weigh-in."
             ),
             primaryActionLabel = trEn("72.1 kg Ekle", "Log 72.1 kg", lang),
             secondarySkipLabel = trEn("Atla", "Skip", lang),

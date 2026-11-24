@@ -69,6 +69,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -150,8 +152,9 @@ fun FoodScreen(
         if (state.isCalculatingAi || state.isAiReviewSheetOpen) dismissKeyboard()
     }
 
+    val aiInputFocusRequester = remember { FocusRequester() }
     val pendingDeepLink by WidgetDeepLinkBus.pendingTarget.collectAsState()
-    LaunchedEffect(pendingDeepLink) {
+    LaunchedEffect(pendingDeepLink?.eventId) {
         if (WidgetDeepLinkBus.consumeAction("add_food")) {
             showManualAddSheet = true
         }
@@ -410,6 +413,7 @@ fun FoodScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusRequester(aiInputFocusRequester)
                             .spotlightTarget(SpotlightTargetId.FOOD_INPUT_FIELD),
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(

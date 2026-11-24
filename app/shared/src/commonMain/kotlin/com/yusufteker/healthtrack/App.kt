@@ -42,8 +42,11 @@ import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.DeviceWeightRecord
 import com.yusufteker.healthtrack.core.model.GamificationSummary
 import com.yusufteker.healthtrack.core.model.PushTokenBus
+import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.UpdateStatus
+import com.yusufteker.healthtrack.core.model.WeightEntry
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
+import com.yusufteker.healthtrack.core.model.WorkoutLog
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.model.toDeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.network.HealthApiClient
@@ -96,6 +99,8 @@ import com.yusufteker.healthtrack.ui.components.MotivationalToastHost
 import com.yusufteker.healthtrack.ui.components.NotificationPermissionDialog
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
 import com.yusufteker.healthtrack.ui.components.WidgetPromoDialog
+import com.yusufteker.healthtrack.ui.components.WidgetQuickLogMode
+import com.yusufteker.healthtrack.ui.components.WidgetQuickLogSheetOverlay
 import com.yusufteker.healthtrack.ui.components.bounceClick
 import com.yusufteker.healthtrack.ui.components.clearFocusOnTap
 import androidx.lifecycle.Lifecycle
@@ -415,8 +420,9 @@ private fun AppContent(initialTab: HealthTab) {
             }
 
             // Handle deep links emitted from Home Screen Widgets (e.g. + Öğün, Spor, Tartım)
+            var widgetQuickLogMode by remember { mutableStateOf<WidgetQuickLogMode?>(null) }
             val pendingDeepLink by WidgetDeepLinkBus.pendingTarget.collectAsState()
-            LaunchedEffect(pendingDeepLink, session.hasActiveSession, isOnboardingVisible) {
+            LaunchedEffect(pendingDeepLink?.eventId, session.hasActiveSession, isOnboardingVisible) {
                 val target = pendingDeepLink ?: return@LaunchedEffect
                 if (!session.hasActiveSession || isOnboardingVisible) return@LaunchedEffect
                 isProfileScreenOpen = false
@@ -434,9 +440,25 @@ private fun AppContent(initialTab: HealthTab) {
                     "ANALYTICS" -> HealthTab.ANALYTICS
                     else -> HealthTab.FOOD
                 }
-                pagerState.animateScrollToPage(targetTab.ordinal)
-                if (target.action == null) {
-                    WidgetDeepLinkBus.clearTarget()
+                // Use immediate scrollToPage so HorizontalPager never freezes mid-swipe when a screen consumes the deep link
+                pagerState.scrollToPage(targetTab.ordinal)
+                when (target.action) {
+                    "ai_quick_add" -> {
+                        WidgetDeepLinkBus.clearTarget()
+                        widgetQuickLogMode = WidgetQuickLogMode.AI_FOOD
+                    }
+                    "add_workout" -> {
+                        WidgetDeepLinkBus.clearTarget()
+                        widgetQuickLogMode = WidgetQuickLogMode.AI_WORKOUT
+                    }
+                    "add_weight" -> {
+                        WidgetDeepLinkBus.clearTarget()
+                        widgetQuickLogMode = WidgetQuickLogMode.WEIGHT
+                    }
+                    null -> {
+                        WidgetDeepLinkBus.clearTarget()
+                    }
+                    // Other actions (e.g. "add_food" manual sheet) are consumed by the destination screen
                 }
             }
 
@@ -487,10 +509,50 @@ private fun AppContent(initialTab: HealthTab) {
                 if (session.hasActiveSession && session.userId != 0) {
                     val today = getTodayIso()
                     val pendingWaterMl = widgetBridge.consumePendingWaterDeltaMl(today)
-                    if (pendingWaterMl > 0) {
+                    val pendingWorkouts = widgetBridge.consumePendingWorkouts()
+                    val pendingWeights = widgetBridge.consumePendingWeights()
+                    if (pendingWaterMl > 0 || pendingWorkouts.isNotEmpty() || pendingWeights.isNotEmpty()) {
                         coroutineScope.launch {
-                            val currentTarget = widgetSnapshotBuilder.buildTodaySnapshot(session.userId, today).waterTargetMl
-                            database.addWater(session.userId, today, pendingWaterMl, currentTarget)
+                            val nowMs = currentTimeMillis()
+                            if (pendingWaterMl > 0) {
+                                val currentTarget = widgetSnapshotBuilder.buildTodaySnapshot(session.userId, today).waterTargetMl
+                                database.addWater(session.userId, today, pendingWaterMl, currentTarget)
+                            }
+                            pendingWorkouts.forEachIndexed { idx, item ->
+                                val ts = item.createdAtMs.takeIf { it > 0L } ?: (nowMs + idx)
+                                val entryDate = item.dateIso.ifBlank { today }
+                                database.upsertWorkout(
+                                    WorkoutLog(
+                                        id = "widget_workout_${session.userId}_${ts}_$idx",
+                                        userId = session.userId,
+                                        date = entryDate,
+                                        rawText = item.rawText,
+                                        caloriesBurned = item.caloriesBurned.coerceAtLeast(0),
+                                        durationMinutes = item.durationMinutes.coerceAtLeast(0),
+                                        createdAt = ts,
+                                        updatedAt = ts,
+                                        syncStatus = SyncStatus.PENDING
+                                    )
+                                )
+                            }
+                            pendingWeights.forEachIndexed { idx, item ->
+                                val ts = item.createdAtMs.takeIf { it > 0L } ?: (nowMs + idx)
+                                val entryDate = item.dateIso.ifBlank { today }
+                                database.upsertWeight(
+                                    WeightEntry(
+                                        id = "widget_weight_${session.userId}_${entryDate}_$ts",
+                                        userId = session.userId,
+                                        date = entryDate,
+                                        weightKg = item.weightKg,
+                                        createdAt = ts,
+                                        updatedAt = ts,
+                                        syncStatus = SyncStatus.PENDING
+                                    )
+                                )
+                            }
+                            val refreshed = widgetSnapshotBuilder.buildTodaySnapshot(session.userId, today)
+                            widgetBridge.updateSnapshot(refreshed)
+                            runCatching { syncEngine.sync() }
                         }
                     }
                     widgetBridge.checkWidgetInstalled { installed ->
@@ -1330,6 +1392,30 @@ private fun AppContent(initialTab: HealthTab) {
                                     currentLanguage
                                 )
                             )
+                        }
+                    )
+                }
+
+                // In-app Quick Log Sheet triggered from Home Screen Widgets (instant focused keyboard input on iOS)
+                val activeQuickLogMode = widgetQuickLogMode
+                if (activeQuickLogMode != null && session.hasActiveSession && !isOnboardingVisible) {
+                    WidgetQuickLogSheetOverlay(
+                        initialMode = activeQuickLogMode,
+                        isDark = isDark,
+                        isTr = currentLanguage.code.lowercase().startsWith("tr"),
+                        defaultWeightKg = widgetSnapshot?.latestWeightKg,
+                        themeAccentId = currentThemeColor.id,
+                        languageCode = currentLanguage.code,
+                        tokenStorage = tokenStorage,
+                        database = database,
+                        apiClient = apiClient,
+                        widgetSnapshotBuilder = widgetSnapshotBuilder,
+                        widgetBridge = widgetBridge,
+                        syncEngine = syncEngine,
+                        onDismiss = { widgetQuickLogMode = null },
+                        onQuotaExceeded = {
+                            premiumOfferType = "quota_exceeded"
+                            isPremiumScreenOpen = true
                         }
                     )
                 }

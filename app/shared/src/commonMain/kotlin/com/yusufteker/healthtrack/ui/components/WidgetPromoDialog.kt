@@ -290,30 +290,30 @@ fun WidgetPromoDialog(
                     )
 
                     WidgetFeatureRow(
-                        icon = Icons.Rounded.Bolt,
-                        iconTint = Color(0xFF38BDF8),
-                        title = str("Anlık Kalori & Makro Halkası", "Live Calorie & Macro Ring"),
-                        description = str(
-                            "Uygulamayı açmadan kalan kalorini, protein/karb/yağ dengeni ve yakılan enerjiyi takip et.",
-                            "See remaining calories, protein/carbs/fat balance, and burned energy without opening the app."
-                        )
-                    )
-                    WidgetFeatureRow(
-                        icon = Icons.Rounded.WaterDrop,
-                        iconTint = Color(0xFF06D6A0),
-                        title = str("Ana Ekrandan Tek Dokunuşla Su Ekle", "One-Tap Hydration (+250 ml)"),
-                        description = str(
-                            "Widget üzerindeki +250ml butonuna basarak su tüketimini anında kaydet.",
-                            "Log a glass of water directly from your home screen with a single tap on +250ml."
-                        )
-                    )
-                    WidgetFeatureRow(
                         icon = Icons.Rounded.TouchApp,
-                        iconTint = Color(0xFFC084FC),
-                        title = str("Hızlı Öğün, Spor & Tartım Kısayolu", "Instant Meal, Workout & Weight"),
+                        iconTint = Color(0xFF38BDF8),
+                        title = str("4 Sayfa Tek Widget'ta (Özet · AI Öğün · Spor · Kilo)", "4 Pages in One Widget (Stats · AI Meal · Sport · Weight)"),
                         description = str(
-                            "Tek dokunuşla doğrudan yemek ekleme ekranına, spor veya tartım sekmesine geç.",
-                            "Jump straight into meal logging, workouts, or weight tracking in one tap."
+                            "Alttaki 4 butonla ana ekrandan çıkmadan kalori özeti, AI öğün girişi, spor ve kilo ekranları arasında anında geç.",
+                            "Switch seamlessly between calorie stats, AI meal input, workouts, and weight logging using the 4 bottom tabs."
+                        )
+                    )
+                    WidgetFeatureRow(
+                        icon = Icons.Rounded.Bolt,
+                        iconTint = Color(0xFFFB923C),
+                        title = str("Doğrudan AI Öğün & Tek Tık Spor", "Instant AI Meal & 1-Tap Workouts"),
+                        description = str(
+                            "Yediklerini yazıp AI ile anında hesaplatıp öğüne ekle ya da tek dokunuşla koşu, fitness, yürüyüş ve +250ml su kaydet.",
+                            "Calculate and add meals with AI straight from your home screen, or log quick workouts and +250ml water in one tap."
+                        )
+                    )
+                    WidgetFeatureRow(
+                        icon = Icons.Rounded.MonitorWeight,
+                        iconTint = Color(0xFFC084FC),
+                        title = str("Uygulamayı Açmadan Kilo & Widget Yığını", "In-Widget Weight & Smart Stack"),
+                        description = str(
+                            "Kilo sayfasında -0.1 / +0.1 kg ayarlayıp anında kaydet; dilersen 4 ayrı widget'ı üst üste (Smart Stack) kaydırarak kullan.",
+                            "Adjust and save your weight directly inside the widget, or stack all 4 standalone widgets in a Smart Stack."
                         )
                     )
                 }
@@ -476,7 +476,7 @@ private fun PreviewSizeChip(
 }
 
 /**
- * Authentic live Compose replica of the Medium/4x2 HealthTrack Home Screen Widget.
+ * Authentic interactive 4-page Compose replica of the Medium/4x2 HealthTrack Home Screen Widget.
  */
 @Composable
 fun WidgetLivePreviewMedium(
@@ -494,6 +494,11 @@ fun WidgetLivePreviewMedium(
     val secondaryText = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
     val trackColor = if (isDark) Color(0xFF243047) else Color(0xFFE2E8F0)
     val actionBg = if (isDark) Color(0xFF192338) else Color(0xFFEDF2FA)
+    val inputBg = if (isDark) Color.White.copy(alpha = 0.08f) else Color(0xFF0F172A).copy(alpha = 0.05f)
+
+    var activePage by remember { mutableStateOf(0) }
+    var draftWeight by remember(snapshot.latestWeightKg) { mutableStateOf(snapshot.latestWeightKg ?: 74.2) }
+    var previewFeedback by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier
@@ -502,217 +507,303 @@ fun WidgetLivePreviewMedium(
             .background(bgBrush)
             .border(1.dp, borderColor, RoundedCornerShape(20.dp))
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF38BDF8), Color(0xFF0284C7)))),
-                    contentAlignment = Alignment.Center
+        when (activePage) {
+            0 -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "H",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black
+                    WidgetMiniCalorieRing(
+                        snapshot = snapshot,
+                        size = 84.dp,
+                        isDark = isDark
                     )
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        WidgetMacroRow(
+                            label = "Protein",
+                            current = snapshot.proteinG,
+                            target = snapshot.proteinTargetG,
+                            color = HealthColors.NutrientProtein,
+                            trackColor = trackColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText
+                        )
+                        WidgetMacroRow(
+                            label = str("Karb", "Carbs"),
+                            current = snapshot.carbsG,
+                            target = snapshot.carbsTargetG,
+                            color = HealthColors.NutrientCarbs,
+                            trackColor = trackColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText
+                        )
+                        WidgetMacroRow(
+                            label = str("Yağ", "Fat"),
+                            current = snapshot.fatG,
+                            target = snapshot.fatTargetG,
+                            color = HealthColors.NutrientLipids,
+                            trackColor = trackColor,
+                            primaryText = primaryText,
+                            secondaryText = secondaryText
+                        )
+
+                        // Interactive Hydration Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "💧 ${snapshot.waterMl} / ${snapshot.waterTargetMl} ml",
+                                    color = if (snapshot.isWaterGoalMet) Color(0xFF06D6A0) else Color(0xFF38BDF8),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                val animatedWater by animateFloatAsState(
+                                    targetValue = snapshot.waterProgress,
+                                    animationSpec = tween(350)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(5.dp)
+                                        .clip(RoundedCornerShape(99.dp))
+                                        .background(trackColor)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(animatedWater)
+                                            .clip(RoundedCornerShape(99.dp))
+                                            .background(
+                                                Brush.horizontalGradient(
+                                                    listOf(Color(0xFF00B4D8), Color(0xFF06D6A0))
+                                                )
+                                            )
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF193A4E))
+                                    .border(1.dp, Color(0xFF00B4D8).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                    .then(
+                                        if (onSimulateWaterTap != null) {
+                                            Modifier.bounceClick().clickable(onClick = onSimulateWaterTap)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "+250ml",
+                                    color = Color(0xFF38BDF8),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
+                    }
                 }
-                Text(
-                    text = "HealthTrack",
-                    color = primaryText,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                if (snapshot.burnedCalories > 0) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+            1 -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(inputBg)
+                            .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = Color(0xFFFB923C),
-                            modifier = Modifier.size(12.dp)
-                        )
                         Text(
-                            text = "${snapshot.burnedCalories} kcal",
-                            color = Color(0xFFFB923C),
-                            fontSize = 10.sp,
+                            text = str("Ne yedin? Örn: 2 yumurta, 1 dilim ekmek...", "What did you eat? e.g. 2 eggs, toast..."),
+                            color = secondaryText,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF38BDF8), Color(0xFF0284C7))))
+                            .padding(vertical = 9.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = str("✨ AI ile Hesapla & Öğüne Ekle", "✨ AI Calculate & Add Meal"),
+                            color = Color.White,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(Color(0xFF2E2012))
-                        .border(0.75.dp, Color(0xFFF59E0B).copy(alpha = 0.4f), RoundedCornerShape(99.dp))
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "⚡ ${snapshot.streakDays}${str("g", "d")}",
-                        color = Color(0xFFFBBF24),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
-        }
 
-        // Main Telemetry Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            WidgetMiniCalorieRing(
-                snapshot = snapshot,
-                size = 78.dp,
-                isDark = isDark
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                WidgetMacroRow(
-                    label = "Protein",
-                    current = snapshot.proteinG,
-                    target = snapshot.proteinTargetG,
-                    color = HealthColors.NutrientProtein,
-                    trackColor = trackColor,
-                    primaryText = primaryText,
-                    secondaryText = secondaryText
-                )
-                WidgetMacroRow(
-                    label = str("Karb", "Carbs"),
-                    current = snapshot.carbsG,
-                    target = snapshot.carbsTargetG,
-                    color = HealthColors.NutrientCarbs,
-                    trackColor = trackColor,
-                    primaryText = primaryText,
-                    secondaryText = secondaryText
-                )
-                WidgetMacroRow(
-                    label = str("Yağ", "Fat"),
-                    current = snapshot.fatG,
-                    target = snapshot.fatTargetG,
-                    color = HealthColors.NutrientLipids,
-                    trackColor = trackColor,
-                    primaryText = primaryText,
-                    secondaryText = secondaryText
-                )
-
-                // Interactive Hydration Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+            2 -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(inputBg)
+                            .border(1.dp, Color(0xFFFB923C).copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 9.dp)
+                    ) {
                         Text(
-                            text = "💧 ${snapshot.waterMl} / ${snapshot.waterTargetMl} ml",
-                            color = if (snapshot.isWaterGoalMet) Color(0xFF06D6A0) else Color(0xFF38BDF8),
-                            fontSize = 10.sp,
+                            text = previewFeedback ?: str(
+                                "Spor yaz (AI hesaplar) • 🔥 ${snapshot.burnedCalories} kcal",
+                                "Describe workout (AI) • 🔥 ${snapshot.burnedCalories} kcal"
+                            ),
+                            color = if (previewFeedback != null) Color(0xFF06D6A0) else secondaryText,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        val animatedWater by animateFloatAsState(
-                            targetValue = snapshot.waterProgress,
-                            animationSpec = tween(350)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(5.dp)
-                                .clip(RoundedCornerShape(99.dp))
-                                .background(trackColor)
-                        ) {
-                            Box(
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            str("30dk Koşu", "30m Run") to "-310 kcal",
+                            str("45dk Fitness", "45m Gym") to "-260 kcal",
+                            str("30dk Yürüyüş", "30m Walk") to "-150 kcal"
+                        ).forEach { (title, kcal) ->
+                            Column(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(animatedWater)
-                                    .clip(RoundedCornerShape(99.dp))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF00B4D8), Color(0xFF06D6A0))
-                                        )
-                                    )
-                            )
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFFB923C).copy(alpha = 0.15f))
+                                    .border(0.75.dp, Color(0xFFFB923C).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                    .clickable { previewFeedback = "✓ $title ($kcal)" }
+                                    .padding(vertical = 7.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(title, color = primaryText, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Text(kcal, color = Color(0xFFFB923C), fontSize = 9.5.sp, fontWeight = FontWeight.ExtraBold)
+                            }
                         }
                     }
+                }
+            }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF193A4E))
-                            .border(1.dp, Color(0xFF00B4D8).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                            .then(
-                                if (onSimulateWaterTap != null) {
-                                    Modifier.bounceClick().clickable(onClick = onSimulateWaterTap)
-                                } else {
-                                    Modifier
-                                }
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
+            else -> {
+                val roundedWeight = (kotlin.math.round(draftWeight * 10.0) / 10.0)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "+250ml",
-                            color = Color(0xFF38BDF8),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            text = "$roundedWeight kg",
+                            color = primaryText,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black
                         )
+                        Text(
+                            text = previewFeedback ?: (snapshot.targetWeightKg?.let {
+                                str("Hedef: $it kg", "Goal: $it kg")
+                            } ?: ""),
+                            color = if (previewFeedback != null) Color(0xFF06D6A0) else Color(0xFFC084FC),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf("-0.5" to -0.5, "-0.1" to -0.1, "+0.1" to 0.1, "+0.5" to 0.5).forEach { (lbl, delta) ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .background(actionBg)
+                                    .clickable {
+                                        draftWeight = (draftWeight + delta).coerceIn(25.0, 280.0)
+                                        previewFeedback = null
+                                    }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(lbl, color = primaryText, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        val savedFeedbackText = str("✓ $roundedWeight kg kaydedildi", "✓ Saved $roundedWeight kg")
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(Brush.horizontalGradient(listOf(Color(0xFFC084FC), Color(0xFF38BDF8))))
+                                .clickable {
+                                    previewFeedback = savedFeedbackText
+                                }
+                                .padding(horizontal = 11.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(str("✓ Kaydet", "✓ Save"), color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
 
-        // Bottom Quick Shortcuts
+        // Persistent 4-Page Bottom Navigation Bar (interactive in preview!)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            WidgetShortcutPill(
-                icon = Icons.Rounded.Restaurant,
-                label = str("+ Öğün", "+ Meal"),
-                tint = Color(0xFF38BDF8),
-                bgColor = actionBg,
-                modifier = Modifier.weight(1f)
+            val tabs = listOf(
+                Triple(0, str("Özet", "Stats"), primaryText),
+                Triple(1, str("AI Öğün", "AI Meal"), Color(0xFF38BDF8)),
+                Triple(2, str("Spor", "Sport"), Color(0xFFFB923C)),
+                Triple(3, str("Kilo", "Weight"), Color(0xFFC084FC))
             )
-            WidgetShortcutPill(
-                icon = Icons.Rounded.FitnessCenter,
-                label = str("Spor", "Workout"),
-                tint = Color(0xFFFB923C),
-                bgColor = actionBg,
-                modifier = Modifier.weight(1f)
-            )
-            WidgetShortcutPill(
-                icon = Icons.Rounded.MonitorWeight,
-                label = str("Tartım", "Weight"),
-                tint = Color(0xFFC084FC),
-                bgColor = actionBg,
-                modifier = Modifier.weight(1f)
-            )
+            tabs.forEach { (idx, label, inactiveColor) ->
+                val selected = idx == activePage
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (selected) Color(0xFF38BDF8) else actionBg)
+                        .clickable {
+                            activePage = idx
+                            previewFeedback = null
+                        }
+                        .padding(vertical = 8.5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        color = if (selected) Color.White else inactiveColor,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }

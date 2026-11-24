@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,26 +72,34 @@ fun FoodAiReviewBottomSheet(
     onSaveToInventory: (() -> Unit)? = null,
     onSaveSingleItemToInventory: ((FoodItem) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val spotlightController = LocalSpotlightController.current
+    val isOnboardingGuide = spotlightController?.activeTargetId == SpotlightTargetId.FOOD_REVIEW_CONFIRM &&
+        target == FoodScanTarget.DAILY_MEAL
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { targetValue ->
+            !isOnboardingGuide || targetValue != SheetValue.Hidden
+        }
+    )
     val isDark = LocalIsDarkTheme.current
     val scrollState = rememberScrollState()
 
     var isConfirming by remember { mutableStateOf(false) }
     var isSavingInventory by remember { mutableStateOf(false) }
-    val spotlightController = LocalSpotlightController.current
-    val isOnboardingGuide = spotlightController?.activeTargetId == SpotlightTargetId.FOOD_REVIEW_CONFIRM &&
-        target == FoodScanTarget.DAILY_MEAL
 
     val totalProtein = aiResult.items.sumOf { it.proteinG }
     val totalCarbs = aiResult.items.sumOf { it.carbsG }
     val totalFat = aiResult.items.sumOf { it.fatG }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isOnboardingGuide) onDismiss() },
         sheetState = sheetState,
         scrimColor = Color.Black.copy(alpha = 0.65f),
         containerColor = if (isDark) HealthColors.SurfaceContainerHigh else MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = if (isOnboardingGuide) null else {
+            { BottomSheetDefaults.DragHandle() }
+        },
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !isOnboardingGuide),
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
@@ -99,13 +109,28 @@ fun FoodAiReviewBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
+                .padding(top = if (isOnboardingGuide) 18.dp else 0.dp)
         ) {
             // Scrollable Content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
-                    .verticalScroll(scrollState)
+                    .then(
+                        if (isOnboardingGuide) {
+                            Modifier.pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .verticalScroll(scrollState, enabled = !isOnboardingGuide)
                     .padding(vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -467,7 +492,8 @@ fun FoodAiReviewBottomSheet(
                             }
                         }
 
-                        // Secondary: Vazgeç & Envantere de Ekle
+                        // Secondary: Vazgeç & Envantere de Ekle (hidden during guided onboarding)
+                        if (!isOnboardingGuide) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -521,6 +547,7 @@ fun FoodAiReviewBottomSheet(
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }

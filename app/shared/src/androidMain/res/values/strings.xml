@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_telemetry_name">HealthTrack • Bio-Telemetri</string>
-    <string name="widget_telemetry_desc">Günlük kalori halkası, makrolar, tek dokunuşla +250 ml su takibi ve hızlı öğün/spor kısayolları.</string>
+    <string name="widget_telemetry_name">HealthTrack • 4\'lü Bio-Telemetri</string>
+    <string name="widget_telemetry_desc">Özet, AI Öğün Ekleme, Hızlı Spor ve Kilo girişi tek widget içinde 4 sayfada.</string>
     <string name="widget_hydration_name">HealthTrack • Su &amp; Kalori</string>
     <string name="widget_hydration_desc">Kompakt günlük kalori özeti ve ana ekrandan tek dokunuşla +250 ml su ekleme.</string>
+    <string name="widget_ai_food_name">HealthTrack • AI Öğün</string>
+    <string name="widget_ai_food_desc">Widget Stack için doğrudan AI öğün girişi ve anında kalori hesaplama.</string>
+    <string name="widget_workout_name">HealthTrack • Hızlı Spor</string>
+    <string name="widget_workout_desc">Widget Stack için tek dokunuşla spor kaydetme ve AI antrenman girişi.</string>
+    <string name="widget_weight_name">HealthTrack • Hızlı Kilo</string>
+    <string name="widget_weight_desc">Widget Stack için uygulamayı açmadan doğrudan tartım kaydetme.</string>
 </resources>
-

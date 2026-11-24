@@ -24,6 +24,8 @@ object IosWidgetSwiftBridge {
     const val KEY_WIDGET_SNAPSHOT = "ht_widget_snapshot"
     const val KEY_PENDING_WATER_DELTA_ML = "ht_widget_pending_water_delta_ml"
     const val KEY_PENDING_WATER_DATE = "ht_widget_pending_water_date"
+    const val KEY_PENDING_WORKOUTS_JSON = "ht_widget_pending_workouts_json"
+    const val KEY_PENDING_WEIGHTS_JSON = "ht_widget_pending_weights_json"
 
     internal var delegate: IosWidgetPlatformDelegate? = null
         private set
@@ -86,6 +88,28 @@ private class IosWidgetBridge : WidgetBridge {
         defaults.synchronize()
 
         return if (pendingDate == null || pendingDate == dateIso) delta else 0
+    }
+
+    override fun consumePendingWorkouts(): List<PendingWidgetWorkout> {
+        val defaults = sharedDefaults()
+        val raw = defaults.stringForKey(IosWidgetSwiftBridge.KEY_PENDING_WORKOUTS_JSON)
+        if (raw.isNullOrBlank()) return emptyList()
+        defaults.removeObjectForKey(IosWidgetSwiftBridge.KEY_PENDING_WORKOUTS_JSON)
+        defaults.synchronize()
+        return runCatching {
+            json.decodeFromString<List<PendingWidgetWorkout>>(raw)
+        }.getOrDefault(emptyList())
+    }
+
+    override fun consumePendingWeights(): List<PendingWidgetWeight> {
+        val defaults = sharedDefaults()
+        val raw = defaults.stringForKey(IosWidgetSwiftBridge.KEY_PENDING_WEIGHTS_JSON)
+        if (raw.isNullOrBlank()) return emptyList()
+        defaults.removeObjectForKey(IosWidgetSwiftBridge.KEY_PENDING_WEIGHTS_JSON)
+        defaults.synchronize()
+        return runCatching {
+            json.decodeFromString<List<PendingWidgetWeight>>(raw)
+        }.getOrDefault(emptyList())
     }
 
     override fun requestAddWidget(onResult: (Boolean, String?) -> Unit) {

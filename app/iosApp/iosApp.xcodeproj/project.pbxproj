@@ -10,7 +10,6 @@
 		1C81D6F669B7BB6D2FFCCEB3 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 1359B5E3E79A6103CB63C864 /* FirebaseAnalytics */; };
 		379D4C6DBBA934A8EF44CDDE /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = AC813CE66F97994D9BE8A812 /* FirebaseMessaging */; };
 		445C052442747365B7CB2124 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 617043448F4869026C2F0BB4 /* FirebaseAuth */; };
-		5AFAABB830AAF9050046C9B1 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5AFAABB730AAF9050046C9B1 /* GoogleService-Info.plist */; };
 		A1B2C3D4E5F6000100000001 /* HealthTrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1B2C3D4E5F600010000000F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000011 /* WidgetKit.framework */; };
 		A1B2C3D4E5F6000100000010 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000100000012 /* SwiftUI.framework */; };
@@ -42,7 +41,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		5AFAABB730AAF9050046C9B1 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000100000002 /* HealthTrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HealthTrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4E5F6000100000011 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		A1B2C3D4E5F6000100000012 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -50,14 +48,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A1B2C3D4E5F6000100000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		A1B2C3D4E5F6000100000003 /* Exceptions for "HealthTrackWidget" folder in "HealthTrackWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = A1B2C3D4E5F600010000000B /* HealthTrackWidgetExtension */;
 		};
-		CA99A60142764238C0F870B9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		CA99A60142764238C0F870B9 /* Exceptions for "iosApp" folder in "iosApp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -70,7 +68,7 @@
 		04F73BCF9E6927C0618CC63B /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				CA99A60142764238C0F870B9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				CA99A60142764238C0F870B9 /* Exceptions for "iosApp" folder in "iosApp" target */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -83,7 +81,7 @@
 		A1B2C3D4E5F6000100000004 /* HealthTrackWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A1B2C3D4E5F6000100000003 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				A1B2C3D4E5F6000100000003 /* Exceptions for "HealthTrackWidget" folder in "HealthTrackWidgetExtension" target */,
 			);
 			path = HealthTrackWidget;
 			sourceTree = "<group>";
@@ -139,7 +137,6 @@
 				04F73BCF9E6927C0618CC63B /* iosApp */,
 				A1B2C3D4E5F6000100000004 /* HealthTrackWidget */,
 				24DE4B1A2CB47A2BD94DBF23 /* Products */,
-				5AFAABB730AAF9050046C9B1 /* GoogleService-Info.plist */,
 				20A75E2130AA138800D6BE76 /* Recovered References */,
 			);
 			sourceTree = "<group>";
@@ -242,7 +239,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5AFAABB830AAF9050046C9B1 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,6 +338,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -407,6 +404,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -472,12 +470,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "iosApp/iosApp-Debug.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = L4QK4Z4WT4;
+				DEVELOPMENT_TEAM = 79VHQQ27A9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -500,7 +498,7 @@
 				);
 				MARKETING_VERSION = 1.2;
 				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = com.yusufteker.healthtrack;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yusufteker.healthtrack.HealthTrack$(DEVELOPMENT_TEAM)";
 				PRODUCT_NAME = HealthTrack;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -514,7 +512,7 @@
 				CODE_SIGN_ENTITLEMENTS = HealthTrackWidget/HealthTrackWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = L4QK4Z4WT4;
+				DEVELOPMENT_TEAM = 79VHQQ27A9;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HealthTrackWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HealthTrack;
@@ -526,7 +524,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = com.yusufteker.healthtrack.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yusufteker.healthtrack.HealthTrack$(DEVELOPMENT_TEAM).Widget";
 				PRODUCT_NAME = HealthTrackWidgetExtension;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
