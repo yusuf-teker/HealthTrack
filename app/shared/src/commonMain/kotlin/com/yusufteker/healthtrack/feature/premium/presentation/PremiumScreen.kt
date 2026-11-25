@@ -2,7 +2,6 @@ package com.yusufteker.healthtrack.feature.premium.presentation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
@@ -184,8 +184,8 @@ fun PremiumScreen(
                             "Take advantage of special savings on the annual plan for a limited time."
                         )
                         else -> str(
-                            "AI destekli öğün planlama, sınırsız yemek fotoğrafı analizi ve haftalık bio-telemetri raporları.",
-                            "AI-powered meal planning, unlimited food photo analysis, and weekly bio-telemetry reports."
+                            "Günlük 3 ücretsiz AI analiz sınırını kaldır; metin, ses, fotoğraf ve spor analizlerini özgürce kullan.",
+                            "Remove the 3/day free AI analysis limit; use text, voice, photo, and workout AI freely."
                         )
                     }
 
@@ -288,6 +288,25 @@ fun PremiumScreen(
             }
 
             if (!state.isPremium) {
+                if (!state.isStoreConnected) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = HealthColors.Primary.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.28f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = str(
+                                "ℹ️ Mağaza abonelikleri yakında aktif olacak. Şimdilik Profil > Özel API Key bölümünden kendi ücretsiz Google Gemini anahtarınızı ekleyerek de sınırsız AI analizi yapabilirsiniz.",
+                                "ℹ️ Store subscriptions will be enabled once live on the App Store / Google Play. Meanwhile, you can also enter your own free Google Gemini API key in Profile > Custom API Key for unlimited AI analyses."
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
                 Text(
                     text = str("Abonelik Planını Seç", "Choose a Plan"),
                     style = MaterialTheme.typography.titleMedium,
@@ -361,13 +380,11 @@ fun PremiumScreen(
 
                 val methods = if (state.isIosPlatform) {
                     listOf(
-                        PaymentMethod.APPLE_PAY to "Apple App Store / Apple Pay",
-                        PaymentMethod.CREDIT_CARD to str("Kredi / Banka Kartı", "Credit / Debit Card")
+                        PaymentMethod.APPLE_PAY to "Apple App Store"
                     )
                 } else {
                     listOf(
-                        PaymentMethod.GOOGLE_PLAY to "Google Play Billing",
-                        PaymentMethod.CREDIT_CARD to str("Kredi / Banka Kartı", "Credit / Debit Card")
+                        PaymentMethod.GOOGLE_PLAY to "Google Play Billing"
                     )
                 }
 
@@ -511,9 +528,11 @@ private fun PlanOptionCard(
 private fun mapFeatureIcon(name: String): ImageVector {
     return when (name) {
         "auto_awesome" -> Icons.Default.AutoAwesome
+        "fitness_center" -> Icons.Default.FitnessCenter
         "restaurant" -> Icons.Default.Restaurant
         "insights" -> Icons.Default.Insights
         "cloud_done" -> Icons.Default.CloudDone
+        "check_circle" -> Icons.Default.CheckCircle
         "palette" -> Icons.Default.Palette
         else -> Icons.Default.WorkspacePremium
     }

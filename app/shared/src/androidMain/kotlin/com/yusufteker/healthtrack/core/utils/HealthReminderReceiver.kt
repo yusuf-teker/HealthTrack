@@ -17,10 +17,12 @@ import com.yusufteker.healthtrack.app.shared.R
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
+import com.yusufteker.healthtrack.core.model.HealthReminderType
 import com.yusufteker.healthtrack.core.model.ScheduledReminderPayload
 import com.yusufteker.healthtrack.core.model.WeightReminderFrequency
 import com.yusufteker.healthtrack.core.model.WorkoutReminderFrequency
 import com.yusufteker.healthtrack.core.network.TokenStorage
+import com.yusufteker.healthtrack.core.sync.SmartNotificationAntiSpamPolicy
 import com.yusufteker.healthtrack.core.sync.WeightReminderEngine
 import com.yusufteker.healthtrack.core.sync.WorkoutIncentiveEngine
 import io.github.aakira.napier.Napier
@@ -279,11 +281,34 @@ class HealthReminderReceiver : BroadcastReceiver() {
             val userId = tokenStorage.getUserId()
             val userName = tokenStorage.sessionFlow.value.name
             val todayIso = getTodayIso()
+            val nowCal = Calendar.getInstance()
+            val currentHour = nowCal.get(Calendar.HOUR_OF_DAY)
+            val currentMinute = nowCal.get(Calendar.MINUTE)
+            val nowMs = currentTimeMillis()
+
+            fun isAllowedByAntiSpam(type: HealthReminderType?, label: String): Boolean {
+                val decision = SmartNotificationAntiSpamPolicy.evaluateFromStorage(
+                    tokenStorage = tokenStorage,
+                    type = type,
+                    todayIso = todayIso,
+                    hourOfDay = currentHour,
+                    minuteOfHour = currentMinute,
+                    nowMs = nowMs
+                )
+                if (!decision.allowed) {
+                    Napier.d(
+                        "Anti-spam suppressed $label reminder (reason=${decision.blockReason})",
+                        tag = "NOTIFICATION"
+                    )
+                }
+                return decision.allowed
+            }
 
             when (intent?.action) {
                 HealthReminderNotifications.ACTION_WORKOUT_REMINDER -> {
                     val freq = tokenStorage.getWorkoutReminderFrequency()
                     if (freq == WorkoutReminderFrequency.OFF) return
+                    if (!isAllowedByAntiSpam(HealthReminderType.WORKOUT, "WORKOUT")) return
 
                     val workouts = HealthDatabase(settings).getAllWorkoutsForSync(userId)
                     val hasWorkoutToday = workouts.any {
@@ -294,7 +319,7 @@ class HealthReminderReceiver : BroadcastReceiver() {
                         .filter { it.date == yesterdayIso && !it.isDeleted }
                         .sumOf { it.caloriesBurned }
 
-                    val isoDayOfWeek = when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+                    val isoDayOfWeek = when (nowCal.get(Calendar.DAY_OF_WEEK)) {
                         Calendar.MONDAY -> 1
                         Calendar.TUESDAY -> 2
                         Calendar.WEDNESDAY -> 3
@@ -320,12 +345,18 @@ class HealthReminderReceiver : BroadcastReceiver() {
                         userName = userName
                     )
                     HealthReminderNotifications.postReminderNotification(context, payload)
-                    tokenStorage.setLastWorkoutReminderDate(todayIso)
+                    SmartNotificationAntiSpamPolicy.recordSent(
+                        tokenStorage = tokenStorage,
+                        type = HealthReminderType.WORKOUT,
+                        todayIso = todayIso,
+                        nowMs = nowMs
+                    )
                 }
 
                 HealthReminderNotifications.ACTION_WEIGHT_REMINDER -> {
                     val freq = tokenStorage.getWeightReminderFrequency()
                     if (freq == WeightReminderFrequency.OFF) return
+                    if (!isAllowedByAntiSpam(HealthReminderType.WEIGHT, "WEIGHT")) return
 
                     val weights = HealthDatabase(settings).getWeights(userId)
                     val latestWeight = weights.filter { !it.isDeleted }.maxByOrNull { it.date }
@@ -346,10 +377,16 @@ class HealthReminderReceiver : BroadcastReceiver() {
                         userName = userName
                     )
                     HealthReminderNotifications.postReminderNotification(context, payload)
-                    tokenStorage.setLastWeightReminderDate(todayIso)
+                    SmartNotificationAntiSpamPolicy.recordSent(
+                        tokenStorage = tokenStorage,
+                        type = HealthReminderType.WEIGHT,
+                        todayIso = todayIso,
+                        nowMs = nowMs
+                    )
                 }
 
                 HealthReminderNotifications.ACTION_FOOD_REMINDER -> {
+                    if (!isAllowedByAntiSpam(HealthReminderType.FOOD, "FOOD")) return
                     val database = HealthDatabase(settings)
                     val shouldSend = HealthReminderLogic.shouldSendFoodReminder(
                         userId = userId,
@@ -369,11 +406,18 @@ class HealthReminderReceiver : BroadcastReceiver() {
                             targetTab = "FOOD"
                         )
                     )
-                    tokenStorage.setLastFoodReminderDate(todayIso)
+                    SmartNotificationAntiSpamPolicy.recordSent(
+                        tokenStorage = tokenStorage,
+                        type = HealthReminderType.FOOD,
+                        todayIso = todayIso,
+                        nowMs = nowMs
+                    )
                 }
 
                 HealthReminderNotifications.ACTION_WEEKLY_REPORT_REMINDER -> {
                     if (!tokenStorage.isAutoWeeklyWhatsAppEnabled()) return
+                    if (tokenStorage.getLastWeeklyReportReminderDate() == todayIso) return
+                    if (!isAllowedByAntiSpam(null, "WEEKLY_REPORT")) return
 
                     HealthReminderNotifications.ensureNotificationChannels(context)
                     val contentIntent = HealthReminderNotifications.createOpenTabPendingIntent(
@@ -415,6 +459,12 @@ class HealthReminderReceiver : BroadcastReceiver() {
                     notificationManager.notify(
                         HealthReminderNotifications.WEEKLY_REPORT_NOTIFICATION_ID,
                         notification
+                    )
+                    SmartNotificationAntiSpamPolicy.recordSent(
+                        tokenStorage = tokenStorage,
+                        type = null,
+                        todayIso = todayIso,
+                        nowMs = nowMs
                     )
                 }
             }

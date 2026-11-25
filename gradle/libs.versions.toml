@@ -29,6 +29,8 @@ napier = "2.7.1"
 coil = "3.2.0"
 googleServices = "4.4.2"
 firebaseBom = "33.10.0"
+hmsAgconnect = "1.9.1.301"
+hmsPush = "6.12.0.300"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -104,6 +106,10 @@ firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+
+# Huawei HMS Core
+hms-agconnect-core = { module = "com.huawei.agconnect:agconnect-core", version.ref = "hmsAgconnect" }
+hms-push = { module = "com.huawei.hms:push", version.ref = "hmsPush" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

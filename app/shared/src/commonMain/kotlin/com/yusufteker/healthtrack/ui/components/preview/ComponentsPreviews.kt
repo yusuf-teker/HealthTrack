@@ -20,6 +20,7 @@ import com.yusufteker.healthtrack.core.model.CelebrationType
 import com.yusufteker.healthtrack.core.model.MotivationalToastEvent
 import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.WidgetTelemetrySnapshot
+import com.yusufteker.healthtrack.core.sync.WeeklySummarySnapshot
 import com.yusufteker.healthtrack.theme.HealthTrackTheme
 import com.yusufteker.healthtrack.ui.components.*
 
@@ -630,5 +631,29 @@ fun HealthToastLightPreview() {
                 onDismiss = {}
             )
         }
+    }
+}
+
+@Preview
+@Composable
+fun WeeklySummaryPopupDarkPreview() {
+    HealthTrackTheme(darkTheme = true) {
+        WeeklySummaryPopupDialog(
+            summary = WeeklySummarySnapshot.sample(),
+            onOpenAnalyticsClick = {},
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+fun WeeklySummaryPopupLightPreview() {
+    HealthTrackTheme(darkTheme = false) {
+        WeeklySummaryPopupDialog(
+            summary = WeeklySummarySnapshot.sample(),
+            onOpenAnalyticsClick = {},
+            onDismiss = {}
+        )
     }
 }

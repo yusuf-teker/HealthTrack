@@ -14,6 +14,7 @@ import com.yusufteker.healthtrack.core.sync.FriendActivityMonitor
 import com.yusufteker.healthtrack.core.sync.GamificationManager
 import com.yusufteker.healthtrack.core.sync.HealthReportAiGenerator
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import com.yusufteker.healthtrack.core.sync.WeeklySummaryBuilder
 import com.yusufteker.healthtrack.core.sync.WidgetSnapshotBuilder
 import org.koin.dsl.module
 
@@ -29,6 +30,7 @@ val coreModule = module {
     single { HealthReportAiGenerator(get()) }
     single { DailyMealPlanEngine(get()) }
     single { WidgetSnapshotBuilder(get(), get(), get()) }
+    single { WeeklySummaryBuilder(get(), get()) }
     single { CheckAppVersionUseCase() }
     single<StoreBillingClient> { PendingStoreBillingClient() }
 }

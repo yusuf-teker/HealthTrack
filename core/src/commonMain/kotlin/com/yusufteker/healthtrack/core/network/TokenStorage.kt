@@ -183,6 +183,66 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.putString(KEY_LAST_FOOD_REMINDER_DATE, dateIso)
     }
 
+    fun getLastWeeklyReportReminderDate(): String? = settings.getStringOrNull(KEY_LAST_WEEKLY_REPORT_REMINDER_DATE)
+    fun setLastWeeklyReportReminderDate(dateIso: String) {
+        settings.putString(KEY_LAST_WEEKLY_REPORT_REMINDER_DATE, dateIso)
+    }
+
+    fun getIgnoredFoodNotificationCount(): Int = settings.getInt(KEY_IGNORED_FOOD_NOTIF_COUNT, 0)
+    fun setIgnoredFoodNotificationCount(count: Int) {
+        settings.putInt(KEY_IGNORED_FOOD_NOTIF_COUNT, count.coerceAtLeast(0))
+    }
+
+    fun getIgnoredWeightNotificationCount(): Int = settings.getInt(KEY_IGNORED_WEIGHT_NOTIF_COUNT, 0)
+    fun setIgnoredWeightNotificationCount(count: Int) {
+        settings.putInt(KEY_IGNORED_WEIGHT_NOTIF_COUNT, count.coerceAtLeast(0))
+    }
+
+    fun getDailyReminderCountForDate(dateIso: String): Int {
+        val storedDate = settings.getStringOrNull(KEY_DAILY_REMINDER_SENT_DATE)
+        return if (storedDate == dateIso) settings.getInt(KEY_DAILY_REMINDER_SENT_COUNT, 0) else 0
+    }
+
+    fun incrementDailyReminderCount(dateIso: String): Int {
+        val nextCount = getDailyReminderCountForDate(dateIso) + 1
+        settings.putString(KEY_DAILY_REMINDER_SENT_DATE, dateIso)
+        settings.putInt(KEY_DAILY_REMINDER_SENT_COUNT, nextCount)
+        return nextCount
+    }
+
+    fun getLastLocalReminderSentAtMs(): Long = settings.getLong(KEY_LAST_LOCAL_REMINDER_SENT_MS, 0L)
+    fun setLastLocalReminderSentAtMs(ms: Long) {
+        settings.putLong(KEY_LAST_LOCAL_REMINDER_SENT_MS, ms)
+    }
+
+    fun getLastAppActiveAtMs(): Long = settings.getLong(KEY_LAST_APP_ACTIVE_MS, 0L)
+    fun setLastAppActiveAtMs(ms: Long) {
+        settings.putLong(KEY_LAST_APP_ACTIVE_MS, ms)
+    }
+
+    fun getLastSeenWeeklySummaryMonday(userId: Int = getUserId()): String? {
+        if (userId == 0) return null
+        return settings.getStringOrNull("${KEY_LAST_SEEN_WEEKLY_SUMMARY_MONDAY}_$userId")
+    }
+
+    fun markWeeklySummarySeen(weekMondayIso: String, userId: Int = getUserId()) {
+        if (userId == 0 || weekMondayIso.isBlank()) return
+        settings.putString("${KEY_LAST_SEEN_WEEKLY_SUMMARY_MONDAY}_$userId", weekMondayIso)
+    }
+
+    /**
+     * Returns true strictly once per completed week (identified by [prevWeekMondayIso])
+     * when the user has an active session and meaningful data for that week.
+     */
+    fun shouldShowWeeklySummaryPopup(
+        userId: Int,
+        prevWeekMondayIso: String,
+        hasEnoughData: Boolean
+    ): Boolean {
+        if (!hasActiveSession() || userId == 0 || prevWeekMondayIso.isBlank() || !hasEnoughData) return false
+        return getLastSeenWeeklySummaryMonday(userId) != prevWeekMondayIso
+    }
+
     fun getLastWidgetReminderDate(): String? = settings.getStringOrNull(KEY_LAST_WIDGET_REMINDER_DATE)
     fun setLastWidgetReminderDate(dateIso: String) {
         settings.putString(KEY_LAST_WIDGET_REMINDER_DATE, dateIso)
@@ -358,6 +418,13 @@ class TokenStorage(private val settings: Settings = Settings()) {
         settings.remove(KEY_IGNORED_WORKOUT_NOTIF_COUNT)
         settings.remove(KEY_LAST_WEIGHT_REMINDER_DATE)
         settings.remove(KEY_LAST_FOOD_REMINDER_DATE)
+        settings.remove(KEY_LAST_WEEKLY_REPORT_REMINDER_DATE)
+        settings.remove(KEY_IGNORED_FOOD_NOTIF_COUNT)
+        settings.remove(KEY_IGNORED_WEIGHT_NOTIF_COUNT)
+        settings.remove(KEY_DAILY_REMINDER_SENT_DATE)
+        settings.remove(KEY_DAILY_REMINDER_SENT_COUNT)
+        settings.remove(KEY_LAST_LOCAL_REMINDER_SENT_MS)
+        settings.remove(KEY_LAST_APP_ACTIVE_MS)
         settings.remove(KEY_CUSTOM_GEMINI_API_KEY)
         settings.remove(KEY_HAS_CONNECTED_DEVICE)
         settings.remove(KEY_LAST_DEVICE_SYNC_MS)
@@ -463,6 +530,14 @@ class TokenStorage(private val settings: Settings = Settings()) {
         private const val KEY_FOOD_REMINDER_ENABLED = "ht_food_reminder_enabled"
         private const val KEY_LAST_WEIGHT_REMINDER_DATE = "ht_last_weight_reminder_date"
         private const val KEY_LAST_FOOD_REMINDER_DATE = "ht_last_food_reminder_date"
+        private const val KEY_LAST_WEEKLY_REPORT_REMINDER_DATE = "ht_last_weekly_report_reminder_date"
+        private const val KEY_IGNORED_FOOD_NOTIF_COUNT = "ht_ignored_food_notif_count"
+        private const val KEY_IGNORED_WEIGHT_NOTIF_COUNT = "ht_ignored_weight_notif_count"
+        private const val KEY_DAILY_REMINDER_SENT_DATE = "ht_daily_reminder_sent_date"
+        private const val KEY_DAILY_REMINDER_SENT_COUNT = "ht_daily_reminder_sent_count"
+        private const val KEY_LAST_LOCAL_REMINDER_SENT_MS = "ht_last_local_reminder_sent_ms"
+        private const val KEY_LAST_APP_ACTIVE_MS = "ht_last_app_active_ms"
+        private const val KEY_LAST_SEEN_WEEKLY_SUMMARY_MONDAY = "ht_last_seen_weekly_summary_monday"
         private const val KEY_CUSTOM_GEMINI_API_KEY = "ht_custom_gemini_api_key"
         private const val KEY_IS_PREMIUM = "ht_is_premium"
         private const val KEY_PREMIUM_UNTIL = "ht_premium_until"

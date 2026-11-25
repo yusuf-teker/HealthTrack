@@ -41,6 +41,7 @@ import com.yusufteker.healthtrack.core.model.CheckAppVersionUseCase
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.DeviceWeightRecord
 import com.yusufteker.healthtrack.core.model.GamificationSummary
+import com.yusufteker.healthtrack.core.model.HealthReminderType
 import com.yusufteker.healthtrack.core.model.PushTokenBus
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.UpdateStatus
@@ -54,7 +55,10 @@ import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.FriendActivityMonitor
 import com.yusufteker.healthtrack.core.sync.GamificationManager
+import com.yusufteker.healthtrack.core.sync.SmartNotificationAntiSpamPolicy
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import com.yusufteker.healthtrack.core.sync.WeeklySummaryBuilder
+import com.yusufteker.healthtrack.core.sync.WeeklySummarySnapshot
 import com.yusufteker.healthtrack.core.sync.WidgetSnapshotBuilder
 import com.yusufteker.healthtrack.core.utils.BleScaleScanState
 import com.yusufteker.healthtrack.core.utils.ExternalApp
@@ -98,6 +102,7 @@ import com.yusufteker.healthtrack.ui.components.HealthSnackbarHost
 import com.yusufteker.healthtrack.ui.components.MotivationalToastHost
 import com.yusufteker.healthtrack.ui.components.NotificationPermissionDialog
 import com.yusufteker.healthtrack.ui.components.ShimmeringStreakPill
+import com.yusufteker.healthtrack.ui.components.WeeklySummaryPopupDialog
 import com.yusufteker.healthtrack.ui.components.WidgetPromoDialog
 import com.yusufteker.healthtrack.ui.components.WidgetQuickLogMode
 import com.yusufteker.healthtrack.ui.components.WidgetQuickLogSheetOverlay
@@ -171,7 +176,9 @@ private fun AppContent(initialTab: HealthTab) {
             val friendActivityMonitor: FriendActivityMonitor = koinInject()
             val apiClient: HealthApiClient = koinInject()
             val checkAppVersionUseCase: CheckAppVersionUseCase = koinInject()
+            val storeBillingClient: com.yusufteker.healthtrack.core.model.StoreBillingClient = koinInject()
             val widgetSnapshotBuilder: WidgetSnapshotBuilder = koinInject()
+            val weeklySummaryBuilder: WeeklySummaryBuilder = koinInject()
             val deviceHealthBridge = rememberDeviceHealthBridge()
             val passiveBleScaleBridge = rememberBleScaleBridge()
             val passiveBleState by passiveBleScaleBridge.state.collectAsState()
@@ -186,6 +193,7 @@ private fun AppContent(initialTab: HealthTab) {
             }.collectAsState(initial = null)
             var isWidgetPromoDialogVisible by remember { mutableStateOf(false) }
             var isWidgetInstalled by remember { mutableStateOf(false) }
+            var weeklySummaryPopupData by remember { mutableStateOf<WeeklySummarySnapshot?>(null) }
             val isIosPlatform = remember {
                 val pName = getPlatform().name
                 pName.contains("iOS", ignoreCase = true) || pName.contains("iPad", ignoreCase = true)
@@ -255,43 +263,75 @@ private fun AppContent(initialTab: HealthTab) {
             val dailyReminderNotifier = rememberDailyReminderNotifier()
             val weeklyReportNotifier = rememberWeeklyReportNotifier()
 
-            LaunchedEffect(session.hasActiveSession, session.userId) {
-                withContext(Dispatchers.Default) {
-                    if (session.hasActiveSession) {
-                        if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
-                            dailyReminderNotifier.scheduleEveningWorkoutReminder(
-                                hour = tokenStorage.getWorkoutReminderHour(),
-                                minute = tokenStorage.getWorkoutReminderMinute()
+            val syncSmartReminders: () -> Unit = {
+                if (session.hasActiveSession && session.userId != 0) {
+                    val today = getTodayIso()
+                    val hasWorkoutToday = database.getWorkouts(session.userId, today)
+                        .any { !it.isDailySteps && !it.isDeleted }
+                    val hasFoodToday = database.getFoods(session.userId, today)
+                        .any { !it.isDeleted && (it.items.isNotEmpty() || it.totalCalories > 0) }
+                    val weights = database.getWeights(session.userId)
+                    val hasWeightToday = weights.any { it.date == today && !it.isDeleted }
+                    val latestWeightTs = weights.maxOfOrNull { it.updatedAt }
+
+                    if (tokenStorage.getWorkoutReminderFrequency() != WorkoutReminderFrequency.OFF) {
+                        dailyReminderNotifier.scheduleEveningWorkoutReminder(
+                            hour = tokenStorage.getWorkoutReminderHour(),
+                            minute = tokenStorage.getWorkoutReminderMinute(),
+                            skipToday = hasWorkoutToday,
+                            minDaysDelay = SmartNotificationAntiSpamPolicy.requiredBackoffDays(
+                                tokenStorage.getIgnoredWorkoutNotificationCount()
                             )
-                        } else {
-                            dailyReminderNotifier.cancelEveningWorkoutReminder()
-                        }
-                        val weightFreq = tokenStorage.getWeightReminderFrequency()
-                        if (weightFreq != WeightReminderFrequency.OFF) {
-                            dailyReminderNotifier.scheduleMorningWeightReminder(
-                                hour = tokenStorage.getWeightReminderHour(),
-                                minute = tokenStorage.getWeightReminderMinute(),
-                                frequency = weightFreq
-                            )
-                        } else {
-                            dailyReminderNotifier.cancelMorningWeightReminder()
-                        }
-                        if (tokenStorage.isFoodReminderEnabled()) {
-                            dailyReminderNotifier.scheduleMiddayFoodReminder(hour = 13, minute = 30)
-                        } else {
-                            dailyReminderNotifier.cancelMiddayFoodReminder()
-                        }
-                        if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
-                            weeklyReportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
-                        } else {
-                            weeklyReportNotifier.cancelSundayEveningReminder()
-                        }
+                        )
                     } else {
                         dailyReminderNotifier.cancelEveningWorkoutReminder()
+                    }
+                    val weightFreq = tokenStorage.getWeightReminderFrequency()
+                    if (weightFreq != WeightReminderFrequency.OFF) {
+                        dailyReminderNotifier.scheduleMorningWeightReminder(
+                            hour = tokenStorage.getWeightReminderHour(),
+                            minute = tokenStorage.getWeightReminderMinute(),
+                            frequency = weightFreq,
+                            lastWeightTimestamp = latestWeightTs,
+                            skipToday = hasWeightToday,
+                            minDaysDelay = SmartNotificationAntiSpamPolicy.requiredBackoffDays(
+                                tokenStorage.getIgnoredWeightNotificationCount()
+                            )
+                        )
+                    } else {
                         dailyReminderNotifier.cancelMorningWeightReminder()
+                    }
+                    if (tokenStorage.isFoodReminderEnabled()) {
+                        dailyReminderNotifier.scheduleMiddayFoodReminder(
+                            hour = 13,
+                            minute = 30,
+                            skipToday = hasFoodToday,
+                            minDaysDelay = SmartNotificationAntiSpamPolicy.requiredBackoffDays(
+                                tokenStorage.getIgnoredFoodNotificationCount()
+                            )
+                        )
+                    } else {
                         dailyReminderNotifier.cancelMiddayFoodReminder()
+                    }
+                    if (tokenStorage.isAutoWeeklyWhatsAppEnabled()) {
+                        weeklyReportNotifier.scheduleSundayEveningReminder(hour = 21, minute = 0)
+                    } else {
                         weeklyReportNotifier.cancelSundayEveningReminder()
                     }
+                } else {
+                    dailyReminderNotifier.cancelEveningWorkoutReminder()
+                    dailyReminderNotifier.cancelMorningWeightReminder()
+                    dailyReminderNotifier.cancelMiddayFoodReminder()
+                    weeklyReportNotifier.cancelSundayEveningReminder()
+                }
+            }
+
+            LaunchedEffect(session.hasActiveSession, session.userId, widgetSnapshot?.updatedAtMs) {
+                withContext(Dispatchers.Default) {
+                    if (session.hasActiveSession) {
+                        tokenStorage.setLastAppActiveAtMs(currentTimeMillis())
+                    }
+                    syncSmartReminders()
                 }
             }
 
@@ -534,6 +574,11 @@ private fun AppContent(initialTab: HealthTab) {
                                         syncStatus = SyncStatus.PENDING
                                     )
                                 )
+                                SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                                    tokenStorage = tokenStorage,
+                                    type = HealthReminderType.WORKOUT,
+                                    nowMs = ts
+                                )
                             }
                             pendingWeights.forEachIndexed { idx, item ->
                                 val ts = item.createdAtMs.takeIf { it > 0L } ?: (nowMs + idx)
@@ -548,6 +593,11 @@ private fun AppContent(initialTab: HealthTab) {
                                         updatedAt = ts,
                                         syncStatus = SyncStatus.PENDING
                                     )
+                                )
+                                SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                                    tokenStorage = tokenStorage,
+                                    type = HealthReminderType.WEIGHT,
+                                    nowMs = ts
                                 )
                             }
                             val refreshed = widgetSnapshotBuilder.buildTodaySnapshot(session.userId, today)
@@ -620,6 +670,12 @@ private fun AppContent(initialTab: HealthTab) {
                     if (event == Lifecycle.Event.ON_PAUSE) {
                         passiveBleScaleBridge.stopScan()
                     } else if (event == Lifecycle.Event.ON_RESUME) {
+                        if (session.hasActiveSession && session.userId != 0) {
+                            tokenStorage.setLastAppActiveAtMs(currentTimeMillis())
+                            coroutineScope.launch(Dispatchers.Default) {
+                                syncSmartReminders()
+                            }
+                        }
                         startPassiveScaleIfReady()
                         evaluateWidgetReminderAndSync()
                         if (session.hasActiveSession && session.userId != 0) {
@@ -695,6 +751,53 @@ private fun AppContent(initialTab: HealthTab) {
                 }
             }
 
+            // One-time Weekly Summary Popup Card (shown strictly once per completed Mon..Sun week)
+            LaunchedEffect(
+                session.hasActiveSession,
+                session.userId,
+                isOnboardingVisible,
+                isInitialSetupVisible,
+                isProfileScreenOpen,
+                isPremiumScreenOpen,
+                isGuestAuthOpen,
+                gamificationSectionOpen,
+                updateStatus,
+                isWidgetPromoDialogVisible,
+                isNotifPermDialogVisible,
+                isAutoBlePopupOpen
+            ) {
+                val canEvaluateWeeklyPopup = session.hasActiveSession &&
+                    session.userId != 0 &&
+                    !isOnboardingVisible &&
+                    !isInitialSetupVisible &&
+                    !isProfileScreenOpen &&
+                    !isPremiumScreenOpen &&
+                    !isGuestAuthOpen &&
+                    gamificationSectionOpen == null &&
+                    updateStatus == UpdateStatus.UpToDate &&
+                    !isWidgetPromoDialogVisible &&
+                    !isNotifPermDialogVisible &&
+                    !isAutoBlePopupOpen &&
+                    weeklySummaryPopupData == null
+                if (canEvaluateWeeklyPopup) {
+                    val computed = withContext(Dispatchers.Default) {
+                        weeklySummaryBuilder.buildPreviousWeekSummary(
+                            userId = session.userId,
+                            todayIso = getTodayIso()
+                        )
+                    }
+                    if (computed != null && tokenStorage.shouldShowWeeklySummaryPopup(
+                            userId = session.userId,
+                            prevWeekMondayIso = computed.weekMondayIso,
+                            hasEnoughData = computed.hasEnoughData
+                        )
+                    ) {
+                        tokenStorage.markWeeklySummarySeen(computed.weekMondayIso, session.userId)
+                        weeklySummaryPopupData = computed
+                    }
+                }
+            }
+
             LaunchedEffect(session.hasActiveSession, session.isAuthenticated, session.userId) {
                 if (session.hasActiveSession && session.userId != 0) {
                     if (session.isAuthenticated) {
@@ -763,7 +866,7 @@ private fun AppContent(initialTab: HealthTab) {
                         onFinish = {
                             tokenStorage.setOnboardingSeen(true)
                             isOnboardingVisible = false
-                            if (session.isAuthenticated && !tokenStorage.isPremium()) {
+                            if (session.isAuthenticated && !tokenStorage.isPremium() && storeBillingClient.isStoreConnected) {
                                 premiumOfferType = "welcome"
                                 isPremiumScreenOpen = true
                             }
@@ -858,6 +961,7 @@ private fun AppContent(initialTab: HealthTab) {
                             isPremiumScreenOpen = false
                             isGuestAuthOpen = false
                             gamificationSectionOpen = null
+                            weeklySummaryPopupData = null
                             gamificationManager.clearAllCelebrations()
                             friendActivityMonitor.clearAll()
                             coroutineScope.launch {
@@ -1139,6 +1243,7 @@ private fun AppContent(initialTab: HealthTab) {
                                             premiumOfferType = "quota_exceeded"
                                             isPremiumScreenOpen = true
                                         },
+                                        onOpenGuestAuth = { isGuestAuthOpen = true },
                                         onShowToast = showToast
                                     )
                                     HealthTab.WORKOUT -> WorkoutScreenRoot(
@@ -1146,6 +1251,7 @@ private fun AppContent(initialTab: HealthTab) {
                                             premiumOfferType = "quota_exceeded"
                                             isPremiumScreenOpen = true
                                         },
+                                        onOpenGuestAuth = { isGuestAuthOpen = true },
                                         onShowToast = showToast
                                     )
                                     HealthTab.WEIGHT -> WeightScreenRoot(onShowToast = showToast)
@@ -1226,6 +1332,11 @@ private fun AppContent(initialTab: HealthTab) {
                                     syncToCloud = session.isAuthenticated
                                 )
                                 tokenStorage.setUserWeight(reading.weightKg)
+                                SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                                    tokenStorage = tokenStorage,
+                                    type = HealthReminderType.WEIGHT,
+                                    nowMs = nowMs
+                                )
 
                                 val fatPart = reading.bodyFatPercent?.let {
                                     " • %$it ${trEn("Yağ", "Fat", currentLanguage)}"
@@ -1352,6 +1463,25 @@ private fun AppContent(initialTab: HealthTab) {
                             }
                         },
                         onLaterClick = { isNotifPermDialogVisible = false }
+                    )
+                }
+
+                // One-time Weekly Summary Recap Popup Card (max 1x per completed week)
+                val activeWeeklySummary = weeklySummaryPopupData
+                if (activeWeeklySummary != null) {
+                    WeeklySummaryPopupDialog(
+                        summary = activeWeeklySummary,
+                        onOpenAnalyticsClick = {
+                            tokenStorage.markWeeklySummarySeen(activeWeeklySummary.weekMondayIso, session.userId)
+                            weeklySummaryPopupData = null
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(HealthTab.ANALYTICS.ordinal)
+                            }
+                        },
+                        onDismiss = {
+                            tokenStorage.markWeeklySummarySeen(activeWeeklySummary.weekMondayIso, session.userId)
+                            weeklySummaryPopupData = null
+                        }
                     )
                 }
 

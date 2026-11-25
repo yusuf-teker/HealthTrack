@@ -3,7 +3,6 @@ package com.yusufteker.healthtrack
 import android.app.Application
 import android.app.NotificationManager
 import android.content.Context
-import com.google.firebase.messaging.FirebaseMessaging
 import com.yusufteker.healthtrack.core.database.HealthAndroidDbContext
 import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.network.HealthTrackRuntimeConfig
@@ -43,20 +42,15 @@ class HealthTrackApplication : Application() {
             val koin = KoinPlatformTools.defaultContext().getOrNull() ?: return@launch
             runCatching { koin.get<TokenStorage>() }
             runCatching { koin.get<HealthDatabase>() }
-            // Defer non-critical notification channel & GMS/FCM token refresh until after first frame
+            // Defer non-critical notification channel & GMS/HMS push token refresh until after first frame
             delay(1500L)
             runCatching {
                 (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.let {
                     HealthTrackFirebaseMessagingService.ensurePushChannel(it)
                 }
             }
-            runCatching {
-                FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                    if (!token.isNullOrBlank()) {
-                        HealthTrackFirebaseMessagingService.saveFcmToken(this@HealthTrackApplication, token)
-                    }
-                }
-            }
+            MobileServicesHelper.initializeAgConnectIfPresent(this@HealthTrackApplication)
+            MobileServicesHelper.refreshPushToken(this@HealthTrackApplication, appScope)
         }
     }
 }

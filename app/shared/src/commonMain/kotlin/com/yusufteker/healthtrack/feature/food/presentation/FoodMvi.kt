@@ -54,6 +54,8 @@ data class FoodState(
     val customFoods: List<CustomFoodItem> = emptyList(),
     val favoriteFoodIds: Set<String> = emptySet(),
     val frequentFoods: List<FoodItem> = emptyList(),
+    val yesterdayItems: List<FoodItem> = emptyList(),
+    val yesterdayTotalCalories: Int = 0,
     val isAddCustomFoodDialogOpen: Boolean = false,
     val isAnalyzingCustomFoodAi: Boolean = false,
     val customFoodAiResult: FoodAiResultDto? = null,
@@ -100,9 +102,10 @@ data class FoodState(
     val dailyMealPlan: DailyMealPlan? = null,
     val addedMealSlotTypes: Set<MealSlotType> = emptySet(),
 
-    // ── AI Kota ──
+    // ── AI Kota & Oturum ──
     val aiQuota: HealthAiQuotaDto? = null,
-    val hasCustomGeminiKey: Boolean = false
+    val hasCustomGeminiKey: Boolean = false,
+    val isGuest: Boolean = false
 )
 
 enum class FoodScanTarget {
@@ -134,6 +137,9 @@ sealed interface FoodIntent {
         val items: List<FoodItem>,
         val summaryNote: String? = null
     ) : FoodIntent
+    // ── Tek Tık Tekrarla (AI Kotasız Sık / Dünkü Öğün) ──
+    data class OnQuickRepeatFoodItem(val item: FoodItem) : FoodIntent
+    data object OnRepeatYesterdayAllMeals : FoodIntent
     data object OnOpenEditGoalsDialog : FoodIntent
     data object OnCloseEditGoalsDialog : FoodIntent
     data class OnSaveGoals(val goal: NutritionGoal, val fitnessGoal: FitnessGoal = FitnessGoal.MAINTAIN) : FoodIntent

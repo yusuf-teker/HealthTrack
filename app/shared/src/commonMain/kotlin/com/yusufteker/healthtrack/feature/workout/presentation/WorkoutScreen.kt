@@ -87,6 +87,7 @@ fun WorkoutScreen(
     state: WorkoutState,
     onIntent: (WorkoutIntent) -> Unit,
     onOpenPremiumOffer: (() -> Unit)? = null,
+    onOpenGuestAuth: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val speechLauncher = rememberSpeechToTextLauncher()
@@ -534,7 +535,45 @@ fun WorkoutScreen(
                 )
                 }
 
-                if (isWorkoutQuotaExhausted) {
+                if (state.isGuest) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = HealthColors.Primary.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, HealthColors.Primary.copy(alpha = 0.30f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenGuestAuth?.invoke() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = str("✨ AI Spor Hesabı İçin Ücretsiz Hesap Aç", "✨ Create a Free Account for AI"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HealthColors.Primary
+                                )
+                                Text(
+                                    text = str(
+                                        "Günde 3 ücretsiz AI analizi + bulut yedekleme (mevcut kayıtların korunur)",
+                                        "3 free daily AI analyses + cloud backup (keeps your current logs)"
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = str("Giriş >", "Sign In >"),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = HealthColors.Primary
+                            )
+                        }
+                    }
+                } else if (isWorkoutQuotaExhausted) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = Color(0xFFD97706).copy(alpha = 0.12f),

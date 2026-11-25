@@ -12,6 +12,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun FoodScreenRoot(
     onNavigateToWeight: (() -> Unit)? = null,
     onOpenPremiumOffer: (() -> Unit)? = null,
+    onOpenGuestAuth: (() -> Unit)? = null,
     onShowToast: (String) -> Unit = {},
     viewModel: FoodViewModel = koinViewModel(),
     modifier: Modifier = Modifier
@@ -31,6 +32,7 @@ fun FoodScreenRoot(
         onIntent = viewModel::onIntent,
         onNavigateToWeight = onNavigateToWeight,
         onOpenPremiumOffer = onOpenPremiumOffer,
+        onOpenGuestAuth = onOpenGuestAuth,
         modifier = modifier
     )
 }

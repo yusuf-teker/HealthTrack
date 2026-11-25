@@ -89,7 +89,12 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 }
             }
 
-            override fun scheduleEveningWorkoutReminder(hour: Int, minute: Int) {
+            override fun scheduleEveningWorkoutReminder(
+                hour: Int,
+                minute: Int,
+                skipToday: Boolean,
+                minDaysDelay: Int
+            ) {
                 scheduleDailyBroadcastAlarm(
                     context = context,
                     hour = hour,
@@ -103,7 +108,9 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 hour: Int,
                 minute: Int,
                 frequency: com.yusufteker.healthtrack.core.model.WeightReminderFrequency,
-                lastWeightTimestamp: Long?
+                lastWeightTimestamp: Long?,
+                skipToday: Boolean,
+                minDaysDelay: Int
             ) {
                 if (frequency == com.yusufteker.healthtrack.core.model.WeightReminderFrequency.OFF) {
                     cancelMorningWeightReminder()
@@ -118,7 +125,12 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
                 )
             }
 
-            override fun scheduleMiddayFoodReminder(hour: Int, minute: Int) {
+            override fun scheduleMiddayFoodReminder(
+                hour: Int,
+                minute: Int,
+                skipToday: Boolean,
+                minDaysDelay: Int
+            ) {
                 scheduleDailyBroadcastAlarm(
                     context = context,
                     hour = hour,

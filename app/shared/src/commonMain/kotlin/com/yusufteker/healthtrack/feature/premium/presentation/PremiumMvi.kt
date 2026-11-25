@@ -61,53 +61,43 @@ fun localizedHealthTrackPlans(
 fun localizedHealthTrackFeatures(language: AppLanguage = LocalizationManager.currentLanguage): List<PremiumFeatureItem> = listOf(
     PremiumFeatureItem(
         id = "ai_food_vision",
-        title = trEn("Sınırsız AI Öğün & Fotoğraf Analizi", "Unlimited AI Meal & Photo Analysis", language),
+        title = trEn("Genişletilmiş AI Öğün & Fotoğraf Kotası", "Expanded AI Meal & Photo Quota", language),
         description = trEn(
-            "Tabak fotoğrafından veya metinden anında makro ve mikro besin analizi.",
-            "Instant macro & micronutrient analysis from a plate photo or text.",
+            "Günlük 3 hak sınırına takılmadan metinden, sesten ve tabak/etiket fotoğrafından anında makro & mikro besin analizi.",
+            "Instant macro & micronutrient analysis from text, voice, or plate/label photos without the 3/day free limit.",
             language
         ),
         iconName = "auto_awesome"
     ),
     PremiumFeatureItem(
-        id = "ai_meal_plan",
-        title = trEn("Kişisel AI Günlük Öğün Planlayıcı", "Personal AI Daily Meal Planner", language),
+        id = "ai_workout",
+        title = trEn("Sınırsız AI Spor & Kalori Hesaplama", "Unlimited AI Workout & Calorie Analysis", language),
         description = trEn(
-            "Hedef kalorine ve protein ihtiyacına göre akıllı öğün önerileri.",
-            "Smart meal recommendations tailored to your calorie and protein goals.",
+            "Antrenmanlarını serbest metinle yaz, kilona göre yakılan kaloriyi ve süreyi anında hesapla.",
+            "Describe your workouts in plain text and instantly calculate calories burned based on your weight.",
+            language
+        ),
+        iconName = "fitness_center"
+    ),
+    PremiumFeatureItem(
+        id = "ai_recipes_inventory",
+        title = trEn("AI Özel Tarif & Ürün Etiketi Analizi", "AI Custom Recipes & Label Analysis", language),
+        description = trEn(
+            "Kalan kalorine göre yapay zeka tarif önerileri oluştur ve ürün etiketlerini tek dokunuşla envanterine ekle.",
+            "Generate AI meal recipes for your remaining calories and scan product labels straight into your inventory.",
             language
         ),
         iconName = "restaurant"
     ),
     PremiumFeatureItem(
-        id = "weekly_bio_report",
-        title = trEn("Haftalık Bio-Telemetri & WhatsApp Raporu", "Weekly Bio-Telemetry & WhatsApp Report", language),
+        id = "core_always_free",
+        title = trEn("Diğer Tüm Özellikler Herkese Ücretsiz", "All Other Features Stay Free", language),
         description = trEn(
-            "Kilo, antrenman ve beslenme trendlerinin otomatik AI özeti.",
-            "Automated AI summary of your weight, workout, and nutrition trends.",
+            "Bulut yedekleme, haftalık raporlar, öğün planlayıcı, akıllı saat/tartı senkronu ve tüm temalar ücretsiz hesaplarda da açıktır.",
+            "Cloud sync, weekly reports, meal planner, watch/scale sync, and all themes are included free for all accounts.",
             language
         ),
-        iconName = "insights"
-    ),
-    PremiumFeatureItem(
-        id = "cloud_sync",
-        title = trEn("Çoklu Cihaz Bulut Senkronizasyonu", "Multi-Device Cloud Sync", language),
-        description = trEn(
-            "Tüm sağlık verilerin Planora ekosistemiyle anlık yedeklenir.",
-            "All your health data backs up automatically across the Planora ecosystem.",
-            language
-        ),
-        iconName = "cloud_done"
-    ),
-    PremiumFeatureItem(
-        id = "premium_themes",
-        title = trEn("Özel Bio-Telemetri Temaları", "Custom Bio-Telemetry Themes", language),
-        description = trEn(
-            "Obsidian, Emerald, Solar ve Crimson vurgu renklerine tam erişim.",
-            "Full access to Obsidian, Emerald, Solar, and Crimson accent palettes.",
-            language
-        ),
-        iconName = "palette"
+        iconName = "check_circle"
     )
 )
 

@@ -6,6 +6,7 @@ import com.yusufteker.healthtrack.core.database.HealthDatabase
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DailyStepTelemetry
+import com.yusufteker.healthtrack.core.model.HealthReminderType
 import com.yusufteker.healthtrack.core.model.SportType
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WorkoutLog
@@ -57,6 +58,12 @@ class WorkoutViewModel(
                 .distinctUntilChangedBy { it.hasActiveSession to it.userId }
                 .collect { session ->
                     if (session.hasActiveSession && session.userId != 0) {
+                        _state.update {
+                            it.copy(
+                                isGuest = session.isGuest,
+                                aiQuota = if (session.isGuest) null else it.aiQuota
+                            )
+                        }
                         observeWorkoutsAndCalories(session.userId, _state.value.selectedDate)
                         observeAllWorkoutsHistory(session.userId)
                         observeWeight(session.userId)
@@ -67,9 +74,21 @@ class WorkoutViewModel(
         }
     }
 
+    private fun guestAiRequiredMessage(): String = trEn(
+        "AI analizini kullanmak için ücretsiz hesap oluşturun veya giriş yapın (günlük 3 ücretsiz AI hakkı).",
+        "Create a free account or sign in to use AI analysis (includes 3 free daily AI analyses)."
+    )
+
     private fun refreshAiQuota() {
         val hasCustomKey = !tokenStorage.getCustomGeminiApiKey().isNullOrBlank()
-        _state.update { it.copy(hasCustomGeminiKey = hasCustomKey) }
+        val isGuest = tokenStorage.isGuest()
+        _state.update {
+            it.copy(
+                hasCustomGeminiKey = hasCustomKey,
+                isGuest = isGuest,
+                aiQuota = if (isGuest) null else it.aiQuota
+            )
+        }
         if (hasCustomKey || !tokenStorage.isAuthenticated()) return
         viewModelScope.launch {
             apiClient.getAiQuota().onSuccess { quota ->
@@ -260,6 +279,11 @@ class WorkoutViewModel(
         val userId = tokenStorage.getUserId()
         val weight = snapshot.userWeightKg
 
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update { it.copy(errorMessage = guestAiRequiredMessage()) }
+            return
+        }
+
         if (rawText.isBlank()) {
             _state.update {
                 it.copy(
@@ -294,6 +318,11 @@ class WorkoutViewModel(
                 )
 
                 database.upsertWorkout(workout)
+                com.yusufteker.healthtrack.core.sync.SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                    tokenStorage = tokenStorage,
+                    type = com.yusufteker.healthtrack.core.model.HealthReminderType.WORKOUT,
+                    nowMs = now
+                )
                 _state.update {
                     it.copy(
                         isCalculatingAi = false,
@@ -423,6 +452,11 @@ class WorkoutViewModel(
                 syncStatus = SyncStatus.PENDING
             )
             database.upsertWorkout(workout)
+            com.yusufteker.healthtrack.core.sync.SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                tokenStorage = tokenStorage,
+                type = com.yusufteker.healthtrack.core.model.HealthReminderType.WORKOUT,
+                nowMs = now
+            )
             _state.update {
                 it.copy(
                     rawText = "",

@@ -12,14 +12,26 @@ actual fun rememberDailyReminderNotifier(): DailyReminderNotifier {
             override val hasPermission: Boolean get() = false
             override fun requestPermission(onResult: (Boolean) -> Unit) { onResult(false) }
             override fun sendNotification(payload: ScheduledReminderPayload) {}
-            override fun scheduleEveningWorkoutReminder(hour: Int, minute: Int) {}
+            override fun scheduleEveningWorkoutReminder(
+                hour: Int,
+                minute: Int,
+                skipToday: Boolean,
+                minDaysDelay: Int
+            ) {}
             override fun scheduleMorningWeightReminder(
                 hour: Int,
                 minute: Int,
                 frequency: WeightReminderFrequency,
-                lastWeightTimestamp: Long?
+                lastWeightTimestamp: Long?,
+                skipToday: Boolean,
+                minDaysDelay: Int
             ) {}
-            override fun scheduleMiddayFoodReminder(hour: Int, minute: Int) {}
+            override fun scheduleMiddayFoodReminder(
+                hour: Int,
+                minute: Int,
+                skipToday: Boolean,
+                minDaysDelay: Int
+            ) {}
             override fun cancelEveningWorkoutReminder() {}
             override fun cancelMorningWeightReminder() {}
             override fun cancelMiddayFoodReminder() {}

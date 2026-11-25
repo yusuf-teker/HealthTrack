@@ -1,3 +1,12 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -25,6 +34,10 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.messaging)
+
+    // Huawei HMS Core (AppGallery / HMS-only devices)
+    implementation(libs.hms.agconnect.core)
+    implementation(libs.hms.push)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
@@ -89,5 +102,41 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+abstract class SyncAgConnectConfigTask : DefaultTask() {
+    @get:InputFile
+    @get:Optional
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val inputFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun sync() {
+        val outDir = outputDir.get().asFile
+        outDir.mkdirs()
+        val dest = outDir.resolve("agconnect-services.json")
+        val src = inputFile.orNull?.asFile
+        if (src != null && src.exists()) {
+            src.copyTo(dest, overwrite = true)
+        } else if (dest.exists()) {
+            dest.delete()
+        }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val taskName = "syncAgConnectConfig${variant.name.replaceFirstChar { it.uppercase() }}"
+        val syncTask = tasks.register<SyncAgConnectConfigTask>(taskName) {
+            val configFile = layout.projectDirectory.file("agconnect-services.json")
+            if (configFile.asFile.exists()) {
+                inputFile.set(configFile)
+            }
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(syncTask, SyncAgConnectConfigTask::outputDir)
     }
 }

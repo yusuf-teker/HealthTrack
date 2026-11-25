@@ -35,8 +35,15 @@ interface DailyReminderNotifier {
 
     /**
      * Schedules the evening workout reminder (default: 18:00).
+     * [skipToday] suppresses today's occurrence (e.g. when a workout was already logged today).
+     * [minDaysDelay] pushes the earliest occurrence forward for anti-spam ignore backoff.
      */
-    fun scheduleEveningWorkoutReminder(hour: Int = 18, minute: Int = 0)
+    fun scheduleEveningWorkoutReminder(
+        hour: Int = 18,
+        minute: Int = 0,
+        skipToday: Boolean = false,
+        minDaysDelay: Int = 0
+    )
 
     /**
      * Schedules the morning weight tracking reminder (default: 08:00) respecting [frequency].
@@ -45,13 +52,22 @@ interface DailyReminderNotifier {
         hour: Int = 8,
         minute: Int = 0,
         frequency: WeightReminderFrequency = WeightReminderFrequency.DAILY,
-        lastWeightTimestamp: Long? = null
+        lastWeightTimestamp: Long? = null,
+        skipToday: Boolean = false,
+        minDaysDelay: Int = 0
     )
 
     /**
      * Schedules the midday meal logging reminder (default: 13:30).
+     * [skipToday] suppresses today's occurrence (e.g. when a meal was already logged today).
+     * [minDaysDelay] pushes the earliest occurrence forward for anti-spam ignore backoff.
      */
-    fun scheduleMiddayFoodReminder(hour: Int = 13, minute: Int = 30)
+    fun scheduleMiddayFoodReminder(
+        hour: Int = 13,
+        minute: Int = 30,
+        skipToday: Boolean = false,
+        minDaysDelay: Int = 0
+    )
 
     /**
      * Cancels any scheduled evening workout reminder alarm.

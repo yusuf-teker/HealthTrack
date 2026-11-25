@@ -7,6 +7,7 @@ import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.model.DeviceHealthSnapshot
 import com.yusufteker.healthtrack.core.model.DeviceWeightRecord
+import com.yusufteker.healthtrack.core.model.HealthReminderType
 import com.yusufteker.healthtrack.core.model.SyncStatus
 import com.yusufteker.healthtrack.core.model.WeightChartPeriod
 import com.yusufteker.healthtrack.core.model.WeightEntry
@@ -371,6 +372,11 @@ class WeightViewModel(
 
             database.upsertWeight(entry)
             tokenStorage.setUserWeight(weight)
+            com.yusufteker.healthtrack.core.sync.SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                tokenStorage = tokenStorage,
+                type = com.yusufteker.healthtrack.core.model.HealthReminderType.WEIGHT,
+                nowMs = now
+            )
             val savedMsg = trEn("Kilo kaydedildi.", "Weight saved.", lang)
             _state.update {
                 it.copy(

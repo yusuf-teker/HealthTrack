@@ -199,11 +199,11 @@ fun WidgetQuickLogSheetOverlay(
 
     suspend fun submitAiFood(rawText: String): Result<String> = withContext(Dispatchers.Default) {
         val userId = tokenStorage.getUserId()
-        if (!tokenStorage.hasActiveSession() || userId == 0) {
+        if (!tokenStorage.isAuthenticated() || userId <= 0) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    if (isTr) "Önce HealthTrack uygulamasına giriş yapmalısınız."
-                    else "Please sign in to HealthTrack first."
+                    if (isTr) "AI analizini kullanmak için ücretsiz hesap oluşturun veya giriş yapın."
+                    else "Create a free account or sign in to use AI analysis."
                 )
             )
         }
@@ -262,11 +262,11 @@ fun WidgetQuickLogSheetOverlay(
 
     suspend fun submitAiWorkout(rawText: String): Result<String> = withContext(Dispatchers.Default) {
         val userId = tokenStorage.getUserId()
-        if (!tokenStorage.hasActiveSession() || userId == 0) {
+        if (!tokenStorage.isAuthenticated() || userId <= 0) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    if (isTr) "Önce HealthTrack uygulamasına giriş yapmalısınız."
-                    else "Please sign in to HealthTrack first."
+                    if (isTr) "AI analizini kullanmak için ücretsiz hesap oluşturun veya giriş yapın."
+                    else "Create a free account or sign in to use AI analysis."
                 )
             )
         }

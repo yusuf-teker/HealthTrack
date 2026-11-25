@@ -24,6 +24,7 @@ kotlin-js-store/
 *.keystore
 *.p8
 *.p12
+keystore.properties
 
 # OS metadata
 **/.DS_Store
@@ -36,9 +37,10 @@ Thumbs.db
 # Design files & mockups
 design/
 
-# Firebase & Google Services
+# Firebase & Google Services / Huawei HMS
 google-services.json
 GoogleService-Info.plist
+agconnect-services.json
 *serviceAccountKey*.json
 *firebase-adminsdk*.json
 

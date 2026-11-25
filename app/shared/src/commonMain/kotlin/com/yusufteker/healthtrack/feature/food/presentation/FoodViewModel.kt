@@ -13,6 +13,7 @@ import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.DailyMealPlanEngine
 import com.yusufteker.healthtrack.core.sync.SmartMealEngine
+import com.yusufteker.healthtrack.core.sync.SmartNotificationAntiSpamPolicy
 import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
 import com.yusufteker.healthtrack.core.utils.getTodayIso
@@ -65,6 +66,15 @@ class FoodViewModel(
             .flatMap { it.items }
             .map { it.name.trim().lowercase() }
             .toSet()
+    }
+
+    private fun resolveYesterdayItemsFor(selectedDate: String): List<FoodItem> {
+        val yesterdayIso = shiftDateIso(selectedDate, -1)
+        val raw = cachedAllFoodLogs
+            .filter { !it.isDeleted && it.date == yesterdayIso }
+            .flatMap { it.items }
+            .filter { it.name.isNotBlank() }
+        return mergeDuplicateFoodItems(raw)
     }
 
     private data class DayWeightInfo(
@@ -145,6 +155,8 @@ class FoodViewModel(
                     if (session.hasActiveSession && session.userId != 0) {
                         _state.update {
                             it.copy(
+                                isGuest = session.isGuest,
+                                aiQuota = if (session.isGuest) null else it.aiQuota,
                                 excludedIngredients = tokenStorage.getExcludedFoodIngredients(session.userId),
                                 favoriteIngredients = tokenStorage.getFavoriteFoodIngredients(session.userId)
                             )
@@ -164,9 +176,21 @@ class FoodViewModel(
         }
     }
 
+    private fun guestAiRequiredMessage(): String = trEn(
+        "AI analizini kullanmak için ücretsiz hesap oluşturun veya giriş yapın (günlük 3 ücretsiz AI hakkı).",
+        "Create a free account or sign in to use AI analysis (includes 3 free daily AI analyses)."
+    )
+
     private fun refreshAiQuota() {
         val hasCustomKey = !tokenStorage.getCustomGeminiApiKey().isNullOrBlank()
-        _state.update { it.copy(hasCustomGeminiKey = hasCustomKey) }
+        val isGuest = tokenStorage.isGuest()
+        _state.update {
+            it.copy(
+                hasCustomGeminiKey = hasCustomKey,
+                isGuest = isGuest,
+                aiQuota = if (isGuest) null else it.aiQuota
+            )
+        }
         if (hasCustomKey || !tokenStorage.isAuthenticated()) return
         viewModelScope.launch {
             apiClient.getAiQuota().onSuccess { quota ->
@@ -184,6 +208,7 @@ class FoodViewModel(
                 val isToday = intent.newDate == today
                 val isBannerVisible = isToday && tokenStorage.getDailyMealPlanDismissedDate() != today
                 recomputeRecent3DaysFoodNames(intent.newDate)
+                val yesterdayItems = resolveYesterdayItemsFor(intent.newDate)
                 _state.update { current ->
                     current.copy(
                         selectedDate = intent.newDate,
@@ -200,7 +225,9 @@ class FoodViewModel(
                         addedMealSlotTypes = emptySet(),
                         summary = null,
                         nutrientBars = calculateBars(emptyList(), current.nutritionGoal, dayWeightInfo.targetProtein),
-                        isDailyMealSuggestionBannerVisible = isBannerVisible
+                        isDailyMealSuggestionBannerVisible = isBannerVisible,
+                        yesterdayItems = yesterdayItems,
+                        yesterdayTotalCalories = yesterdayItems.sumOf { it.calories }
                     )
                 }
                 val userId = tokenStorage.getUserId()
@@ -227,6 +254,8 @@ class FoodViewModel(
                 intent.iconKey
             )
             is FoodIntent.OnAddMultipleItems -> addMultipleItems(intent.items, intent.summaryNote)
+            is FoodIntent.OnQuickRepeatFoodItem -> quickRepeatFoodItem(intent.item)
+            is FoodIntent.OnRepeatYesterdayAllMeals -> repeatYesterdayAllMeals()
             is FoodIntent.OnOpenEditGoalsDialog -> {
                 val currentFitnessGoal = if (_state.value.nutritionGoal.fitnessGoal.isNotBlank() && _state.value.nutritionGoal.fitnessGoal != FitnessGoal.MAINTAIN.id) {
                     _state.value.nutritionGoal.parsedFitnessGoal
@@ -514,6 +543,15 @@ class FoodViewModel(
                     compareByDescending<FoodLog> { it.date }
                         .thenByDescending { it.updatedAt }
                 )
+                val frequencyCounts = mutableMapOf<String, Int>()
+                sortedLogs.forEach { log ->
+                    log.items.forEach { item ->
+                        val norm = item.name.trim().lowercase()
+                        if (norm.isNotBlank()) {
+                            frequencyCounts[norm] = (frequencyCounts[norm] ?: 0) + 1
+                        }
+                    }
+                }
                 val frequent = sortedLogs
                     .flatMap { it.items }
                     .filter { item ->
@@ -521,12 +559,24 @@ class FoodViewModel(
                         norm.isNotBlank() && !hiddenNames.contains(norm)
                     }
                     .distinctBy { it.name.trim().lowercase() }
+                    .sortedWith(
+                        compareByDescending<FoodItem> { (frequencyCounts[it.name.trim().lowercase()] ?: 0) >= 2 }
+                            .thenByDescending { frequencyCounts[it.name.trim().lowercase()] ?: 0 }
+                    )
                     .take(25)
 
                 cachedAllFoodLogs = sortedLogs
-                recomputeRecent3DaysFoodNames(_state.value.selectedDate)
+                val selectedDate = _state.value.selectedDate
+                recomputeRecent3DaysFoodNames(selectedDate)
+                val yesterdayItems = resolveYesterdayItemsFor(selectedDate)
 
-                _state.update { it.copy(frequentFoods = frequent) }
+                _state.update {
+                    it.copy(
+                        frequentFoods = frequent,
+                        yesterdayItems = yesterdayItems,
+                        yesterdayTotalCalories = yesterdayItems.sumOf { y -> y.calories }
+                    )
+                }
                 updateSmartMealsAndSynergy()
             }
         }
@@ -634,6 +684,11 @@ class FoodViewModel(
                     )
                 )
             }
+            return
+        }
+
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update { it.copy(customFoodAiError = guestAiRequiredMessage()) }
             return
         }
 
@@ -799,6 +854,11 @@ class FoodViewModel(
         val date = _state.value.selectedDate
         val userId = tokenStorage.getUserId()
 
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update { it.copy(errorMessage = guestAiRequiredMessage()) }
+            return
+        }
+
         if (rawText.isBlank()) {
             _state.update {
                 it.copy(
@@ -884,6 +944,11 @@ class FoodViewModel(
                 )
 
                 database.upsertFood(newLog)
+                SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                    tokenStorage = tokenStorage,
+                    type = HealthReminderType.FOOD,
+                    nowMs = now
+                )
 
                 val dayWeightInfo = resolveDayWeightAndProtein(date)
                 _state.update {
@@ -975,6 +1040,35 @@ class FoodViewModel(
         )
         val currentItems = mergeDuplicateFoodItems(listOf(newItem) + _state.value.items)
         updateItemsInDb(currentItems)
+    }
+
+    private fun quickRepeatFoodItem(item: FoodItem) {
+        val cloned = item.copy(id = Uuid.random().toString())
+        val currentItems = mergeDuplicateFoodItems(listOf(cloned) + _state.value.items)
+        updateItemsInDb(currentItems)
+        val msg = trEn(
+            "✓ ${item.name} (${item.calories} kcal) • AI kotasız eklendi",
+            "✓ ${item.name} (${item.calories} kcal) • Added without AI quota"
+        )
+        _state.update { it.copy(infoMessage = msg) }
+        viewModelScope.launch {
+            _effects.send(FoodEffect.ShowToast(msg))
+        }
+    }
+
+    private fun repeatYesterdayAllMeals() {
+        val yesterdayItems = _state.value.yesterdayItems
+        if (yesterdayItems.isEmpty()) return
+        val clonedItems = yesterdayItems.map { it.copy(id = Uuid.random().toString()) }
+        val totalKcal = clonedItems.sumOf { it.calories }
+        val msg = trEn(
+            "✓ Dünkü ${clonedItems.size} öğün ($totalKcal kcal) AI kotasız eklendi",
+            "✓ Repeated ${clonedItems.size} meals from yesterday ($totalKcal kcal, 0 AI quota)"
+        )
+        addMultipleItems(clonedItems, msg)
+        viewModelScope.launch {
+            _effects.send(FoodEffect.ShowToast(msg))
+        }
     }
 
     private fun addMultipleItems(itemsToAdd: List<FoodItem>, summaryNote: String? = null) {
@@ -1174,6 +1268,11 @@ class FoodViewModel(
 
         viewModelScope.launch {
             database.upsertFood(updated)
+            SmartNotificationAntiSpamPolicy.markDomainEngaged(
+                tokenStorage = tokenStorage,
+                type = HealthReminderType.FOOD,
+                nowMs = now
+            )
             launch { syncEngine.sync() }
         }
     }
@@ -1487,6 +1586,11 @@ class FoodViewModel(
     }
 
     private fun requestCustomAiMealSuggestion() {
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update { it.copy(errorMessage = guestAiRequiredMessage()) }
+            return
+        }
+
         val current = _state.value
         val date = current.selectedDate
         val lang = LocalizationManager.currentLanguage
@@ -1636,6 +1740,16 @@ class FoodViewModel(
         imageBase64: String? = null,
         target: FoodScanTarget = FoodScanTarget.DAILY_MEAL
     ) {
+        if (!tokenStorage.isAuthenticated()) {
+            _state.update {
+                it.copy(
+                    isPhotoScanSheetOpen = false,
+                    errorMessage = guestAiRequiredMessage()
+                )
+            }
+            return
+        }
+
         val date = _state.value.selectedDate
         val lang = LocalizationManager.currentLanguage
         val structuredPrompt = if (lang == AppLanguage.EN) {

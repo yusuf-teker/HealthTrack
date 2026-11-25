@@ -243,7 +243,8 @@ fun ProfileScreen(
                 }
             }
 
-            // ── HealthTrack Premium Banner ──
+            // ── HealthTrack Premium Banner (hidden in Guest mode; Guests see the Account Upgrade card below) ──
+            if (!state.isGuest) {
             GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -285,8 +286,8 @@ fun ProfileScreen(
                                 if (until != null) str("Bitiş: $until", "Expires: $until") else str("Süresiz / Aktif Üyelik", "Lifetime / Active Membership")
                             } else {
                                 str(
-                                    "Sınırsız AI analizi, öğün planlayıcı ve özel temalar",
-                                    "Unlimited AI analysis, meal planner & custom themes"
+                                    "Günlük 3 AI analiz sınırını kaldır • Yemek, fotoğraf ve spor AI",
+                                    "Remove the 3/day AI limit • Meal, photo & workout AI"
                                 )
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -299,6 +300,7 @@ fun ProfileScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
             }
 
             // ── Segmented Tab Selector ──
@@ -1465,7 +1467,12 @@ fun ProfileScreen(
                         }
                     }
                     Text(
-                        text = if (maskedKey != null) {
+                        text = if (state.isGuest) {
+                            str(
+                                "AI öğün/spor analizi ve özel API anahtarı kullanımı için ücretsiz hesap oluşturmanız gerekir. Hesap açtığınızda günde 3 ücretsiz AI hakkı tanımlanır.",
+                                "A free account is required for AI meal/workout analysis and custom API keys. Signing up includes 3 free AI analyses per day."
+                            )
+                        } else if (maskedKey != null) {
                             str(
                                 "Kayıtlı anahtar: $maskedKey • Yemek ve egzersiz analizleri kendi Gemini kotanızla çalışır.",
                                 "Saved key: $maskedKey • Food and workout analyses use your own Gemini quota."
@@ -1493,13 +1500,19 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedButton(
-                        onClick = { showCustomApiKeyDialog = true },
+                        onClick = {
+                            if (state.isGuest) onOpenGuestAuth() else showCustomApiKeyDialog = true
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
                     ) {
                         Text(
-                            text = if (hasCustomKey) str("API Anahtarını Düzenle", "Edit API Key") else str("Özel API Key Ekle", "Add Custom API Key"),
+                            text = when {
+                                state.isGuest -> str("Ücretsiz Hesap Oluştur / Giriş Yap", "Create Free Account / Sign In")
+                                hasCustomKey -> str("API Anahtarını Düzenle", "Edit API Key")
+                                else -> str("Özel API Key Ekle", "Add Custom API Key")
+                            },
                             fontWeight = FontWeight.SemiBold
                         )
                     }

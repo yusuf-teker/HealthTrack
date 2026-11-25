@@ -88,6 +88,8 @@ private val populatedFoodState = FoodState(
     rawText = "",
     items = sampleFoodItems,
     totalCalories = 900,
+    yesterdayItems = sampleFoodItems.take(2),
+    yesterdayTotalCalories = 710,
     summary = "Günün ilk 3 öğünü kaydedildi. Protein alımı hedefin %56'sına ulaştı.",
     nutritionGoal = NutritionGoal(
         id = "goal_1",
@@ -106,7 +108,6 @@ private val populatedFoodState = FoodState(
     latestWeightKg = 73.4,
     weightDifferenceKg = -0.3,
     recentWeights = listOf(74.0, 73.8, 73.7, 73.5, 73.4),
-    frequentFoods = sampleFoodItems,
     waterEntry = WaterEntry(date = "2026-11-06", userId = 1, amountMl = 1750, targetMl = 2500),
     dynamicWaterTargetMl = 2500,
     synergyTips = listOf(

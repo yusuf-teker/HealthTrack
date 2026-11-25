@@ -30,7 +30,8 @@ data class WorkoutState(
     val errorMessage: String? = null,
     val infoMessage: String? = null,
     val aiQuota: HealthAiQuotaDto? = null,
-    val hasCustomGeminiKey: Boolean = false
+    val hasCustomGeminiKey: Boolean = false,
+    val isGuest: Boolean = false
 ) {
     val calorieProgress: Float
         get() = if (targetCalories > 0) (totalCaloriesBurned.toFloat() / targetCalories).coerceIn(0f, 1f) else 0f

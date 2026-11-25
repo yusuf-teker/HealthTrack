@@ -180,9 +180,9 @@ class WidgetQuickLogActivity : ComponentActivity() {
         val syncEngine = koin.getOrNull<SyncEngine>()
 
         val userId = tokenStorage.getUserId()
-        if (!tokenStorage.hasActiveSession() || userId == 0) {
+        if (!tokenStorage.isAuthenticated() || userId <= 0) {
             return@withContext Result.failure(
-                IllegalStateException("Önce HealthTrack uygulamasına giriş yapmalısınız.")
+                IllegalStateException("AI analizini kullanmak için ücretsiz hesap oluşturun veya giriş yapın.")
             )
         }
 
@@ -256,9 +256,9 @@ class WidgetQuickLogActivity : ComponentActivity() {
         val syncEngine = koin.getOrNull<SyncEngine>()
 
         val userId = tokenStorage.getUserId()
-        if (!tokenStorage.hasActiveSession() || userId == 0) {
+        if (!tokenStorage.isAuthenticated() || userId <= 0) {
             return@withContext Result.failure(
-                IllegalStateException("Önce HealthTrack uygulamasına giriş yapmalısınız.")
+                IllegalStateException("AI analizini kullanmak için ücretsiz hesap oluşturun veya giriş yapın.")
             )
         }
 

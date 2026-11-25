@@ -1,8 +1,6 @@
 package com.yusufteker.healthtrack
 
 import android.app.AlertDialog
-import android.app.NotificationManager
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -12,14 +10,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.google.firebase.messaging.FirebaseMessaging
+import androidx.lifecycle.lifecycleScope
 import com.yusufteker.healthtrack.core.i18n.AppLanguage
 import com.yusufteker.healthtrack.core.i18n.LocalizationManager
 import com.yusufteker.healthtrack.core.i18n.detectSystemLanguage
 import com.yusufteker.healthtrack.core.i18n.trEn
 import com.yusufteker.healthtrack.core.utils.WidgetDeepLinkBus
-import io.github.aakira.napier.DebugAntilog
-import io.github.aakira.napier.Napier
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,15 +69,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshFcmToken() {
-        try {
-            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-                if (!token.isNullOrBlank()) {
-                    HealthTrackFirebaseMessagingService.saveFcmToken(this, token)
-                }
-            }
-        } catch (_: Throwable) {
-            // FirebaseMessaging may be uninitialized in isolated preview/test environments
-        }
+        MobileServicesHelper.refreshPushToken(this, lifecycleScope)
     }
 
     override fun onNewIntent(intent: Intent) {
