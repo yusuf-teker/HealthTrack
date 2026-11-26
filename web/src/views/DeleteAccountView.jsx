@@ -99,7 +99,7 @@ export default function DeleteAccountView({ onBack }) {
                 </div>
                 <ul className="list-disc pl-5 space-y-1 text-rose-200/80">
                   <li>{t('Profil bilgileriniz, oturum jetonlarınız ve bildirim kayıtlarınız', 'Your profile details, session tokens, and notification registrations')}</li>
-                  <li>{t('HealthTrack beslenme, antrenman, kilo, hedef ve doktor randevu kayıtlarınız', 'Your HealthTrack nutrition, workout, weight, goal, and doctor appointment records')}</li>
+                  <li>{t('HealthTrack beslenme, antrenman, kilo ve hedef kayıtlarınız', 'Your HealthTrack nutrition, workout, weight, and goal records')}</li>
                   <li>{t('Planora görevleriniz, notlarınız, paylaşımlarınız ve oda üyelikleriniz', 'Your Planora tasks, notes, community posts, and room memberships')}</li>
                 </ul>
                 <p className="text-[11px] text-rose-300/80 pt-1">

@@ -30,7 +30,7 @@ export default function PrivacyPolicyView({ onBack }) {
               {t('Planora & HealthTrack Gizlilik Politikası', 'Planora & HealthTrack Privacy Policy')}
             </h1>
             <p className="text-xs text-gray-400 mt-2">
-              {t('Son Güncelleme: 19 Kasım 2026 • Geliştirici: Yusuf Teker', 'Last Updated: November 19, 2026 • Developer: Yusuf Teker')}
+              {t('Son Güncelleme: 26 Kasım 2026 • Geliştirici: Yusuf Teker', 'Last Updated: November 26, 2026 • Developer: Yusuf Teker')}
             </p>
           </div>
 
@@ -56,7 +56,7 @@ export default function PrivacyPolicyView({ onBack }) {
               </li>
               <li>
                 <strong className="text-gray-200">{t('HealthTrack Verileri:', 'HealthTrack Data:')}</strong>{' '}
-                {t('Beslenme/kalori kayıtları, makro ve mikro besin hedefleri, antrenman geçmişi, kilo ölçümleri ve doktor randevu notları.', 'Nutrition/calorie logs, macro and micronutrient targets, workout history, weight measurements, and doctor appointment notes.')}
+                {t('Beslenme/kalori kayıtları, makro ve mikro besin hedefleri, antrenman geçmişi ve kilo ölçümleri.', 'Nutrition/calorie logs, macro and micronutrient targets, workout history, and weight measurements.')}
               </li>
             </ul>
           </section>
@@ -97,7 +97,7 @@ export default function PrivacyPolicyView({ onBack }) {
             <ul className="list-disc pl-5 space-y-1.5 text-gray-400">
               <li>
                 <strong className="text-gray-200">{t('Kamera ve Galeri:', 'Camera & Photo Library:')}</strong>{' '}
-                {t('Yemek/besin etiketi fotoğraflarının analizi, profil fotoğrafı yükleme ve randevu belgesi ekleme işlemleri için yalnızca sizin seçiminizle kullanılır.', 'Used only when you explicitly choose to analyze food/nutrition label photos, upload a profile avatar, or attach appointment documents.')}
+                {t('Yemek/besin etiketi fotoğraflarının analizi ve profil fotoğrafı yükleme işlemleri için yalnızca sizin seçiminizle kullanılır.', 'Used only when you explicitly choose to analyze food/nutrition label photos or upload a profile avatar.')}
               </li>
               <li>
                 <strong className="text-gray-200">{t('Mikrofon ve Konuşma Tanıma:', 'Microphone & Speech Recognition:')}</strong>{' '}
@@ -105,7 +105,7 @@ export default function PrivacyPolicyView({ onBack }) {
               </li>
               <li>
                 <strong className="text-gray-200">{t('Takvim ve Bildirimler:', 'Calendar & Notifications:')}</strong>{' '}
-                {t('Planora görev hatırlatıcıları, odak bildirimleri ve HealthTrack randevu/ölçüm hatırlatıcıları için kullanılır.', 'Used for Planora task reminders, focus alerts, and HealthTrack weigh-in/workout/appointment reminders.')}
+                {t('Planora görev hatırlatıcıları, odak bildirimleri ve HealthTrack günlük ölçüm/egzersiz hatırlatıcıları için kullanılır.', 'Used for Planora task reminders, focus alerts, and HealthTrack weigh-in/workout reminders.')}
               </li>
             </ul>
           </section>

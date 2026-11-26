@@ -193,8 +193,8 @@ internal fun DeleteAccountConfirmDialog(
         text = {
             Text(
                 text = str(
-                    "Hesabınızı sildiğinizde tüm HealthTrack ve Planora verileriniz (beslenme, antrenman, kilo, randevular, görevler ve profil) kalıcı olarak silinir. Bu işlem geri alınamaz.",
-                    "Deleting your account will permanently erase all your HealthTrack and Planora data (nutrition, workouts, weight, appointments, tasks, and profile). This action cannot be undone."
+                    "Hesabınızı sildiğinizde tüm HealthTrack ve Planora verileriniz (beslenme, antrenman, kilo, görevler ve profil) kalıcı olarak silinir. Bu işlem geri alınamaz.",
+                    "Deleting your account will permanently erase all your HealthTrack and Planora data (nutrition, workouts, weight, tasks, and profile). This action cannot be undone."
                 ),
                 style = MaterialTheme.typography.bodyMedium
             )

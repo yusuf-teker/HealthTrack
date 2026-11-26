@@ -35,6 +35,7 @@ export default function AdminView() {
 
   // Push State
   const [pushMode, setPushMode] = useState('BROADCAST'); // 'BROADCAST', 'SPECIFIC'
+  const [pushTargetApp, setPushTargetApp] = useState('PLANORA'); // 'PLANORA', 'HEALTHTRACK', 'BOTH'
   const [pushTitle, setPushTitle] = useState('');
   const [pushBody, setPushBody] = useState('');
   const [pushUserQuery, setPushUserQuery] = useState('');
@@ -172,9 +173,11 @@ export default function AdminView() {
       title: pushTitle.trim(),
       body: pushBody.trim(),
       broadcastAll: pushMode === 'BROADCAST',
+      targetApp: pushTargetApp,
       userId: pushMode === 'SPECIFIC' ? selectedUser.id : null,
       data: {
         sender: 'Planora_HealthTrack_Portal_Admin',
+        targetApp: pushTargetApp,
         timestamp: Date.now().toString(),
       }
     };
@@ -379,8 +382,67 @@ export default function AdminView() {
             <div className="glass-panel rounded-3xl p-6 border border-white/10 space-y-5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
                 <Send className="w-3.5 h-3.5" />
-                <span>{t('1. Hedef Kitle Belirleme', '1. Select Target Audience')}</span>
+                <span>{t('1. Hedef Kitle & Uygulama Belirleme', '1. Select Target Audience & App')}</span>
               </h3>
+
+              {/* Target App Selector */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 mb-2 uppercase">
+                  {t('Hedef Uygulama', 'Target App')}
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setPushTargetApp('PLANORA')}
+                    className={`p-3 rounded-2xl text-left border transition-all ${
+                      pushTargetApp === 'PLANORA'
+                        ? 'bg-indigo-500/20 border-indigo-500/50 text-white shadow-sm'
+                        : 'bg-white/[0.02] border-white/10 text-gray-400 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="font-bold text-xs block text-white">⚡ Planora</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      {stats?.planoraFcmDevices != null
+                        ? `${stats.planoraFcmDevices} ${t('cihaz', 'devices')}`
+                        : t('Sadece Planora', 'Planora only')}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPushTargetApp('HEALTHTRACK')}
+                    className={`p-3 rounded-2xl text-left border transition-all ${
+                      pushTargetApp === 'HEALTHTRACK'
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-white shadow-sm'
+                        : 'bg-white/[0.02] border-white/10 text-gray-400 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="font-bold text-xs block text-white">🍏 HealthTrack</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      {stats?.healthTrackFcmDevices != null
+                        ? `${stats.healthTrackFcmDevices} ${t('cihaz', 'devices')}`
+                        : t('Sadece HealthTrack', 'HealthTrack only')}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPushTargetApp('BOTH')}
+                    className={`p-3 rounded-2xl text-left border transition-all ${
+                      pushTargetApp === 'BOTH'
+                        ? 'bg-rose-500/20 border-rose-500/50 text-white shadow-sm'
+                        : 'bg-white/[0.02] border-white/10 text-gray-400 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="font-bold text-xs block text-white">{t('🌐 Her İkisi', '🌐 Both')}</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      {stats?.totalFcmDevices != null
+                        ? `${stats.totalFcmDevices} ${t('cihaz', 'devices')}`
+                        : t('İki uygulama da', 'Both apps')}
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -441,7 +503,9 @@ export default function AdminView() {
                             <span className="text-[10px] text-gray-400 block">{target.email}</span>
                           </div>
                           <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-emerald-400">
-                            {target.fcmDeviceCount} {t('Cihaz', 'Devices')}
+                            {target.planoraFcmDeviceCount != null || target.healthTrackFcmDeviceCount != null
+                              ? `P:${target.planoraFcmDeviceCount || 0} • H:${target.healthTrackFcmDeviceCount || 0}`
+                              : `${target.fcmDeviceCount} ${t('Cihaz', 'Devices')}`}
                           </span>
                         </div>
                       ))}
@@ -450,7 +514,14 @@ export default function AdminView() {
 
                   {selectedUser && (
                     <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between">
-                      <span>{t('Seçilen Kullanıcı:', 'Selected User:')} <strong>@{selectedUser.username}</strong> ({selectedUser.email})</span>
+                      <span>
+                        {t('Seçilen Kullanıcı:', 'Selected User:')} <strong>@{selectedUser.username}</strong> ({selectedUser.email})
+                        {(selectedUser.planoraFcmDeviceCount != null || selectedUser.healthTrackFcmDeviceCount != null) && (
+                          <span className="ml-2 text-[10px] text-amber-200/80">
+                            [P:{selectedUser.planoraFcmDeviceCount || 0} • H:{selectedUser.healthTrackFcmDeviceCount || 0}]
+                          </span>
+                        )}
+                      </span>
                       <button onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -559,7 +630,10 @@ export default function AdminView() {
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>{pushMode === 'BROADCAST' ? t('Tüm Cihazlara Anında Gönder (Broadcast)', 'Send Immediately to All Devices (Broadcast)') : t('Hedef Kullanıcıya Gönder', 'Send to Target User')}</span>
+                    <span>
+                      {`${pushTargetApp === 'HEALTHTRACK' ? 'HealthTrack' : pushTargetApp === 'BOTH' ? 'Planora & HealthTrack' : 'Planora'} • `}
+                      {pushMode === 'BROADCAST' ? t('Tüm Cihazlara Anında Gönder (Broadcast)', 'Send Immediately to All Devices (Broadcast)') : t('Hedef Kullanıcıya Gönder', 'Send to Target User')}
+                    </span>
                   </>
                 )}
               </button>
@@ -595,10 +669,26 @@ export default function AdminView() {
                 <div className="glass-panel p-3.5 rounded-2xl border border-white/20 shadow-2xl bg-[#1E2738]/90 backdrop-blur-xl animate-fade-in">
                   <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1.5">
                     <div className="flex items-center gap-1.5 font-bold text-white">
-                      <div className="w-4 h-4 rounded bg-gradient-to-tr from-emerald-500 to-indigo-500 flex items-center justify-center text-[9px] text-white font-black">
-                        H
-                      </div>
-                      <span>HealthTrack & Planora</span>
+                      {pushTargetApp === 'HEALTHTRACK' ? (
+                        <div className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center text-[9px] text-white font-black">
+                          H
+                        </div>
+                      ) : pushTargetApp === 'PLANORA' ? (
+                        <div className="w-4 h-4 rounded bg-indigo-500 flex items-center justify-center text-[9px] text-white font-black">
+                          P
+                        </div>
+                      ) : (
+                        <div className="w-5 h-4 rounded bg-gradient-to-tr from-emerald-500 to-indigo-500 flex items-center justify-center text-[8px] text-white font-black">
+                          H/P
+                        </div>
+                      )}
+                      <span>
+                        {pushTargetApp === 'HEALTHTRACK'
+                          ? 'HealthTrack'
+                          : pushTargetApp === 'PLANORA'
+                          ? 'Planora'
+                          : 'HealthTrack & Planora'}
+                      </span>
                     </div>
                     <span>{t('şimdi', 'now')}</span>
                   </div>
@@ -706,7 +796,14 @@ export default function AdminView() {
                         <td className="py-3.5 px-4 text-gray-300">
                           <div className="flex items-center gap-3">
                             <span title={t('Görev Sayısı', 'Task Count')}>📋 {u.taskCount || 0}</span>
-                            <span title={t('Kayıtlı FCM Cihaz', 'Registered FCM Devices')}>📱 {u.fcmDeviceCount || 0}</span>
+                            <span title={t('Kayıtlı FCM Cihaz (Planora / HealthTrack)', 'Registered FCM Devices (Planora / HealthTrack)')}>
+                              📱 {u.fcmDeviceCount || 0}
+                              {(u.planoraFcmDeviceCount != null || u.healthTrackFcmDeviceCount != null) && (
+                                <span className="text-[10px] text-gray-400 ml-1">
+                                  (P:{u.planoraFcmDeviceCount || 0} H:{u.healthTrackFcmDeviceCount || 0})
+                                </span>
+                              )}
+                            </span>
                           </div>
                         </td>
 
@@ -851,7 +948,11 @@ export default function AdminView() {
                 {t('Aktif FCM Cihazları', 'Active FCM Devices')}
               </span>
               <div className="text-3xl font-black text-white">{stats?.totalFcmDevices ?? '--'}</div>
-              <p className="text-[11px] text-gray-400 mt-2">{t('Push bildirim alabilen cihazlar', 'Devices registered for push notifications')}</p>
+              <p className="text-[11px] text-gray-400 mt-2">
+                {stats?.planoraFcmDevices != null || stats?.healthTrackFcmDevices != null
+                  ? `Planora: ${stats?.planoraFcmDevices ?? 0} • HealthTrack: ${stats?.healthTrackFcmDevices ?? 0}`
+                  : t('Push bildirim alabilen cihazlar', 'Devices registered for push notifications')}
+              </p>
             </div>
 
             <div className="glass-panel rounded-3xl p-6 border border-white/10">

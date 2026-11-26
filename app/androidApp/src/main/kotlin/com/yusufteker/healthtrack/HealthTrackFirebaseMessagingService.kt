@@ -70,6 +70,13 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
                 }
             }
 
+            val isFriendActivity = typeRaw != null && (
+                typeRaw.equals("WORKOUT", ignoreCase = true) ||
+                    typeRaw.equals("FOLLOW_REQUEST", ignoreCase = true)
+                )
+            val openTab = data["open_tab"]?.takeIf { it.isNotBlank() }
+                ?: if (isFriendActivity) "LEADERBOARD" else null
+
             val event = FriendNotificationBus.emitFromPushPayload(
                 id = id,
                 actorName = actorName,
@@ -82,18 +89,25 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
             )
 
             val foreground = isAppInForeground(context)
-            if (!foreground) {
+            if (!foreground && isFriendActivity) {
                 persistPendingNotification(context, event)
             }
             showSystemNotification(
                 context = context,
                 title = title ?: event.actorName,
                 body = body ?: event.messageTr,
-                eventId = event.id
+                eventId = event.id,
+                openTab = openTab
             )
         }
 
-        private fun showSystemNotification(context: Context, title: String, body: String, eventId: String) {
+        private fun showSystemNotification(
+            context: Context,
+            title: String,
+            body: String,
+            eventId: String,
+            openTab: String?
+        ) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) {
@@ -105,7 +119,9 @@ class HealthTrackFirebaseMessagingService : FirebaseMessagingService() {
             val launchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(EXTRA_PUSH_NOTIFICATION_ID, eventId)
-                putExtra("open_tab", "LEADERBOARD")
+                if (openTab != null) {
+                    putExtra("open_tab", openTab)
+                }
             }
             val pendingIntent = PendingIntent.getActivity(
                 context,

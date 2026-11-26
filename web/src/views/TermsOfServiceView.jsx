@@ -43,8 +43,8 @@ export default function TermsOfServiceView({ onBack }) {
               <p className="font-bold text-amber-400">{t('Önemli Uyarı: Tıbbi Tavsiye Değildir', 'Important Notice: Not Medical Advice')}</p>
               <p>
                 {t(
-                  'HealthTrack yalnızca kişisel beslenme, egzersiz, kilo ve randevu takibi amacıyla sunulan bir yaşam tarzı ve biyo-telemetri uygulamasıdır. Uygulama içindeki kalori, makro/mikro besin hedefleri, VKİ (BMI) hesaplamaları ve yapay zeka tabanlı analizler tıbbi tavsiye, teşhis veya tedavi yerine geçmez. Sağlıkla ilgili kararlarınızda mutlaka bir hekim veya uzman diyetisyene danışınız.',
-                  'HealthTrack is a lifestyle and bio-telemetry companion offered solely for personal nutrition, workout, weight, and appointment tracking. Calorie, macro/micronutrient targets, BMI calculations, and AI-powered insights do not constitute medical advice, diagnosis, or treatment. Always consult a qualified physician or dietitian for medical decisions.'
+                  'HealthTrack yalnızca kişisel beslenme, egzersiz ve kilo takibi amacıyla sunulan bir yaşam tarzı ve biyo-telemetri uygulamasıdır. Uygulama içindeki kalori, makro/mikro besin hedefleri, VKİ (BMI) hesaplamaları ve yapay zeka tabanlı analizler tıbbi tavsiye, teşhis veya tedavi yerine geçmez. Sağlıkla ilgili kararlarınızda mutlaka bir hekim veya uzman diyetisyene danışınız.',
+                  'HealthTrack is a lifestyle and bio-telemetry companion offered solely for personal nutrition, workout, and weight tracking. Calorie, macro/micronutrient targets, BMI calculations, and AI-powered insights do not constitute medical advice, diagnosis, or treatment. Always consult a qualified physician or dietitian for medical decisions.'
                 )}
               </p>
             </div>
