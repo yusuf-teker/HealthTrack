@@ -18,6 +18,7 @@ import com.yusufteker.healthtrack.core.sync.SyncEngine
 import com.yusufteker.healthtrack.core.utils.ExternalAppLauncher
 import com.yusufteker.healthtrack.core.utils.getTodayIso
 import com.yusufteker.healthtrack.core.utils.shiftDateIso
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -896,7 +897,7 @@ class FoodViewModel(
                     }
                     return@onFailure
                 }
-                println("[FoodViewModel] analyzeFood failure: ${err.message ?: "Bilinmeyen hata"}")
+                Napier.w("analyzeFood failure: ${err.message ?: "Bilinmeyen hata"}", tag = "FoodViewModel")
                 val displayMsg = formatActionableApiError(
                     error = err,
                     operationTr = "AI besin analizi",

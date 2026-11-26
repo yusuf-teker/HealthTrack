@@ -574,13 +574,20 @@ fun WorkoutScreen(
                         }
                     }
                 } else if (isWorkoutQuotaExhausted) {
+                    val hasPurchaseFlow = onOpenPremiumOffer != null
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = Color(0xFFD97706).copy(alpha = 0.12f),
                         border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.35f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onOpenPremiumOffer?.invoke() }
+                            .then(
+                                if (hasPurchaseFlow) {
+                                    Modifier.clickable { onOpenPremiumOffer?.invoke() }
+                                } else {
+                                    Modifier
+                                }
+                            )
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -595,17 +602,23 @@ fun WorkoutScreen(
                                     color = Color(0xFFD97706)
                                 )
                                 Text(
-                                    text = str("Sana özel fırsatla sınırsıza geç", "Upgrade with your exclusive offer"),
+                                    text = if (hasPurchaseFlow) {
+                                        str("Sana özel fırsatla sınırsıza geç", "Upgrade with your exclusive offer")
+                                    } else {
+                                        str("Yarın yenilenir • Manuel girişle devam edebilirsin", "Resets tomorrow • You can continue logging manually")
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(
-                                text = str("249.99 ₺ >", "249.99 ₺ >"),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFD97706)
-                            )
+                            if (hasPurchaseFlow) {
+                                Text(
+                                    text = str("249.99 ₺ >", "249.99 ₺ >"),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD97706)
+                                )
+                            }
                         }
                     }
                 }

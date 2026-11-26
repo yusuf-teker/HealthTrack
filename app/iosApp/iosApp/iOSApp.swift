@@ -37,6 +37,14 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         }
         UNUserNotificationCenter.current().delegate = self
         Messaging.messaging().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, error in
+            if let error = error {
+                print("[FCM/APNs] Notification permission error: \(error.localizedDescription)")
+            }
+            DispatchQueue.main.async {
+                application.registerForRemoteNotifications()
+            }
+        }
         DispatchQueue.main.async {
             application.registerForRemoteNotifications()
         }
@@ -45,7 +53,10 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         application.registerForRemoteNotifications()
-        Messaging.messaging().token { token, _ in
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                print("[FCM/APNs] Failed to fetch FCM token on active: \(error.localizedDescription)")
+            }
             if let token = token, !token.isEmpty {
                 IosPushSwiftBridge.shared.onPushTokenUpdated(token: token)
             }
@@ -54,11 +65,18 @@ final class SwiftAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
-        Messaging.messaging().token { token, _ in
+        Messaging.messaging().token { token, error in
+            if let error = error {
+                print("[FCM/APNs] Failed to fetch FCM token after APNs registration: \(error.localizedDescription)")
+            }
             if let token = token, !token.isEmpty {
                 IosPushSwiftBridge.shared.onPushTokenUpdated(token: token)
             }
         }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("[FCM/APNs] Failed to register for remote notifications: \(error.localizedDescription)")
     }
 
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {

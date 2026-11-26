@@ -902,7 +902,7 @@ private fun AppContent(initialTab: HealthTab) {
                         onComplete = { isInitialSetupVisible = false },
                         onShowToast = showToast
                     )
-                } else if (isPremiumScreenOpen) {
+                } else if (isPremiumScreenOpen && storeBillingClient.isStoreConnected) {
                     @Suppress("DEPRECATION")
                     @OptIn(ExperimentalComposeUiApi::class)
                     BackHandler(enabled = true) {
@@ -938,10 +938,12 @@ private fun AppContent(initialTab: HealthTab) {
                         onBack = { isProfileScreenOpen = false },
                         onThemeAccentChanged = { currentThemeColor = it },
                         onDarkModeChanged = { isDark = it },
-                        onOpenPremium = {
-                            premiumOfferType = null
-                            isPremiumScreenOpen = true
-                        },
+                        onOpenPremium = if (storeBillingClient.isStoreConnected) {
+                            {
+                                premiumOfferType = null
+                                isPremiumScreenOpen = true
+                            }
+                        } else null,
                         onOpenGuestAuth = {
                             isProfileScreenOpen = false
                             isGuestAuthOpen = true
@@ -1239,18 +1241,22 @@ private fun AppContent(initialTab: HealthTab) {
                                                 pagerState.animateScrollToPage(HealthTab.WEIGHT.ordinal)
                                             }
                                         },
-                                        onOpenPremiumOffer = {
-                                            premiumOfferType = "quota_exceeded"
-                                            isPremiumScreenOpen = true
-                                        },
+                                        onOpenPremiumOffer = if (storeBillingClient.isStoreConnected) {
+                                            {
+                                                premiumOfferType = "quota_exceeded"
+                                                isPremiumScreenOpen = true
+                                            }
+                                        } else null,
                                         onOpenGuestAuth = { isGuestAuthOpen = true },
                                         onShowToast = showToast
                                     )
                                     HealthTab.WORKOUT -> WorkoutScreenRoot(
-                                        onOpenPremiumOffer = {
-                                            premiumOfferType = "quota_exceeded"
-                                            isPremiumScreenOpen = true
-                                        },
+                                        onOpenPremiumOffer = if (storeBillingClient.isStoreConnected) {
+                                            {
+                                                premiumOfferType = "quota_exceeded"
+                                                isPremiumScreenOpen = true
+                                            }
+                                        } else null,
                                         onOpenGuestAuth = { isGuestAuthOpen = true },
                                         onShowToast = showToast
                                     )

@@ -71,7 +71,7 @@ fun ProfileScreen(
     state: ProfileState,
     onIntent: (ProfileIntent) -> Unit,
     onBack: () -> Unit,
-    onOpenPremium: () -> Unit = {},
+    onOpenPremium: (() -> Unit)? = null,
     onOpenGuestAuth: () -> Unit = {},
     onReplayOnboarding: () -> Unit = {},
     onOpenWidgetPromo: (() -> Unit)? = null,
@@ -243,13 +243,18 @@ fun ProfileScreen(
                 }
             }
 
-            // ── HealthTrack Premium Banner (hidden in Guest mode; Guests see the Account Upgrade card below) ──
-            if (!state.isGuest) {
+            // ── HealthTrack Premium Banner (hidden until store billing is connected unless user already has active Premium) ──
+            if (!state.isGuest && (state.isPremium || onOpenPremium != null)) {
             GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .bounceClick()
-                    .clickable(onClick = onOpenPremium)
+                    .then(
+                        if (onOpenPremium != null) {
+                            Modifier.bounceClick().clickable(onClick = onOpenPremium)
+                        } else {
+                            Modifier
+                        }
+                    )
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -294,11 +299,13 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (onOpenPremium != null) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             }

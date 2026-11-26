@@ -28,7 +28,7 @@ fun ProfileScreenRoot(
     onBack: () -> Unit,
     onThemeAccentChanged: (AppThemeColor) -> Unit,
     onDarkModeChanged: (Boolean) -> Unit,
-    onOpenPremium: () -> Unit = {},
+    onOpenPremium: (() -> Unit)? = null,
     onOpenGuestAuth: () -> Unit = {},
     onReplayOnboarding: () -> Unit = {},
     onOpenWidgetPromo: (() -> Unit)? = null,

@@ -18,6 +18,7 @@ import com.yusufteker.healthtrack.core.network.TokenStorage
 import com.yusufteker.healthtrack.core.network.formatActionableApiError
 import com.yusufteker.healthtrack.core.sync.DeviceHealthSyncManager
 import com.yusufteker.healthtrack.core.sync.SyncEngine
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -347,7 +348,7 @@ class WorkoutViewModel(
                     }
                     return@onFailure
                 }
-                println("[WorkoutViewModel] analyzeWorkout failure: ${err.message ?: "Bilinmeyen hata"}")
+                Napier.w("analyzeWorkout failure: ${err.message ?: "Bilinmeyen hata"}", tag = "WorkoutViewModel")
                 val displayMsg = formatActionableApiError(
                     error = err,
                     operationTr = "AI spor analizi",

@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
@@ -38,7 +37,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Straighten
@@ -437,134 +435,6 @@ fun FoodScreen(
                         maxLines = 3
                     )
 
-                    // ── Tek Tık Tekrarla (AI Kotasız Sık / Dünkü Öğün) ──
-                    val hasRepeatableHistory = state.yesterdayItems.isNotEmpty() || state.frequentFoods.isNotEmpty()
-                    if (hasRepeatableHistory) {
-                        val yesterdayNames = remember(state.yesterdayItems) {
-                            state.yesterdayItems.map { it.name.trim().lowercase() }.toSet()
-                        }
-                        val repeatableItems = remember(state.yesterdayItems, state.frequentFoods) {
-                            val seen = mutableSetOf<String>()
-                            buildList {
-                                state.yesterdayItems.forEach { item ->
-                                    val key = item.name.trim().lowercase()
-                                    if (key.isNotBlank() && seen.add(key)) add(item to true)
-                                }
-                                state.frequentFoods.forEach { item ->
-                                    val key = item.name.trim().lowercase()
-                                    if (key.isNotBlank() && seen.add(key)) add(item to false)
-                                }
-                            }.take(8)
-                        }
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = null,
-                                        tint = Color(0xFF10B981),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = str("Tek Tık Tekrarla", "1-Tap Repeat"),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                Surface(
-                                    shape = RoundedCornerShape(999.dp),
-                                    color = Color(0xFF10B981).copy(alpha = 0.14f),
-                                    border = BorderStroke(0.75.dp, Color(0xFF10B981).copy(alpha = 0.35f))
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Bolt,
-                                            contentDescription = null,
-                                            tint = Color(0xFF10B981),
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                        Text(
-                                            text = str("AI Kotasız", "0 AI Quota"),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF10B981)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (state.yesterdayItems.isNotEmpty()) {
-                                    RepeatAllYesterdayChip(
-                                        itemCount = state.yesterdayItems.size,
-                                        totalCalories = state.yesterdayTotalCalories,
-                                        onClick = {
-                                            dismissKeyboard()
-                                            onIntent(FoodIntent.OnRepeatYesterdayAllMeals)
-                                        }
-                                    )
-                                }
-                                repeatableItems.forEach { (item, isFromYesterday) ->
-                                    val shortName = if (item.name.length > 16) "${item.name.take(16)}…" else item.name
-                                    val tag = if (isFromYesterday || yesterdayNames.contains(item.name.trim().lowercase())) {
-                                        str("Dün", "Yest.")
-                                    } else {
-                                        null
-                                    }
-                                    InstantRepeatFoodChip(
-                                        name = shortName,
-                                        calories = item.calories,
-                                        tag = tag,
-                                        onClick = {
-                                            dismissKeyboard()
-                                            onIntent(FoodIntent.OnQuickRepeatFoodItem(item))
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // Brand-new user starter prompt chips
-                        val defaultQuickChips = listOf(
-                            str("+ 2 Yumurta", "+ 2 Eggs") to str("2 yumurta", "2 eggs"),
-                            str("+ Yulaf & Süt", "+ Oats & Milk") to str("1 kase yulaf ve süt", "1 bowl oats & milk"),
-                            str("+ Izgara Tavuk", "+ Grilled Chicken") to str("150g ızgara tavuk", "150g grilled chicken"),
-                            str("+ Filtre Kahve", "+ Filter Coffee") to str("1 fincan filtre kahve", "1 cup black coffee")
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            defaultQuickChips.forEach { (label, promptText) ->
-                                QuickChip(label = label) {
-                                    val current = if (rawTextInput.isNotBlank()) "$rawTextInput, $promptText" else promptText
-                                    rawTextInput = current
-                                    onIntent(FoodIntent.OnRawTextChanged(current))
-                                }
-                            }
-                        }
-                    }
-
                     val foodAiQuota = state.aiQuota?.takeIf { !state.hasCustomGeminiKey }
                     val isFoodQuotaExhausted = foodAiQuota != null && foodAiQuota.dailyRemaining <= 0
                     val foodQuotaBadge = foodAiQuota?.let { "${it.dailyRemaining}/${it.dailyLimit}" }
@@ -625,13 +495,20 @@ fun FoodScreen(
                             }
                         }
                     } else if (isFoodQuotaExhausted) {
+                        val hasPurchaseFlow = onOpenPremiumOffer != null
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color(0xFFD97706).copy(alpha = 0.12f),
                             border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.35f)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onOpenPremiumOffer?.invoke() }
+                                .then(
+                                    if (hasPurchaseFlow) {
+                                        Modifier.clickable { onOpenPremiumOffer?.invoke() }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -646,17 +523,23 @@ fun FoodScreen(
                                         color = Color(0xFFD97706)
                                     )
                                     Text(
-                                        text = str("Sana özel fırsatla sınırsıza geç", "Upgrade with your exclusive offer"),
+                                        text = if (hasPurchaseFlow) {
+                                            str("Sana özel fırsatla sınırsıza geç", "Upgrade with your exclusive offer")
+                                        } else {
+                                            str("Yarın yenilenir • Manuel girişle devam edebilirsin", "Resets tomorrow • You can continue logging manually")
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Text(
-                                    text = str("249.99 ₺ >", "249.99 ₺ >"),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFD97706)
-                                )
+                                if (hasPurchaseFlow) {
+                                    Text(
+                                        text = str("249.99 ₺ >", "249.99 ₺ >"),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFD97706)
+                                    )
+                                }
                             }
                         }
                     }
@@ -984,127 +867,6 @@ fun FoodScreen(
                 onDismiss = { onIntent(FoodIntent.OnClosePhotoScanSheet) }
             )
         }
-    }
-}
-
-@Composable
-private fun RepeatAllYesterdayChip(
-    itemCount: Int,
-    totalCalories: Int,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = Color(0xFF10B981).copy(alpha = 0.16f),
-        border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.45f)),
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick)
-            .bounceClick()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                tint = Color(0xFF10B981),
-                modifier = Modifier.size(13.dp)
-            )
-            Text(
-                text = str(
-                    "Dünün Tümü ($itemCount • $totalCalories kcal)",
-                    "All Yesterday ($itemCount • $totalCalories kcal)"
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF10B981),
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun InstantRepeatFoodChip(
-    name: String,
-    calories: Int,
-    tag: String?,
-    onClick: () -> Unit
-) {
-    val accent = if (tag != null) HealthColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = if (tag != null) {
-            HealthColors.Primary.copy(alpha = 0.12f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        },
-        border = BorderStroke(
-            0.75.dp,
-            if (tag != null) HealthColors.Primary.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-        ),
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick)
-            .bounceClick()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "+ $name",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
-            if (calories > 0) {
-                Text(
-                    text = "${calories}k",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = accent,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-            }
-            if (tag != null) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = HealthColors.Primary.copy(alpha = 0.18f)
-                ) {
-                    Text(
-                        text = tag,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                        color = HealthColors.Primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickChip(
-    label: String, onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier.clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp).bounceClick()
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 
